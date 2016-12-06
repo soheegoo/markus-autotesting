@@ -108,6 +108,9 @@ class MarkusSQLTester(MarkusUtilsMixin):
         output_open.write('========== {} - {} ==========\n'.format(test_name, status.upper()))
         if actual:
             output_open.write(' Problem: {}\n'.format(actual))
+        if oracle_results is None or test_results is None:
+            output_open.write('\n')
+            return
         output_open.write(' Expected Columns:\n  {}\n'.format(pprint.pformat([column.name for column in
                                                                               self.oracle_cursor.description])))
         output_open.write(' Actual Columns:\n  {}\n'.format(pprint.pformat([column.name for column in
@@ -123,16 +126,19 @@ class MarkusSQLTester(MarkusUtilsMixin):
     def run(self):
 
         try:
-            self.init_db()
             with open(self.output_filename, 'w') as output_open:
-                for sql_file in self.specs.keys():
+                self.init_db()
+                for sql_file in sorted(self.specs.keys()):
                     test_name = sql_file.partition('.')[0]
-                    for data_file, test_points in self.specs[sql_file].items():
+                    for data_file, test_points in sorted(self.specs[sql_file].items()):
                         data_name = data_file.partition('.')[0]
                         test_data_name = '{} + {}'.format(test_name, data_name)
                         if not os.path.isfile(sql_file):
-                            self.print_result(name=test_data_name, input='', expected='',
-                                              actual='File {} not found'.format(sql_file), marks=0, status='fail')
+                            msg = 'File {} not found'.format(sql_file)
+                            self.print_result(name=test_data_name, input='', expected='', actual=msg, marks=0,
+                                              status='error')
+                            self.print_result_file(output_open=output_open, test_name=test_data_name, actual=msg,
+                                                   status='error', oracle_results=None, test_results=None)
                             continue
                         try:
                             # drop + recreate test schema + dataset + fetch test results
@@ -153,6 +159,8 @@ class MarkusSQLTester(MarkusUtilsMixin):
                             self.test_connection.commit()
                             self.print_result(name=test_data_name, input='', expected='', actual=str(e), marks=0,
                                               status='error')
+                            self.print_result_file(output_open=output_open, test_name=test_data_name, actual=str(e),
+                                                   status='error', oracle_results=None, test_results=None)
         except Exception as e:
             self.print_result(name='All SQL tests', input='', expected='', actual=str(e), marks=0, status='error')
         finally:
