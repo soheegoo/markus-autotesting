@@ -30,11 +30,6 @@ class Test2(unittest.TestCase):
 
         self.fail(submission.return_xml())
 
-    def test_fails_again(self):
-        """This test should fail and make the mark calculation more complicated."""
-
-        self.fail(submission.not_there())
-
 
 if __name__ == '__main__':
     unittest.main()

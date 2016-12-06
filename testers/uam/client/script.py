@@ -1,27 +1,25 @@
 #!/usr/bin/env python3
 
 import sys
-from markus_pam_wrapper import MarkusPAMWrapper
+import markus_pam_config as cfg
+from markus_pam_tester import MarkusPAMTester
 # from markusapi import Markus
 
 
 if __name__ == '__main__':
 
     # Modify uppercase variables with your settings
-    # The path to the UAM root folder
-    PATH_TO_UAM = '/path/to/uam'
-    # A list of test files uploaded as support files to be executed against the student submission
-    MARKUS_TEST_FILES = ['test.py']
+    # The test files (uploaded as support files) to be used for testing the student submission, and the points assigned;
+    # the test file names are the keys, the dicts of individual tests (or test classes) and points are the values.
+    TEST_POINTS = {'Test1.test_passes': 1, 'Test1.test_fails': 2, 'Test2': 1}
+    TEST_SPECS = {'test.py': TEST_POINTS}
     # The max time to run a single test on the student submission.
     TEST_TIMEOUT = 5
     # The max time to run all tests on the student submission.
     GLOBAL_TIMEOUT = 20
-    # The path to a Python virtualenv that has the test dependencies
-    # (if None, dependencies must be installed system-wide)
-    PATH_TO_VIRTUALENV = None
-    wrapper = MarkusPAMWrapper(path_to_uam=PATH_TO_UAM, test_files=MARKUS_TEST_FILES, test_timeout=TEST_TIMEOUT,
-                               global_timeout=GLOBAL_TIMEOUT, path_to_virtualenv=PATH_TO_VIRTUALENV)
-    wrapper.run()
+    tester = MarkusPAMTester(path_to_uam=cfg.PATH_TO_UAM, specs=TEST_SPECS, test_timeout=TEST_TIMEOUT,
+                             global_timeout=GLOBAL_TIMEOUT)
+    tester.run()
     # use markus apis if needed (uncomment import markusapi)
     root_url = sys.argv[1]
     api_key = sys.argv[2]

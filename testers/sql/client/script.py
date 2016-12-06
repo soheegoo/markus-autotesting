@@ -9,8 +9,6 @@ from markus_sql_tester import MarkusSQLTester
 if __name__ == '__main__':
 
     # Modify uppercase variables with your settings
-    # The dataset files to be used for testing each student sql file; the student sql file names are the keys, the lists
-    # of dataset files to be used are the values.
     # The dataset files to be used for testing each student sql file, and the points assigned; the student sql file
     # names are the keys, the dicts of dataset files and points are the values.
     DATA_SPECS = {'data1.sql': 1, 'data2.sql': 2}

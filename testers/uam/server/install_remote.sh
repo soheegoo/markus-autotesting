@@ -9,7 +9,6 @@ USER=$1
 SERVER=$2
 INSTALLDIR=$3
 PYTHONPATHDIR=$4
-UAMDIR=uam
-scp pam_wrapper.py markus_pam_wrapper.py ${USER}@${SERVER}:${PYTHONPATHDIR}
+scp pam_wrapper.py markus_pam_config.py markus_pam_tester.py ${USER}@${SERVER}:${PYTHONPATHDIR}
 ssh ${USER}@${SERVER} bash -s -- < install.sh ${INSTALLDIR}
 # TODO create uam root dir + venv subdir with files to be imported instead of pythonpath
