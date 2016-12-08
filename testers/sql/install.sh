@@ -1,22 +1,21 @@
 #!/usr/bin/env bash
 
 if [ $# -ne 1 ]; then
-	echo usage: $0 install_dir
+	echo usage: $0 sql_dir
 	exit 1
 fi
 
-INSTALLDIR=$1
+SQLDIR=$1
+SOLUTIONDIR=${SQLDIR}/solution
+DATASETDIR=${SOLUTIONDIR}/datasets
+QUERYDIR=${SOLUTIONDIR}/queries
+SCHEMAFILE=${SOLUTIONDIR}/schema.ddl
 SERVERDB=ate_oracle
 SERVERUSER=ateserver
 SERVERPWD=YOUR_SERVER_PASSWORD
 TESTDB=ate_tests
 TESTUSER=atetest
 TESTPWD=YOUR_TEST_PASSWORD
-SOLUTIONDIR=solution
-SCHEMAFILE=schema.ddl
-DATASETDIR=datasets
-QUERYDIR=queries
-cd ${INSTALLDIR}/${SOLUTIONDIR}
 chmod go-rwx ${QUERYDIR}
 sudo -u postgres psql <<-EOF
 	CREATE ROLE ${SERVERUSER} LOGIN PASSWORD '${SERVERPWD}';
