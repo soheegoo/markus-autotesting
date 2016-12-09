@@ -7,7 +7,7 @@ usage() {
 	echo
 	echo "**USAGE**"
 	echo
-	echo "$0 [-u TEST_USER] [-q QUEUE] [-t TESTERS]"
+	echo "$0 [-q QUEUE] [-t TESTERS]"
 	echo
 	echo "**OPTIONS**"
 	echo
@@ -18,22 +18,17 @@ usage() {
 	echo "**EXAMPLES**"
 	echo
 	echo "./install.sh"
-	echo "Installs a production-test instance of MarkUs autotester, using the code from the master branch of the official MarkUs autotester repository."
+	echo "Installs the MarkUs autotester, using a queue named \"ate_tests\"."
 	echo
-	echo "./install.sh -g adisandro/some-branch"
-	echo "Installs a production-test instance of MarkUs autotester, using the code from the some-branch branch of adisandro's MarkUs autotester repository."
+	echo "./install.sh -q some_queue -t uam"
+	echo "Installs the MarkUs autotester, using a queue named \"some_queue\", and the \"uam\" tester."
 }
 
 # check correct arguments
-TESTERS=
-TESTUSER=atetest
 QUEUENAME=ate_tests
+TESTERS=()
 while [ "$1" != "" ]; do
 	case "$1" in
-		-u | --test-user )
-			shift
-			TESTUSER="$1"
-			;;
 		-q | --queue )
 			shift
 			QUEUENAME="$1"
@@ -52,25 +47,27 @@ while [ "$1" != "" ]; do
 	esac
 	shift
 done
-SERVNAME=ateserver
-FILESDIR=../files
-TESTSDIR=../tests
-RESULTSDIR=../test_runs
-VENVSDIR=../venvs
+FILESDIR=files
+TESTSDIR=tests
+RESULTSDIR=test_runs
+VENVSDIR=venvs
+TESTERSDIR=testers
 
 # kill the previous server, if any
 echo "Killing previous Resque workers"
 kill -QUIT `pgrep -f resque` || { echo "No previous Resque worker found, no need to kill them"; }
 # install dependencies and run the test server
-mkdir -p ${FILESDIR}
-mkdir -p ${RESULTSDIR}
-mkdir -p ${VENVSDIR}
-sudo -u ${TESTUSER} -- mkdir -p ${TESTSDIR}
 bundle install --deployment
 TERM_CHILD=1 BACKGROUND=yes QUEUES=${QUEUENAME} bundle exec rake resque:work
 echo "Resque started listening for queue ${QUEUENAME}"
-# install testers, if any
+# create basic dirs and install testers
 cd ..
+mkdir -p ${FILESDIR}
+mkdir -p ${RESULTSDIR}
+mkdir -p ${VENVSDIR}
+mkdir -p ${TESTSDIR}
+chmod g+rwx,o-rwx ${TESTSDIR}
+cd ${TESTERSDIR}
 for i in "${!TESTERS[@]}"; do
 	TESTERNAME=${TESTERS[$i]}
 	if cd ${TESTERNAME}; then
@@ -78,4 +75,4 @@ for i in "${!TESTERS[@]}"; do
 		cd ..
 	fi
 done
-# TODO create update_install too?
+echo "You should now do: sudo chown TEST_USER:SERVER_USER ${TESTSDIR}"
