@@ -12,7 +12,7 @@
 # more information. WARNING: This script is still considered
 # experimental.
 #
-# (c) by the authors, 2008 - 2015.
+# (c) by the authors, 2008 - 2017.
 #
 
 import http.client
@@ -25,7 +25,7 @@ from urllib.parse import urlparse, urlencode
 class Markus:
     """A class for interfacing with the MarkUs API."""
 
-    def __init__(self, api_key, url, cookie=None):
+    def __init__(self, api_key, url):
         """ (str, str, str) -> Markus
         Initialize an instance of the Markus class.
 
@@ -38,7 +38,6 @@ class Markus:
         """
         self.api_key = api_key
         self.parsed_url = urlparse(url.strip())
-        self.cookie = cookie
         self.protocol = self.parsed_url.scheme
 
     def get_all_users(self):
@@ -87,7 +86,7 @@ class Markus:
         Return a list of all groups associated with the given assignment.
         """
         params = None
-        path = self.get_path(assignment_id) + '.json'
+        path = Markus.get_path(assignment_id) + '.json'
         response = self.submit_request(params, path, 'GET')
         return Markus.decode_response(response)
 
@@ -96,7 +95,7 @@ class Markus:
         Return a dictionary mapping group names to group ids.
         """
         params = None
-        path = self.get_path(assignment_id) + '/group_ids_by_name.json'
+        path = Markus.get_path(assignment_id) + '/group_ids_by_name.json'
         response = self.submit_request(params, path, 'GET')
         return Markus.decode_response(response)
 
@@ -105,7 +104,7 @@ class Markus:
         Return the group info associated with the given id and assignment.
         """
         params = None
-        path = self.get_path(assignment_id, group_id)[:-1] + '.json'
+        path = Markus.get_path(assignment_id, group_id)[:-1] + '.json'
         response = self.submit_request(params, path, 'GET')
         return Markus.decode_response(response)
 
@@ -114,35 +113,44 @@ class Markus:
         Get the feedback file info associated with the assignment and group.
         """
         params = {}
-        path = self.get_path(assignment_id, group_id) + 'feedback_files.json'
+        path = Markus.get_path(assignment_id, group_id) + 'feedback_files.json'
         response = self.submit_request(params, path, 'GET')
         return Markus.decode_response(response)
 
-    def upload_feedback_file(self, assignment_id, group_id, title, contents):
-        """ (Markus, int, str, str, str) -> list of str
+    def upload_feedback_file(self, assignment_id, group_id, title, contents, overwrite=True):
+        """ (Markus, int, str, str, str or bytes, bool) -> list of str
         Upload a feedback file to Markus.
 
         Keyword arguments:
         assignment_id -- the assignment's id
         group_id      -- the id of the group to which we are uploading
-        title         -- the file name that will be displayed
-        contents      -- what will be in the file
+        title         -- the file name that will be displayed (a file extension is required)
+        contents      -- what will be in the file (can be a string or bytes)
+        overwrite     -- whether to overwrite a feedback file with the same name that already exists in Markus
         """
-        feedback_files = self.get_feedback_files(assignment_id, group_id)
-        feedback_file_id = next((ff['id'] for ff in feedback_files if ff['filename'] == title), None)
-        params = {
-            'assignment_id': assignment_id,
-            'group_id': group_id,
-            'filename': title,
-            'file_content': contents,
-            'mime_type': mimetypes.guess_type(title)[0]
-        }
-        path = self.get_path(assignment_id, group_id) + 'feedback_files'
+        feedback_file_id = None
+        if overwrite:
+            feedback_files = self.get_feedback_files(assignment_id, group_id)
+            feedback_file_id = next((ff['id'] for ff in feedback_files if ff['filename'] == title), None)
+        path = Markus.get_path(assignment_id, group_id) + 'feedback_files'
         request_type = 'POST'
         if feedback_file_id:
             path = '{}/{}'.format(path, feedback_file_id)
             request_type = 'PUT'
-        return self.submit_request(params, path, request_type)
+        if isinstance(contents, str):
+            params = {
+                'filename': title,
+                'file_content': contents,
+                'mime_type': mimetypes.guess_type(title)[0]
+            }
+            return self.submit_request(params, path, request_type)
+        else:  # binary data
+            params = {
+                'filename': title.encode('utf-8'),
+                'file_content': contents,
+                'mime_type': mimetypes.guess_type(title)[0].encode('utf-8')
+            }
+            return self.submit_binary_request(params, path, request_type)
 
     def upload_test_script_results(self, assignment_id, group_id, results, test_script_names):
         """ (Markus, int, str, str, list) -> list of str"""
@@ -150,7 +158,7 @@ class Markus:
             'file_content': results,
             'test_scripts': test_script_names
         }
-        path = self.get_path(assignment_id, group_id) + 'test_script_results'
+        path = Markus.get_path(assignment_id, group_id) + 'test_script_results'
         return self.submit_request(params, path, 'POST')
 
     def update_marks_single_group(self, criteria_mark_map, assignment_id, group_id):
@@ -170,7 +178,7 @@ class Markus:
         group_id          -- the id of the group whose marks we are updating
         """
         params = criteria_mark_map
-        path = self.get_path(assignment_id, group_id) + 'update_marks'
+        path = Markus.get_path(assignment_id, group_id) + 'update_marks'
         return self.submit_request(params, path, 'PUT')
 
     def update_marking_state(self, assignment_id, group_id, new_marking_state):
@@ -178,10 +186,22 @@ class Markus:
         params = {
             'marking_state': new_marking_state
         }
-        path = self.get_path(assignment_id, group_id) + 'update_marking_state'
+        path = Markus.get_path(assignment_id, group_id) + 'update_marking_state'
         return self.submit_request(params, path, 'PUT')
 
+    def submit_binary_request(self, params, path, request_type):
+        headers = {'Content-type': 'multipart/form-data'}
+        return self.do_submit_request(params, path, request_type, headers)
+
     def submit_request(self, params, path, request_type):
+        headers = {'Content-type': 'application/x-www-form-urlencoded'}
+        if params is not None:
+            params = urlencode(params)
+        if request_type == 'GET':  # we only want this for GET requests
+            headers['Accept'] = 'text/plain'
+        return self.do_submit_request(params, path, request_type, headers)
+
+    def do_submit_request(self, params, path, request_type, headers):
         """ (Markus, dict, str, str) -> list of str
         Perform the HTTP/HTTPS request. Return a list 
         containing the response's status, reason, and content.
@@ -192,16 +212,10 @@ class Markus:
         request_type -- the desired HTTP method (usually 'GET' or 'POST')
         """
         auth_header = 'MarkUsAuth {}'.format(self.api_key)
-        headers = {'Authorization': auth_header,
-                   'Content-type': 'application/x-www-form-urlencoded'}
-        if self.cookie:
-            headers['Cookie'] = self.cookie
-        if request_type == 'GET':  # we only want this for GET requests
-            headers['Accept'] = 'text/plain'
-        if params != None:
-            params = urlencode(params)
+        headers['Authorization'] = auth_header
         try:
-            resp = None; conn = None
+            resp = None
+            conn = None
             if self.protocol == 'http':
                 conn = http.client.HTTPConnection(self.parsed_url.netloc)
             elif self.protocol == 'https':
@@ -217,7 +231,7 @@ class Markus:
             lst = [resp.status, resp.reason, resp.read()]
             conn.close()
             return lst
-        except http.client.HTTPException as e: # Catch HTTP errors
+        except http.client.HTTPException as e:  # Catch HTTP errors
             print(str(e), file=sys.stderr)
             sys.exit(1)
         except OSError as e:
@@ -225,13 +239,15 @@ class Markus:
             sys.exit(1)
 
     # Helpers
-    def get_path(self, assignment_id, group_id=None):
+    @staticmethod
+    def get_path(assignment_id, group_id=None):
         """Return a path to an assignment's groups, or a single group."""
         path = '/api/assignments/' + str(assignment_id) + '/groups'
         if group_id is not None:
             path += '/' + str(group_id) + '/'
         return path
 
+    @staticmethod
     def decode_response(resp):
         """Converts response from submit_request into python dict."""
         return json.loads(resp[2].decode('utf-8'))

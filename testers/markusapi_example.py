@@ -24,7 +24,6 @@ ASSIGMENT_ID  -- the ID of the assignment.
 FILE_NAME     -- the name of the test results file.
 process_marks -- function for converting test results into a map from criteria
                  to grade. See process_marks docstring below.
-
 """
 
 from markusapi import Markus
@@ -53,33 +52,33 @@ def process_marks(file_contents):
 
 """ --------Ideally, nothing below need be touched-------- """
 
-# Initialize an instance of the API class
-api = Markus(API_KEY, ROOT_URL)
-print('Initialized Markus object successfully.')
-groups = api.get_groups(ASSIGNMENT_ID)
+if __name__ == '__main__':
+    # Initialize an instance of the API class
+    api = Markus(API_KEY, ROOT_URL)
+    print('Initialized Markus object successfully.')
+    groups = api.get_groups(ASSIGNMENT_ID)
 
-for group in groups:
-    group_name = group['group_name']
-    group_id = group['id']
-    try:
-        with open(ROOT_DIR + '/' + group_name + '/' + FILE_NAME) as open_file:
-            file_contents = open_file.read()
-            # Upload the feedback file
-            try:
-                response = api.upload_feedback_file(ASSIGNMENT_ID, group_id, FILE_NAME, file_contents)
-                print('Uploaded feedback file for {}, Markus responded: {}'.format(group_name, response))
-            except:
-                print('Error: uploading feedback file for {} failed'.format(group_name))
-            # Extract and upload marks from the feedback file
-            try:
-                results = process_marks(file_contents)
-                response = api.update_marks_single_group(results, ASSIGNMENT_ID, group_id)
-                print('Uploaded marks for {}, Markus responded: {}'.format(group_name, response))
-                response = api.update_marking_state(ASSIGNMENT_ID, group_id, 'complete')
-                print('Updated marking state for  {}, Markus responded: {}'.format(group_name, response))
-            except:
-                print('Error: uploading marks for {} failed'.format(group_name))
-    except:
-        print('Error: accessing repository {} failed.'.format(group_name))
-
-print('Finished')
+    for group in groups:
+        group_name = group['group_name']
+        group_id = group['id']
+        try:
+            with open(ROOT_DIR + '/' + group_name + '/' + FILE_NAME) as open_file:
+                file_contents = open_file.read()
+                # Upload the feedback file
+                try:
+                    response = api.upload_feedback_file(ASSIGNMENT_ID, group_id, FILE_NAME, file_contents)
+                    print('Uploaded feedback file for {}, Markus responded: {}'.format(group_name, response))
+                except:
+                    print('Error: uploading feedback file for {} failed'.format(group_name))
+                # Extract and upload marks from the feedback file
+                try:
+                    results = process_marks(file_contents)
+                    response = api.update_marks_single_group(results, ASSIGNMENT_ID, group_id)
+                    print('Uploaded marks for {}, Markus responded: {}'.format(group_name, response))
+                    response = api.update_marking_state(ASSIGNMENT_ID, group_id, 'complete')
+                    print('Updated marking state for  {}, Markus responded: {}'.format(group_name, response))
+                except:
+                    print('Error: uploading marks for {} failed'.format(group_name))
+        except:
+            print('Error: accessing repository {} failed.'.format(group_name))
+    print('Finished')
