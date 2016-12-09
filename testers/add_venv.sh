@@ -8,11 +8,11 @@ fi
 TESTERNAME=$1
 VENVNAME=$2
 PYVERSION=$3
-VENVSNAME=venvs
+VENVSDIR=../../venvs
 PATHNAME=server
 
 if cd ${TESTERNAME}; then
-	VENVDIR=../../${VENVSNAME}/${VENVNAME}
+	VENVDIR=../${VENVSDIR}/${VENVNAME}
 	pyvenv-${PYVERSION} ${VENVDIR}
 	source ${VENVDIR}/bin/activate
 	pip install wheel

@@ -47,11 +47,11 @@ while [ "$1" != "" ]; do
 	esac
 	shift
 done
-FILESDIR=files
-TESTSDIR=tests
-RESULTSDIR=test_runs
-VENVSDIR=venvs
-TESTERSDIR=testers
+FILESDIR=../../files
+TESTSDIR=../../tests
+RESULTSDIR=../../test_runs
+VENVSDIR=../../venvs
+TESTERSDIR=../testers
 
 # kill the previous server, if any
 echo "Killing previous Resque workers"
@@ -61,18 +61,17 @@ bundle install --deployment
 TERM_CHILD=1 BACKGROUND=yes QUEUES=${QUEUENAME} bundle exec rake resque:work
 echo "Resque started listening for queue ${QUEUENAME}"
 # create basic dirs and install testers
-cd ..
 mkdir -p ${FILESDIR}
 mkdir -p ${RESULTSDIR}
 mkdir -p ${VENVSDIR}
 mkdir -p ${TESTSDIR}
 chmod g+rwx,o-rwx ${TESTSDIR}
-cd ${TESTERSDIR}
 for i in "${!TESTERS[@]}"; do
 	TESTERNAME=${TESTERS[$i]}
-	if cd ${TESTERNAME}; then
+	if cd ${TESTERSDIR}/${TESTERNAME}; then
 		./install.sh $(pwd)
-		cd ..
+		cd ../../
 	fi
 done
 echo "You should now do: sudo chown TEST_USER:SERVER_USER ${TESTSDIR}"
+#TODO should probably break this in two scripts, one to be run by a sudo-enabled user
