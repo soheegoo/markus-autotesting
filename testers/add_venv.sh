@@ -21,7 +21,7 @@ if cd ${TESTERNAME}; then
 	fi
 	echo "$(pwd)/${PATHNAME}" > ${VENVDIR}/lib/python${PYVERSION}/site-packages/markus_${TESTERNAME}.pth
 	cd ..
-	echo "$(pwd)" > ${VENVDIR}/lib/python${PYVERSION}/site-packages/markus.pth
+	echo "$(pwd)" > ${VENVSDIR}/${VENVNAME}/lib/python${PYVERSION}/site-packages/markus.pth
 else
     echo "The tester ${TESTERNAME} does not exist"
 fi
