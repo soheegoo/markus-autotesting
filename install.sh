@@ -26,43 +26,50 @@ usage() {
 	echo "./install.sh -q some_queue -s server_user -t test_user -d /some/dir -T uam"
 	echo "Installs the MarkUs autotester, using the queue \"some_queue\", server user \"server_user\", test user \"test_user\", working directory \"/some/dir\", and the \"uam\" tester."
 }
+SHORT=q:s:t:d:T:h
+LONG=queue:,user-server:,user-test:,dir:,testers:,help
+PARSED=`getopt -o ${SHORT} -l ${LONG} -n "$0" -- "$@"`
+eval set -- "${PARSED}"
 
 QUEUENAME=ate_tests
 USERSERVER=ateserver
 USERTEST=atetest
 WORKINGDIR=..
 TESTERS=()
-while [ "$1" != "" ]; do
+while true; do
 	case "$1" in
 		-q | --queue )
-			shift
-			QUEUENAME="$1"
+			QUEUENAME="$2"
+			shift 2
 			;;
 		-s | --server-user )
-			shift
-			USERSERVER="$1"
+			USERSERVER="$2"
+			shift 2
 			;;
 		-t | --test-user )
-			shift
-			USERTEST="$1"
+			USERTEST="$2"
+			shift 2
 			;;
 		-d | --dir )
-			shift
-			WORKINGDIR="$1"
+			WORKINGDIR="$2"
+			shift 2
 			;;
 		-T | --testers )
-			shift
-			IFS=',' read -a TESTERS <<< "$1"
+			IFS=',' read -a TESTERS <<< "$2"
+			shift 2
 			;;
 		-h | --help )
 			usage
 			exit
 			;;
+		-- )
+			shift
+			break
+			;;
 		* )
 			usage >&2
 			exit 1
 	esac
-	shift
 done
 
 SERVERDIR=server
