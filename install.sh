@@ -26,6 +26,7 @@ usage() {
 	echo "./install.sh -q some_queue -s server_user -t test_user -d /some/dir -T uam"
 	echo "Installs the MarkUs autotester, using the queue \"some_queue\", server user \"server_user\", test user \"test_user\", working directory \"/some/dir\", and the \"uam\" tester."
 }
+
 SHORT=q:s:t:d:T:h
 LONG=queue:,user-server:,user-test:,dir:,testers:,help
 PARSED=`getopt -o ${SHORT} -l ${LONG} -n "$0" -- "$@"`
@@ -84,17 +85,16 @@ kill -QUIT `pgrep -f resque` || { echo "[AUTOTEST] No running Resque worker foun
 cd ${SERVERDIR}
 echo "[AUTOTEST] Installing dependencies"
 bundle install --deployment
-sudo -u ${USERSERVER} -- TERM_CHILD=1 BACKGROUND=yes QUEUES=${QUEUENAME} bundle exec rake resque:work
+sudo -u ${USERSERVER} TERM_CHILD=1 BACKGROUND=yes QUEUES=${QUEUENAME} bundle exec rake resque:work
 echo "[AUTOTEST] Resque started for autotesting server"
 cd ..
-sudo -u ${USERSERVER} <<-EOF
-	mkdir -p ${FILESDIR}
-	mkdir -p ${RESULTSDIR}
-	chmod u=rwx,go= ${RESULTSDIR}
-	mkdir -p ${VENVSDIR}
-	mkdir -p ${TESTSDIR}
-	chmod ug=rwx,o= ${TESTSDIR}
-EOF
+mkdir -p ${FILESDIR}
+mkdir -p ${RESULTSDIR}
+chmod u=rwx,go= ${RESULTSDIR}
+mkdir -p ${VENVSDIR}
+mkdir -p ${TESTSDIR}
+chmod ug=rwx,o= ${TESTSDIR}
+chown ${USERSERVER}:${USERSERVER} ${FILESDIR} ${RESULTSDIR} ${VENVSDIR}
 chown ${USERTEST}:${USERSERVER} ${TESTSDIR}
 for i in "${!TESTERS[@]}"; do
 	TESTERNAME=${TESTERS[$i]}

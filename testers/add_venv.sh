@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-if [ $# -ne 3 ]; then
+if [ $# -ne 4 ]; then
     echo usage: $0 autotest_working_dir tester_name venv_name python_version
     exit 1
 fi
