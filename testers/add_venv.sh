@@ -1,25 +1,25 @@
 #!/usr/bin/env bash
 
-if [ $# -ne 3 ]; then
-    echo usage: $0 tester_name venv_name python_version
+if [ $# -ne 4 ]; then
+    echo usage: $0 autotest_working_dir tester_name venv_name python_version
     exit 1
 fi
 
-TESTERNAME=$1
-VENVNAME=$2
-PYVERSION=$3
-VENVSDIR=../../venvs
-PATHNAME=server
+WORKINGDIR=$1
+TESTERNAME=$2
+VENVNAME=$3
+PYVERSION=$4
+VENVSDIR=${WORKINGDIR}/venvs
+VENVDIR=${VENVSDIR}/${VENVNAME}
 
 if cd ${TESTERNAME}; then
-	VENVDIR=../${VENVSDIR}/${VENVNAME}
 	pyvenv-${PYVERSION} ${VENVDIR}
 	source ${VENVDIR}/bin/activate
 	pip install wheel
 	if [ -f requirements.txt ]; then
 		pip install -r requirements.txt
 	fi
-	echo "$(pwd)/${PATHNAME}" > ${VENVDIR}/lib/python${PYVERSION}/site-packages/markus_${TESTERNAME}.pth
+	echo "$(pwd)/server" > ${VENVDIR}/lib/python${PYVERSION}/site-packages/markus_${TESTERNAME}.pth
 	cd ..
 	echo "$(pwd)" > ${VENVSDIR}/${VENVNAME}/lib/python${PYVERSION}/site-packages/markus.pth
 else
