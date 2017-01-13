@@ -31,11 +31,12 @@ class PAMWrapper:
         """
         Initializes the various parameters to run pam.
         :param path_to_uam: The path to the uam installation.
-        :param specs: The test specifications, i.e. the test files to run and the points assigned.
+        :param specs: The test specifications, i.e. the test files to run and the points assigned: test file names are
+        the keys, dicts of test functions (or test classes) and points are the values; if a test function/class is
+        missing, it is assigned a default of 1 point (use an empty dict for all 1s).
         :param test_timeout: The max time to run a single test on the student submission.
         :param global_timeout: The max time to run all tests on the student submission.
         :param result_filename: The file name of pam's json output.
-        dependencies are installed system-wide.
         """
         self.path_to_uam = path_to_uam
         self.path_to_pam = path_to_uam + '/pam/pam.py'
@@ -71,6 +72,17 @@ class PAMWrapper:
                                       status=PAMResult.Status.ERROR, description=test_stack['description'],
                                       message=test_stack['message']))
         return results
+
+    def get_test_points(self, result):
+        test_names = result.name.split('.')  # file.class.test or file.test
+        test_file = '{}.py'.format(test_names[0])
+        class_name = test_names[1] if len(test_names) == 3 else None
+        test_name = '{}.{}'.format(class_name, test_names[2]) if class_name else test_names[1]
+        test_points = self.specs[test_file]
+        points = 0
+        if result.status == PAMResult.Status.PASS:
+            points = test_points.get(test_name, test_points.get(class_name, 1))
+        return points
 
     def print_results(self, results):
         """

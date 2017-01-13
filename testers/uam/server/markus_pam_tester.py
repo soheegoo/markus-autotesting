@@ -13,18 +13,11 @@ class MarkusPAMTester(MarkusUtilsMixin, PAMWrapper):
         :param results: A list of results (possibly empty).
         """
         for result in results:
-            test_names = result.name.split('.')
-            test_file = '{}.py'.format(test_names[0])
-            class_name = test_names[1] if len(test_names) == 3 else None
-            test_name = '{}.{}'.format(class_name, test_names[2]) if class_name else test_names[1]
-            test_points = self.specs[test_file]
-            marks = 0
-            if result.status == PAMResult.Status.PASS:
-                marks = test_points.get(test_name, test_points.get(class_name, 1))
+            points = self.get_test_points(result)
             status = 'pass' if result.status == PAMResult.Status.PASS else 'fail'
             name = result.name if not result.description else '{name} ({desc})'.format(name=result.name,
                                                                                        desc=result.description)
-            self.print_result(name=name, input='', expected='', actual=result.message, marks=marks, status=status)
+            self.print_result(name=name, input='', expected='', actual=result.message, marks=points, status=status)
 
     def print_error(self, message):
         """

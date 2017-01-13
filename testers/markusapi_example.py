@@ -28,6 +28,7 @@ process_marks -- function for converting test results into a map from criteria
                  to grade. See process_marks docstring below.
 """
 
+import os
 from markusapi import Markus
 
 # Required macros
@@ -64,7 +65,7 @@ if __name__ == '__main__':
         group_name = group['group_name']
         group_id = group['id']
         try:
-            with open(ROOT_DIR + '/' + group_name + '/' + FILE_NAME) as open_file:
+            with open(os.path.join(ROOT_DIR, group_name, FILE_NAME)) as open_file:
                 file_contents = open_file.read()
                 # Upload the feedback file
                 try:
