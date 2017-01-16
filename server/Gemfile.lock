@@ -5,12 +5,12 @@ GEM
       multi_xml (>= 0.5.2)
     mono_logger (1.1.0)
     multi_json (1.12.1)
-    multi_xml (0.5.5)
-    rack (1.6.4)
+    multi_xml (0.6.0)
+    rack (1.6.5)
     rack-protection (1.5.3)
       rack
-    rake (11.3.0)
-    redis (3.3.1)
+    rake (12.0.0)
+    redis (3.3.2)
     redis-namespace (1.5.2)
       redis (~> 3.0, >= 3.0.4)
     resque (1.26.0)
@@ -36,4 +36,4 @@ DEPENDENCIES
   resque
 
 BUNDLED WITH
-   1.13.3
+   1.13.7

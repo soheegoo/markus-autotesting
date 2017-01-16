@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 """
 This file contains an example script that allows a user to upload raw test
 results files, and then extract and submit marks from them.
@@ -26,6 +28,7 @@ process_marks -- function for converting test results into a map from criteria
                  to grade. See process_marks docstring below.
 """
 
+import os
 from markusapi import Markus
 
 # Required macros
@@ -62,7 +65,7 @@ if __name__ == '__main__':
         group_name = group['group_name']
         group_id = group['id']
         try:
-            with open(ROOT_DIR + '/' + group_name + '/' + FILE_NAME) as open_file:
+            with open(os.path.join(ROOT_DIR, group_name, FILE_NAME)) as open_file:
                 file_contents = open_file.read()
                 # Upload the feedback file
                 try:
@@ -76,7 +79,7 @@ if __name__ == '__main__':
                     response = api.update_marks_single_group(results, ASSIGNMENT_ID, group_id)
                     print('Uploaded marks for {}, Markus responded: {}'.format(group_name, response))
                     response = api.update_marking_state(ASSIGNMENT_ID, group_id, 'complete')
-                    print('Updated marking state for  {}, Markus responded: {}'.format(group_name, response))
+                    print('Updated marking state for {}, Markus responded: {}'.format(group_name, response))
                 except:
                     print('Error: uploading marks for {} failed'.format(group_name))
         except:

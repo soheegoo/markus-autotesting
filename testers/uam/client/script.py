@@ -9,8 +9,10 @@ from markus_pam_tester import MarkusPAMTester
 if __name__ == '__main__':
 
     # Modify uppercase variables with your settings
-    # The test files (uploaded as support files) to be used for testing the student submission, and the points assigned;
-    # the test file names are the keys, the dicts of individual tests (or test classes) and points are the values.
+
+    # The test files (uploaded as support files) to test the student submission, and the points assigned:
+    # test file names are the keys, dicts of test functions (or test classes) and points are the values;
+    # if a test function/class is missing, it is assigned a default of 1 point (use TEST_POINTS = {} for all 1s).
     TEST_POINTS = {'Test1.test_passes': 1, 'Test1.test_fails': 2, 'Test2': 1}
     TEST_SPECS = {'test.py': TEST_POINTS}
     # The max time to run a single test on the student submission.
