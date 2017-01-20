@@ -74,15 +74,21 @@ class PAMWrapper:
         return results
 
     def get_test_points(self, result):
+        """
+        Gets the points awarded over the possible total for a pam test result based on the test specifications.
+        :param result: A pam test result.
+        :return: The tuple (points awarded, total possible points)
+        """
         test_names = result.name.split('.')  # file.class.test or file.test
         test_file = '{}.py'.format(test_names[0])
         class_name = test_names[1] if len(test_names) == 3 else None
         test_name = '{}.{}'.format(class_name, test_names[2]) if class_name else test_names[1]
         test_points = self.specs[test_file]
-        points = 0
+        total = test_points.get(test_name, test_points.get(class_name, 1))
+        awarded = 0
         if result.status == PAMResult.Status.PASS:
-            points = test_points.get(test_name, test_points.get(class_name, 1))
-        return points
+            awarded = total
+        return awarded, total
 
     def print_results(self, results):
         """
@@ -107,8 +113,8 @@ class PAMWrapper:
         try:
             env = os.environ.copy()  # need to add path to uam libs
             if 'PYTHONPATH' in env:
-                env['PYTHONPATH'] = "{systempath}:{pampath}".format(systempath=env['PYTHONPATH'],
-                                                                    pampath=self.path_to_uam)
+                env['PYTHONPATH'] = "{systempath}:{uampath}".format(systempath=env['PYTHONPATH'],
+                                                                    uampath=self.path_to_uam)
             else:
                 env['PYTHONPATH'] = self.path_to_uam
             subprocess.run(shell_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, shell=False,

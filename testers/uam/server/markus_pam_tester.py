@@ -13,7 +13,7 @@ class MarkusPAMTester(MarkusUtilsMixin, PAMWrapper):
         :param results: A list of results (possibly empty).
         """
         for result in results:
-            points = self.get_test_points(result)
+            points = self.get_test_points(result)[0]
             status = 'pass' if result.status == PAMResult.Status.PASS else 'fail'
             name = result.name if not result.description else '{name} ({desc})'.format(name=result.name,
                                                                                        desc=result.description)
