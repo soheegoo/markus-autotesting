@@ -2,6 +2,7 @@ import json
 import os
 import subprocess
 import enum
+import sys
 
 
 class PAMResult:
@@ -108,7 +109,7 @@ class PAMWrapper:
         """
         Runs pam.
         """
-        shell_command = [self.path_to_pam, '-t', str(self.test_timeout), self.result_filename]
+        shell_command = [sys.executable, self.path_to_pam, '-t', str(self.test_timeout), self.result_filename]
         shell_command.extend(sorted(self.specs.keys()))
         try:
             env = os.environ.copy()  # need to add path to uam libs
