@@ -14,7 +14,7 @@ if __name__ == '__main__':
     DATA_SPECS = {'data1.sql': 1, 'data2.sql': 2}
     TEST_SPECS = {'correct.sql': DATA_SPECS, 'badnumcolumns.sql': DATA_SPECS, 'badcolumnnames.sql': DATA_SPECS,
                   'badcolumntypes.sql': DATA_SPECS, 'badnumrows.sql': DATA_SPECS, 'badrowscontent.sql': DATA_SPECS,
-                  'badrowsorder.sql': DATA_SPECS}
+                  'badrowsorder.sql': DATA_SPECS, 'compatiblecolumntypes.sql': DATA_SPECS}
     # The schema name
     SCHEMA_NAME = 'ate'
     tester = MarkusSQLTester(oracle_database=cfg.ORACLE_DATABASE, test_database=cfg.TEST_DATABASE, user_name=cfg.USER,

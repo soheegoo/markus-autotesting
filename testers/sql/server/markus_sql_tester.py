@@ -77,29 +77,61 @@ class MarkusSQLTester(MarkusUtilsMixin):
             return test_results
 
     def check_results(self, oracle_results, test_results, pass_points=1):
-        # check 1: column number, names/order and types
+
         oracle_columns = self.oracle_cursor.description
         test_columns = self.test_cursor.description
+
+        # check 1: number of columns
         oracle_num_columns = len(oracle_columns)
         test_num_columns = len(test_columns)
         if oracle_num_columns != test_num_columns:
             return 'Expected {} columns instead of {}'.format(oracle_num_columns, test_num_columns), 0, 'fail'
+
+        check_column_types = []
         for i, oracle_column in enumerate(oracle_columns):
+            # check 2: column names/order
             if test_columns[i].name != oracle_column.name:
                 return "Expected column {} to have name '{}' instead of '{}'".format(i, oracle_column.name,
                                                                                      test_columns[i].name), 0, 'fail'
-            if test_columns[i].type_code != oracle_column.type_code:  # strict type checking + compatible type checking
-                if not oracle_results or not test_results or type(test_results[0][i]) is not type(oracle_results[0][i]):
-                    return "The type of values in column '{}' does not match the expected type".format(
-                           test_columns[i].name), 0, 'fail'
-        # check 2: rows number and content/order
+            # check 3: column types
+            # (strictly different PostgreSQL oid types can be Python-compatible instead, e.g. varchar and text, so this
+            # check will be deferred to row analysis)
+            if test_columns[i].type_code != oracle_column.type_code:
+                if not oracle_results and not test_results:
+                    return "The type of values in column '{}' does not match the expected type (but no row values are "\
+                           "available to check whether they could be compatible types)".format(
+                            oracle_column.name), 0, 'fail'
+                if not oracle_results or not test_results:  # will fail on check 4 instead
+                    continue
+                check_column_types.append(i)
+
+        # check 4: number of rows
         oracle_num_results = len(oracle_results)
         test_num_results = len(test_results)
         if oracle_num_results != test_num_results:
             return 'Expected {} rows instead of {}'.format(oracle_num_results, test_num_results), 0, 'fail'
+
         for i, oracle_row in enumerate(oracle_results):
+            checked_column_types = []
+            for j in check_column_types:
+                # check 3: column type compatibility deferred trigger
+                oracle_value = oracle_row[j]
+                test_value = test_results[i][j]
+                if test_value is None or oracle_value is None:  # try next row for types
+                    continue
+                if type(test_value) is not type(oracle_value):
+                    return "The type of values in column '{}' does not match the expected type".format(
+                        oracle_columns[j].name), 0, 'fail'
+                checked_column_types.append(j)
+            check_column_types = [j for j in check_column_types if j not in checked_column_types]
+            # check 5: rows content/order
             if oracle_row != test_results[i]:
                 return 'Expected row {} to be {} instead of {}'.format(i, oracle_row, test_results[i]), 0, 'fail'
+        # check 3: column type compatibility deferred trigger
+        if check_column_types:
+            return "The type of values in column '{}' does not match the expected type (but no row values are "\
+                   "available to check whether they could be compatible types)".format(
+                    oracle_columns[check_column_types[0]].name), 0, 'fail'
 
         # all good
         return '', pass_points, 'pass'
