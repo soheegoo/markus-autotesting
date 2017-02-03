@@ -1,5 +1,7 @@
 import os
 import pprint
+import subprocess
+
 import psycopg2
 from markus_utils import MarkusUtilsMixin
 # from markusapi import Markus
@@ -136,13 +138,13 @@ class MarkusSQLTester(MarkusUtilsMixin):
         # all good
         return '', pass_points, 'pass'
 
-    def print_test_file(self, output_open, test_name, actual, status):
+    def print_summary_file(self, output_open, test_name, actual, status):
         output_open.write('========== {} - {} ==========\n'.format(test_name, status.upper()))
         if actual:
             output_open.write(' Problem: {}\n'.format(actual))
 
     def print_result_file(self, output_open, test_name, actual, status, oracle_results, test_results):
-        self.print_test_file(output_open, test_name, actual, status)
+        self.print_summary_file(output_open, test_name, actual, status)
         output_open.write(' Expected Columns:\n  {}\n'.format(pprint.pformat([column.name for column in
                                                                               self.oracle_cursor.description])))
         output_open.write(' Actual Columns:\n  {}\n'.format(pprint.pformat([column.name for column in
@@ -156,7 +158,27 @@ class MarkusSQLTester(MarkusUtilsMixin):
         output_open.write('\n')
 
     def print_error_file(self, output_open, test_name, actual):
-        self.print_test_file(output_open, test_name, actual, 'error')
+        self.print_summary_file(output_open, test_name, actual, 'error')
+        output_open.write('\n')
+
+    def print_psql_file(self, output_open, data_name, test_name, status, feedback):
+        output_open.write('========== {} + {}: {} ==========\n'.format(test_name, data_name, status.upper()))
+        if feedback:
+            output_open.write('Feedback: {}\n'.format(feedback))
+        if status != 'pass':
+            oracle_query = 'SELECT * FROM {}.oracle_{}'.format(data_name, test_name)
+            oracle_command = ['psql', '-U', self.user_name, '-d', self.oracle_database, '-h', 'localhost', '-c',
+                              oracle_query]
+            test_command = ['psql', '-U', self.user_name, '-d', self.test_database, '-h', 'localhost', '-f',
+                            '{}.sql'.format(test_name)]
+            env = os.environ.copy()
+            env['PGPASSWORD'] = self.user_password
+            proc = subprocess.run(oracle_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True,
+                                  shell=False, env=env, universal_newlines=True)
+            output_open.write(proc.stdout)
+            proc = subprocess.run(test_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, shell=False,
+                                  env=env, universal_newlines=True)
+            output_open.write(proc.stdout)
         output_open.write('\n')
 
     def run(self):
@@ -186,9 +208,11 @@ class MarkusSQLTester(MarkusUtilsMixin):
                                                         pass_points=test_points)
                             MarkusUtilsMixin.print_test_result(name=test_data_name, status=result[2], output=result[0],
                                                                points_awarded=result[1], points_total=test_points)
-                            self.print_result_file(output_open=output_open, test_name=test_data_name,
-                                                   actual=result[0], status=result[2], oracle_results=oracle_results,
-                                                   test_results=test_results)
+                            # self.print_result_file(output_open=output_open, test_name=test_data_name,
+                            #                        actual=result[0], status=result[2], oracle_results=oracle_results,
+                            #                        test_results=test_results)
+                            self.print_psql_file(output_open=output_open, data_name=data_name, test_name=test_name,
+                                                 status=result[2], feedback=result[0])
                         except Exception as e:
                             self.oracle_connection.commit()
                             self.test_connection.commit()
