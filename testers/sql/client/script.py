@@ -9,12 +9,13 @@ from markus_sql_tester import MarkusSQLTester
 if __name__ == '__main__':
 
     # Modify uppercase variables with your settings
-    # The dataset files to be used for testing each student sql file, and the points assigned; the student sql file
-    # names are the keys, the dicts of dataset files and points are the values.
-    DATA_SPECS = {'data1.sql': 1, 'data2.sql': 2}
-    TEST_SPECS = {'correct.sql': DATA_SPECS, 'badnumcolumns.sql': DATA_SPECS, 'badcolumnnames.sql': DATA_SPECS,
-                  'badcolumntypes.sql': DATA_SPECS, 'badnumrows.sql': DATA_SPECS, 'badrowscontent.sql': DATA_SPECS,
-                  'badrowsorder.sql': DATA_SPECS, 'compatiblecolumntypes.sql': DATA_SPECS}
+
+    # The dataset files to be used for testing each student sql submission, and the points assigned: student sql file
+    # names are the keys, dicts of dataset file names and points are the values.
+    TEST_POINTS = {'data1.sql': 1, 'data2.sql': 2}
+    TEST_SPECS = {'correct.sql': TEST_POINTS, 'badnumcolumns.sql': TEST_POINTS, 'badcolumnnames.sql': TEST_POINTS,
+                  'badcolumntypes.sql': TEST_POINTS, 'badnumrows.sql': TEST_POINTS, 'badrowscontent.sql': TEST_POINTS,
+                  'badrowsorder.sql': TEST_POINTS, 'compatiblecolumntypes.sql': TEST_POINTS}
     # The schema name
     SCHEMA_NAME = 'ate'
     tester = MarkusSQLTester(oracle_database=cfg.ORACLE_DATABASE, test_database=cfg.TEST_DATABASE, user_name=cfg.USER,

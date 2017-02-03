@@ -136,13 +136,13 @@ class MarkusSQLTester(MarkusUtilsMixin):
         # all good
         return '', pass_points, 'pass'
 
-    def print_result_file(self, output_open, test_name, actual, status, oracle_results, test_results):
+    def print_test_file(self, output_open, test_name, actual, status):
         output_open.write('========== {} - {} ==========\n'.format(test_name, status.upper()))
         if actual:
             output_open.write(' Problem: {}\n'.format(actual))
-        if oracle_results is None or test_results is None:
-            output_open.write('\n')
-            return
+
+    def print_result_file(self, output_open, test_name, actual, status, oracle_results, test_results):
+        self.print_test_file(output_open, test_name, actual, status)
         output_open.write(' Expected Columns:\n  {}\n'.format(pprint.pformat([column.name for column in
                                                                               self.oracle_cursor.description])))
         output_open.write(' Actual Columns:\n  {}\n'.format(pprint.pformat([column.name for column in
@@ -153,6 +153,10 @@ class MarkusSQLTester(MarkusUtilsMixin):
         output_open.write(' Actual Rows:\n')
         for test_result in test_results:
             output_open.write('  {}\n'.format(pprint.pformat(test_result)))
+        output_open.write('\n')
+
+    def print_error_file(self, output_open, test_name, actual):
+        self.print_test_file(output_open, test_name, actual, 'error')
         output_open.write('\n')
 
     def run(self):
@@ -167,10 +171,9 @@ class MarkusSQLTester(MarkusUtilsMixin):
                         test_data_name = '{} + {}'.format(test_name, data_name)
                         if not os.path.isfile(sql_file):
                             msg = 'File {} not found'.format(sql_file)
-                            self.print_result(name=test_data_name, input='', expected='', actual=msg, marks=0,
-                                              status='error')
-                            self.print_result_file(output_open=output_open, test_name=test_data_name, actual=msg,
-                                                   status='error', oracle_results=None, test_results=None)
+                            MarkusUtilsMixin.print_test_error(name=test_data_name, message=msg,
+                                                              points_total=test_points)
+                            self.print_error_file(output_open=output_open, test_name=test_data_name, actual=msg)
                             continue
                         try:
                             # drop + recreate test schema + dataset + fetch test results
@@ -181,19 +184,18 @@ class MarkusSQLTester(MarkusUtilsMixin):
                             # compare test results with oracle
                             result = self.check_results(oracle_results=oracle_results, test_results=test_results,
                                                         pass_points=test_points)
-                            self.print_result(name=test_data_name, input='', expected='', actual=result[0],
-                                              marks=result[1], status=result[2])
+                            MarkusUtilsMixin.print_test_result(name=test_data_name, status=result[2], output=result[0],
+                                                               points_awarded=result[1], points_total=test_points)
                             self.print_result_file(output_open=output_open, test_name=test_data_name,
                                                    actual=result[0], status=result[2], oracle_results=oracle_results,
                                                    test_results=test_results)
                         except Exception as e:
                             self.oracle_connection.commit()
                             self.test_connection.commit()
-                            self.print_result(name=test_data_name, input='', expected='', actual=str(e), marks=0,
-                                              status='error')
-                            self.print_result_file(output_open=output_open, test_name=test_data_name, actual=str(e),
-                                                   status='error', oracle_results=None, test_results=None)
+                            MarkusUtilsMixin.print_test_error(name=test_data_name, message=str(e),
+                                                              points_total=test_points)
+                            self.print_error_file(output_open=output_open, test_name=test_data_name, actual=str(e))
         except Exception as e:
-            self.print_result(name='All SQL tests', input='', expected='', actual=str(e), marks=0, status='error')
+            MarkusUtilsMixin.print_test_error(name='All SQL tests', message=str(e))
         finally:
             self.close_db()
