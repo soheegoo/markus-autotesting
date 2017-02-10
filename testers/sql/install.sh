@@ -16,6 +16,10 @@ SERVERPWD=YOUR_SERVER_PASSWORD
 TESTDB=ate_tests
 TESTUSER=atetest
 TESTPWD=YOUR_TEST_PASSWORD
+
+echo "[SQL] Installing system packages"
+sudo apt-get install python3 postgresql
+echo "[SQL] Populating database with solutions"
 chmod go-rwx ${QUERYDIR}
 sudo -u postgres psql <<-EOF
 	CREATE ROLE ${SERVERUSER} LOGIN PASSWORD '${SERVERPWD}';

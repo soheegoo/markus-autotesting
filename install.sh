@@ -90,8 +90,10 @@ if [ "${KILL}" = true ]; then
 	echo "[AUTOTEST] Killing running Resque workers"
 	kill -QUIT `pgrep -f resque` || { echo "[AUTOTEST] No running Resque worker found, no need to kill them"; }
 fi
+echo "[AUTOTEST] Installing system packages"
+sudo apt-get install ruby bundler redis-server
 cd ${SERVERDIR}
-echo "[AUTOTEST] Installing dependencies"
+echo "[AUTOTEST] Installing gems"
 bundle install --deployment
 sudo -u ${USERSERVER} TERM_CHILD=1 BACKGROUND=yes QUEUES=${QUEUENAME} bundle exec rake resque:work
 echo "[AUTOTEST] Resque started for autotesting server"
