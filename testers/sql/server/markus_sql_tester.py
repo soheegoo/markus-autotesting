@@ -78,7 +78,7 @@ class MarkusSQLTester(MarkusUtilsMixin):
 
             return test_results
 
-    def check_results(self, oracle_results, test_results, pass_points=1):
+    def check_results(self, oracle_results, test_results):
 
         oracle_columns = self.oracle_cursor.description
         test_columns = self.test_cursor.description
@@ -87,14 +87,14 @@ class MarkusSQLTester(MarkusUtilsMixin):
         oracle_num_columns = len(oracle_columns)
         test_num_columns = len(test_columns)
         if oracle_num_columns != test_num_columns:
-            return 'Expected {} columns instead of {}'.format(oracle_num_columns, test_num_columns), 0, 'fail'
+            return 'Expected {} columns instead of {}'.format(oracle_num_columns, test_num_columns), 'fail'
 
         check_column_types = []
         for i, oracle_column in enumerate(oracle_columns):
             # check 2: column names/order
             if test_columns[i].name != oracle_column.name:
                 return "Expected column {} to have name '{}' instead of '{}'".format(i, oracle_column.name,
-                                                                                     test_columns[i].name), 0, 'fail'
+                                                                                     test_columns[i].name), 'fail'
             # check 3: column types
             # (strictly different PostgreSQL oid types can be Python-compatible instead, e.g. varchar and text, so this
             # check will be deferred to row analysis)
@@ -102,7 +102,7 @@ class MarkusSQLTester(MarkusUtilsMixin):
                 if not oracle_results and not test_results:
                     return "The type of values in column '{}' does not match the expected type (but no row values are "\
                            "available to check whether they could be compatible types)".format(
-                            oracle_column.name), 0, 'fail'
+                            oracle_column.name), 'fail'
                 if not oracle_results or not test_results:  # will fail on check 4 instead
                     continue
                 check_column_types.append(i)
@@ -111,7 +111,7 @@ class MarkusSQLTester(MarkusUtilsMixin):
         oracle_num_results = len(oracle_results)
         test_num_results = len(test_results)
         if oracle_num_results != test_num_results:
-            return 'Expected {} rows instead of {}'.format(oracle_num_results, test_num_results), 0, 'fail'
+            return 'Expected {} rows instead of {}'.format(oracle_num_results, test_num_results), 'fail'
 
         for i, oracle_row in enumerate(oracle_results):
             checked_column_types = []
@@ -123,20 +123,20 @@ class MarkusSQLTester(MarkusUtilsMixin):
                     continue
                 if type(test_value) is not type(oracle_value):
                     return "The type of values in column '{}' does not match the expected type".format(
-                        oracle_columns[j].name), 0, 'fail'
+                        oracle_columns[j].name), 'fail'
                 checked_column_types.append(j)
             check_column_types = [j for j in check_column_types if j not in checked_column_types]
             # check 5: rows content/order
             if oracle_row != test_results[i]:
-                return 'Expected row {} to be {} instead of {}'.format(i, oracle_row, test_results[i]), 0, 'fail'
+                return 'Expected row {} to be {} instead of {}'.format(i, oracle_row, test_results[i]), 'fail'
         # check 3: column type compatibility deferred trigger
         if check_column_types:
             return "The type of values in column '{}' does not match the expected type (but no row values are "\
                    "available to check whether they could be compatible types)".format(
-                    oracle_columns[check_column_types[0]].name), 0, 'fail'
+                    oracle_columns[check_column_types[0]].name), 'fail'
 
         # all good
-        return '', pass_points, 'pass'
+        return '', 'pass'
 
     def print_summary_file(self, output_open, test_name, actual, status):
         output_open.write('========== {} - {} ==========\n'.format(test_name, status.upper()))
@@ -188,13 +188,13 @@ class MarkusSQLTester(MarkusUtilsMixin):
                 self.init_db()
                 for sql_file in sorted(self.specs.keys()):
                     test_name = sql_file.partition('.')[0]
-                    for data_file, test_points in sorted(self.specs[sql_file].items()):
+                    for data_file, points_total in sorted(self.specs[sql_file].items()):
                         data_name = data_file.partition('.')[0]
                         test_data_name = '{} + {}'.format(test_name, data_name)
                         if not os.path.isfile(sql_file):
                             msg = 'File {} not found'.format(sql_file)
                             MarkusUtilsMixin.print_test_error(name=test_data_name, message=msg,
-                                                              points_total=test_points)
+                                                              points_total=points_total)
                             self.print_error_file(output_open=output_open, test_name=test_data_name, actual=msg)
                             continue
                         try:
@@ -204,20 +204,21 @@ class MarkusSQLTester(MarkusUtilsMixin):
                             # fetch results from oracle
                             oracle_results = self.get_oracle_results(data_name=data_name, test_name=test_name)
                             # compare test results with oracle
-                            result = self.check_results(oracle_results=oracle_results, test_results=test_results,
-                                                        pass_points=test_points)
-                            MarkusUtilsMixin.print_test_result(name=test_data_name, status=result[2], output=result[0],
-                                                               points_awarded=result[1], points_total=test_points)
+                            output, status = self.check_results(oracle_results=oracle_results,
+                                                                test_results=test_results)
+                            points_awarded = points_total if status == 'pass' else 0
+                            MarkusUtilsMixin.print_test_result(name=test_data_name, status=status, output=output,
+                                                               points_awarded=points_awarded, points_total=points_total)
                             # self.print_result_file(output_open=output_open, test_name=test_data_name,
-                            #                        actual=result[0], status=result[2], oracle_results=oracle_results,
+                            #                        actual=output, status=status, oracle_results=oracle_results,
                             #                        test_results=test_results)
                             self.print_psql_file(output_open=output_open, data_name=data_name, test_name=test_name,
-                                                 status=result[2], feedback=result[0])
+                                                 status=status, feedback=output)
                         except Exception as e:
                             self.oracle_connection.commit()
                             self.test_connection.commit()
                             MarkusUtilsMixin.print_test_error(name=test_data_name, message=str(e),
-                                                              points_total=test_points)
+                                                              points_total=points_total)
                             self.print_error_file(output_open=output_open, test_name=test_data_name, actual=str(e))
         except Exception as e:
             MarkusUtilsMixin.print_test_error(name='All SQL tests', message=str(e))
