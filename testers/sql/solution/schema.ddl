@@ -1,6 +1,6 @@
 CREATE TABLE table1 (
   id integer PRIMARY KEY,
-  text varchar(50)
+  word varchar(50)
 );
 
 CREATE TABLE table2 (

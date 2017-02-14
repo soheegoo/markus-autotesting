@@ -20,13 +20,13 @@ if __name__ == '__main__':
                   'badcolumnorder.sql': TEST_POINTS, 'badcolumntypes.sql': TEST_POINTS,
                   'badrowcount.sql': TEST_POINTS, 'badroworder.sql': TEST_POINTS,
                   'badrowcontentsnoorder.sql': TEST_POINTS, 'badrowcontentswithorder.sql': TEST_POINTS,
-                  'compatiblecolumntypes.sql': TEST_POINTS}
+                  'compatiblecolumntypes.sql': TEST_POINTS, 'missing.sql': TEST_POINTS}
     # The ORDER_BY clauses used to check the order of student sql submissions; if a sql file name is missing here, it is
     # checked without taking any ordering into account.
     # (Students are required to submit an additional sql file with '_order' suffix for each submission with ordering,
     # which selects from their solution table and does the ordering; e.g. an 'example.sql' file must have an additional
     # 'example_order.sql' file with a 'SELECT * FROM example ORDER BY [...];' in it)
-    ORDER_BYS = {'correctwithorder.sql': 'text', 'badroworder.sql': 'text', 'badrowcontentswithorder.sql': 'text'}
+    ORDER_BYS = {'correctwithorder.sql': 'word', 'badroworder.sql': 'word', 'badrowcontentswithorder.sql': 'word'}
     # The schema name
     SCHEMA_NAME = 'ate'
     tester = MarkusSQLTester(oracle_database=cfg.ORACLE_DATABASE, test_database=cfg.TEST_DATABASE, user_name=cfg.USER,

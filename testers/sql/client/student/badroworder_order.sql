@@ -1,4 +1,4 @@
 SET search_path TO ate;
 
 SELECT * FROM badroworder
-ORDER BY text DESC;
+ORDER BY word DESC;
