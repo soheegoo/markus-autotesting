@@ -1,6 +1,6 @@
 INSERT INTO table1 VALUES
-  (1, 'aaaa'),
-  (2, 'bbbb');
+  (1, 'zzzz'),
+  (2, 'aaaa');
 
 INSERT INTO table2 VALUES
   (1, 1.01, 1),

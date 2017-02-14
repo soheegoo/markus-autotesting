@@ -1,5 +1,5 @@
 SET search_path TO ate;
 
-CREATE TABLE badcolumntypes AS
-  SELECT table1.id AS text, table2.number
+CREATE TABLE badcolumncount AS
+  SELECT table1.text
   FROM table1 JOIN table2 ON table1.id = table2.foreign_id;

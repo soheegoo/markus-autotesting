@@ -14,7 +14,7 @@ class MarkusSQLTester(MarkusUtilsMixin):
     QUERY_DIR = 'queries'
 
     def __init__(self, oracle_database, test_database, user_name, user_password, path_to_solution, schema_name, specs,
-                 output_filename='result.txt'):
+                 order_bys={}, output_filename='result.txt'):
         self.oracle_database = oracle_database
         self.test_database = test_database
         self.user_name = user_name
@@ -22,6 +22,7 @@ class MarkusSQLTester(MarkusUtilsMixin):
         self.path_to_solution = path_to_solution
         self.schema_name = schema_name
         self.specs = specs
+        self.order_bys = order_bys
         self.output_filename = output_filename
         self.oracle_connection = None
         self.oracle_cursor = None
@@ -78,12 +79,12 @@ class MarkusSQLTester(MarkusUtilsMixin):
 
             return test_results
 
-    def check_results(self, oracle_results, test_results):
+    def check_results(self, oracle_results, test_results, order_on=True):
 
         oracle_columns = self.oracle_cursor.description
         test_columns = self.test_cursor.description
 
-        # check 1: number of columns
+        # check 1: column count
         oracle_num_columns = len(oracle_columns)
         test_num_columns = len(test_columns)
         if oracle_num_columns != test_num_columns:
@@ -91,7 +92,7 @@ class MarkusSQLTester(MarkusUtilsMixin):
 
         check_column_types = []
         for i, oracle_column in enumerate(oracle_columns):
-            # check 2: column names/order
+            # check 2: column names + order
             if test_columns[i].name != oracle_column.name:
                 return "Expected column {} to have name '{}' instead of '{}'".format(i, oracle_column.name,
                                                                                      test_columns[i].name), 'fail'
@@ -107,18 +108,27 @@ class MarkusSQLTester(MarkusUtilsMixin):
                     continue
                 check_column_types.append(i)
 
-        # check 4: number of rows
+        # check 4: rows count
         oracle_num_results = len(oracle_results)
         test_num_results = len(test_results)
         if oracle_num_results != test_num_results:
             return 'Expected {} rows instead of {}'.format(oracle_num_results, test_num_results), 'fail'
 
         for i, oracle_row in enumerate(oracle_results):
+            if order_on:
+                test_row = test_results[i]
+            else:
+                # check 5, unordered variant: rows content
+                try:
+                    t = test_results.index(oracle_row)
+                    test_row = test_results.pop(t)
+                except ValueError:
+                    return 'Expected to find a row {} in the unordered results'.format(oracle_row), 'fail'
             checked_column_types = []
             for j in check_column_types:
                 # check 3: column type compatibility deferred trigger
                 oracle_value = oracle_row[j]
-                test_value = test_results[i][j]
+                test_value = test_row[j]
                 if test_value is None or oracle_value is None:  # try next row for types
                     continue
                 if type(test_value) is not type(oracle_value):
@@ -126,9 +136,10 @@ class MarkusSQLTester(MarkusUtilsMixin):
                         oracle_columns[j].name), 'fail'
                 checked_column_types.append(j)
             check_column_types = [j for j in check_column_types if j not in checked_column_types]
-            # check 5: rows content/order
-            if oracle_row != test_results[i]:
-                return 'Expected row {} to be {} instead of {}'.format(i, oracle_row, test_results[i]), 'fail'
+            # check 5, ordered variant: rows content + order
+            if order_on and oracle_row != test_row:
+                return 'Expected row {} in the ordered results to be {} instead of {}'.format(i, oracle_row,
+                                                                                              test_results[i]), 'fail'
         # check 3: column type compatibility deferred trigger
         if check_column_types:
             return "The type of values in column '{}' does not match the expected type (but no row values are "\
@@ -183,6 +194,16 @@ class MarkusSQLTester(MarkusUtilsMixin):
 
     def run(self):
 
+        # TODO
+        # 1) Add order_bys as constructor parameter
+        # 2) Handle separate *_order.sql files if order_by is present
+        # 3) Check results by:
+        #  a) checking a table named like the student file, irrespective of order
+        #  b) executing the order file for students and the order_by directive for oracle
+        # 4) Modify the psql dump as per 3)
+        # 5) Send the feedback file back to the students by committing it to their repo
+        # 99) Update all examples
+        # TODO
         try:
             with open(self.output_filename, 'w') as output_open:
                 self.init_db()

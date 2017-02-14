@@ -31,8 +31,7 @@ class MarkusUtilsMixin:
     <actual>{output}</actual>
     <marks_earned>{awarded}</marks_earned>
     <status>{status}</status>
-</test>
-        '''.format(info=info, output=output_escaped, awarded=points_awarded, status=status))
+</test>'''.format(info=info, output=output_escaped, awarded=points_awarded, status=status))
 
     @staticmethod
     def print_test_error(name, message, points_total=None):
