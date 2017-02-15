@@ -23,7 +23,7 @@ class PAMResult:
         self.message = message
 
 
-class PAMWrapper:
+class PAMTester:
     """
     A base wrapper class to run the Python AutoMarker (pam - https://github.com/ProjectAT/uam).
     """
@@ -96,14 +96,14 @@ class PAMWrapper:
         Prints pam results: must be overridden.
         :param results: A list of results (possibly empty).
         """
-        pass
+        raise NotImplementedError
 
     def print_error(self, message):
         """
         Prints an error: must be overridden.
         :param message: The error message.
         """
-        pass
+        raise NotImplementedError
 
     def run(self):
         """

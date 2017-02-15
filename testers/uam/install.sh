@@ -7,6 +7,10 @@ fi
 
 UAMDIR=$1
 GITDIR=${UAMDIR}/uam-git
+
+echo "[UAM] Installing system packages"
+sudo apt-get install python3
+echo "[UAM] Downloading latest version of UAM"
 if cd ${GITDIR}; then
 	git pull
 	cd ..
