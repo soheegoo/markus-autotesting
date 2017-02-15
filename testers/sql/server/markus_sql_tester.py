@@ -57,13 +57,19 @@ class MarkusSQLTester(MarkusUtilsMixin):
         if self.oracle_connection:
             self.oracle_connection.close()
 
-    def get_oracle_results(self, data_name, test_name, order_by=None):
+    @staticmethod
+    def oracle_query(data_name, test_name, order_by=None):
         query = 'SELECT * FROM %(schema)s.%(table)s'
         query_vars = {'schema': psycopg2.extensions.AsIs(data_name.lower()),
                       'table': psycopg2.extensions.AsIs('oracle_{}'.format(test_name.lower()))}
         if order_by:
             query += ' ORDER BY %(order)s'
-            query_vars['order'] = order_by
+            query_vars['order'] = psycopg2.extensions.AsIs(order_by)
+
+        return query, query_vars
+
+    def get_oracle_results(self, data_name, test_name, order_by=None):
+        query, query_vars = self.oracle_query(data_name=data_name, test_name=test_name, order_by=order_by)
         self.oracle_cursor.execute(query, query_vars)
         self.oracle_connection.commit()
         oracle_results = self.oracle_cursor.fetchall()
@@ -84,7 +90,14 @@ class MarkusSQLTester(MarkusUtilsMixin):
             self.test_cursor.execute(data)
         self.test_connection.commit()
 
-    def get_test_results(self, data_name, test_name, sql_file, sql_order_file=None):
+    def test_query(self, test_name):
+        query = 'SELECT * FROM %(schema)s.%(table)s'
+        query_vars = {'schema': psycopg2.extensions.AsIs(self.schema_name),
+                      'table': psycopg2.extensions.AsIs(test_name.lower())}
+
+        return query, query_vars
+
+    def get_test_results(self, test_name, sql_file, sql_order_file=None):
         with open(sql_file) as sql_open:
             sql = sql_open.read()
             self.test_cursor.execute(sql)
@@ -94,9 +107,8 @@ class MarkusSQLTester(MarkusUtilsMixin):
                 sql = sql_order_open.read()
                 self.test_cursor.execute(sql)
         else:
-            self.test_cursor.execute('SELECT * FROM %(schema)s.%(table)s',
-                                     {'schema': psycopg2.extensions.AsIs(data_name.lower()),
-                                      'table': psycopg2.extensions.AsIs(test_name.lower())})
+            query, query_vars = self.test_query(test_name=test_name)
+            self.test_cursor.execute(query, query_vars)
         self.test_connection.commit()
         test_results = self.test_cursor.fetchall()
 
@@ -165,39 +177,29 @@ class MarkusSQLTester(MarkusUtilsMixin):
         # all good
         return '', 'pass'
 
-    def print_summary_file(self, output_open, test_name, actual, status):
-        output_open.write('========== {} - {} ==========\n'.format(test_name, status.upper()))
-        if actual:
-            output_open.write(' Problem: {}\n'.format(actual))
-
-    def print_result_file(self, output_open, test_name, actual, status, oracle_results, test_results):
-        self.print_summary_file(output_open, test_name, actual, status)
-        output_open.write(' Expected Columns:\n  {}\n'.format(pprint.pformat([column.name for column in
-                                                                              self.oracle_cursor.description])))
-        output_open.write(' Actual Columns:\n  {}\n'.format(pprint.pformat([column.name for column in
-                                                                            self.test_cursor.description])))
-        output_open.write(' Expected Rows:\n')
-        for oracle_result in oracle_results:
-            output_open.write('  {}\n'.format(pprint.pformat(oracle_result)))
-        output_open.write(' Actual Rows:\n')
-        for test_result in test_results:
-            output_open.write('  {}\n'.format(pprint.pformat(test_result)))
-        output_open.write('\n')
-
-    def print_error_file(self, output_open, test_name, actual):
-        self.print_summary_file(output_open, test_name, actual, 'error')
-        output_open.write('\n')
-
-    def print_psql_file(self, output_open, data_name, test_name, status, feedback):
+    @staticmethod
+    def print_file_header(output_open, data_name, test_name, status, feedback):
+        # header
         output_open.write('========== {} + {}: {} ==========\n'.format(test_name, data_name, status.upper()))
+        # test output
         if feedback:
             output_open.write('Feedback: {}\n'.format(feedback))
+
+    def print_file_psql(self, output_open, data_name, test_name, status, feedback, order_by=None, sql_order_file=None):
+        # header
+        self.print_file_header(output_open=output_open, data_name=data_name, test_name=test_name, status=status,
+                               feedback=feedback)
+        # table dump using psql if not passed
         if status != 'pass':
-            oracle_query = 'SELECT * FROM {}.oracle_{}'.format(data_name, test_name)
+            oracle_query, oracle_vars = self.oracle_query(data_name=data_name, test_name=test_name, order_by=order_by)
             oracle_command = ['psql', '-U', self.user_name, '-d', self.oracle_database, '-h', 'localhost', '-c',
-                              oracle_query]
-            test_command = ['psql', '-U', self.user_name, '-d', self.test_database, '-h', 'localhost', '-f',
-                            '{}.sql'.format(test_name)]
+                              self.oracle_cursor.mogrify(oracle_query, oracle_vars)]
+            test_command = ['psql', '-U', self.user_name, '-d', self.test_database, '-h', 'localhost']
+            if order_by and sql_order_file:
+                test_command.extend(['-f', sql_order_file])
+            else:
+                test_query, test_vars = self.test_query(test_name=test_name)
+                test_command.extend(['-c', self.test_cursor.mogrify(test_query, test_vars)])
             env = os.environ.copy()
             env['PGPASSWORD'] = self.user_password
             proc = subprocess.run(oracle_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True,
@@ -208,18 +210,13 @@ class MarkusSQLTester(MarkusUtilsMixin):
             output_open.write(proc.stdout)
         output_open.write('\n')
 
+    def print_file_error(self, output_open, data_name, test_name, feedback):
+        self.print_file_header(output_open=output_open, data_name=data_name, test_name=test_name, status='error',
+                               feedback=feedback)
+        output_open.write('\n')
+
     def run(self):
 
-        # TODO
-        # 1) Add order_bys as constructor parameter
-        # 2) Handle separate *_order.sql files if order_by is present
-        # 3) Check results by:
-        #  a) checking a table named like the student file, irrespective of order
-        #  b) executing the order file for students and the order_by directive for oracle
-        # 4) Modify the psql dump as per 3)
-        # 5) Send the feedback file back to the students by committing it to their repo
-        # 99) Update all examples
-        # TODO
         try:
             with open(self.output_filename, 'w') as output_open:
                 self.init_db()
@@ -233,7 +230,8 @@ class MarkusSQLTester(MarkusUtilsMixin):
                             msg = self.ERROR_MSGS['no_submission'].format(sql_file)
                             MarkusUtilsMixin.print_test_error(name=test_data_name, message=msg,
                                                               points_total=points_total)
-                            self.print_error_file(output_open=output_open, test_name=test_data_name, actual=msg)
+                            self.print_file_error(output_open=output_open, data_name=data_name, test_name=test_name,
+                                                  feedback=msg)
                             continue
                         # check if ordering is required
                         sql_order_file = None
@@ -244,32 +242,32 @@ class MarkusSQLTester(MarkusUtilsMixin):
                                 msg = self.ERROR_MSGS['no_submission_order'].format(sql_order_file)
                                 MarkusUtilsMixin.print_test_error(name=test_data_name, message=msg,
                                                                   points_total=points_total)
-                                self.print_error_file(output_open=output_open, test_name=test_data_name, actual=msg)
+                                self.print_file_error(output_open=output_open, data_name=data_name, test_name=test_name,
+                                                      feedback=msg)
                                 continue
                         # drop and recreate test schema + dataset, then fetch and compare results
                         try:
                             self.set_test_schema(data_file=data_file)
-                            test_results = self.get_test_results(data_name=data_name, test_name=test_name,
-                                                                 sql_file=sql_file, sql_order_file=sql_order_file)
+                            test_results = self.get_test_results(test_name=test_name, sql_file=sql_file,
+                                                                 sql_order_file=sql_order_file)
                             oracle_results = self.get_oracle_results(data_name=data_name, test_name=test_name,
                                                                      order_by=order_by)
+                            order_on = True if order_by else False
                             output, status = self.check_results(oracle_results=oracle_results,
-                                                                test_results=test_results,
-                                                                order_on=True if order_by else False)
+                                                                test_results=test_results, order_on=order_on)
                             points_awarded = points_total if status == 'pass' else 0
                             MarkusUtilsMixin.print_test_result(name=test_data_name, status=status, output=output,
                                                                points_awarded=points_awarded, points_total=points_total)
-                            # self.print_result_file(output_open=output_open, test_name=test_data_name,
-                            #                        actual=output, status=status, oracle_results=oracle_results,
-                            #                        test_results=test_results)
-                            self.print_psql_file(output_open=output_open, data_name=data_name, test_name=test_name,
-                                                 status=status, feedback=output)
+                            self.print_file_psql(output_open=output_open, data_name=data_name, test_name=test_name,
+                                                 status=status, feedback=output, order_by=order_by,
+                                                 sql_order_file=sql_order_file)
                         except Exception as e:
                             self.oracle_connection.commit()
                             self.test_connection.commit()
                             MarkusUtilsMixin.print_test_error(name=test_data_name, message=str(e),
                                                               points_total=points_total)
-                            self.print_error_file(output_open=output_open, test_name=test_data_name, actual=str(e))
+                            self.print_file_error(output_open=output_open, data_name=data_name, test_name=test_name,
+                                                  feedback=str(e))
         except Exception as e:
             MarkusUtilsMixin.print_test_error(name='All SQL tests', message=str(e))
         finally:
