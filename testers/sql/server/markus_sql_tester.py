@@ -24,7 +24,7 @@ class MarkusSQLTester(MarkusUtilsMixin):
                   'bad_row_content_order': 'Expected row {} in the ordered results to be {} instead of {}'}
 
     def __init__(self, oracle_database, test_database, user_name, user_password, path_to_solution, schema_name, specs,
-                 order_bys={}, output_filename='result.txt'):
+                 order_bys={}, output_filename='feedback.txt'):
         self.oracle_database = oracle_database
         self.test_database = test_database
         self.user_name = user_name
@@ -180,10 +180,10 @@ class MarkusSQLTester(MarkusUtilsMixin):
     @staticmethod
     def print_file_header(output_open, data_name, test_name, status, feedback):
         # header
-        output_open.write('========== {} + {}: {} ==========\n'.format(test_name, data_name, status.upper()))
+        output_open.write('========== {} + {}: {} ==========\n\n'.format(test_name, data_name, status.upper()))
         # test output
         if feedback:
-            output_open.write('Feedback: {}\n'.format(feedback))
+            output_open.write('## Feedback: {}\n\n'.format(feedback))
 
     def print_file_psql(self, output_open, data_name, test_name, status, feedback, order_by=None, sql_order_file=None):
         # header
@@ -202,9 +202,11 @@ class MarkusSQLTester(MarkusUtilsMixin):
                 test_command.extend(['-c', self.test_cursor.mogrify(test_query, test_vars)])
             env = os.environ.copy()
             env['PGPASSWORD'] = self.user_password
+            output_open.write('## Expected Solution:\n\n')
             proc = subprocess.run(oracle_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True,
                                   shell=False, env=env, universal_newlines=True)
             output_open.write(proc.stdout)
+            output_open.write('## Your Solution:\n\n')
             proc = subprocess.run(test_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, shell=False,
                                   env=env, universal_newlines=True)
             output_open.write(proc.stdout)
