@@ -17,4 +17,5 @@ if cd ${GITDIR}; then
 else
 	git clone https://github.com/ProjectAT/uam.git ${GITDIR}
 fi
+echo "[UAM] Updating python config file"
 echo "PATH_TO_UAM = '""${GITDIR}""'" >| server/markus_pam_config.py
