@@ -16,11 +16,12 @@ class MarkusSQLTester(MarkusUtilsMixin):
                   'no_submission_order': 'Ordering required, order file {} not found',
                   'bad_col_count': 'Expected {} columns instead of {}',
                   'bad_col_name': "Expected column {} to have name '{}' instead of '{}'",
-                  'bad_col_type': "The type of values in column '{}' does not match the expected type",
-                  'bad_col_type_maybe': "The type of values in column '{}' does not match the expected type (but no row"
-                                        "values are available to check whether they could be compatible types)",
+                  'bad_col_type': "Expected a different type of values in column '{}' (expected a SQL equivalent of "
+                                  "Python type '{}' instead of '{}')",
+                  'bad_col_type_maybe': "Expected a different type of values in column '{}' (but no row values are "
+                                        "available to check whether they could be compatible types)",
                   'bad_row_count': 'Expected {} rows instead of {}',
-                  'bad_row_content_no_order': 'Expected to find a row {} in the unordered results',
+                  'bad_row_content_no_order': 'Expected to find a row {} in the results',
                   'bad_row_content_order': 'Expected row {} in the ordered results to be {} instead of {}'}
 
     def __init__(self, oracle_database, test_database, user_name, user_password, path_to_solution, schema_name, specs,
@@ -163,8 +164,11 @@ class MarkusSQLTester(MarkusUtilsMixin):
                 test_value = test_row[j]
                 if test_value is None or oracle_value is None:  # try next row for types
                     continue
-                if type(test_value) is not type(oracle_value):
-                    return self.ERROR_MSGS['bad_col_type'].format(oracle_columns[j].name), 'fail'
+                oracle_type = type(oracle_value)
+                test_type = type(test_value)
+                if test_type is not oracle_type:
+                    return self.ERROR_MSGS['bad_col_type'].format(oracle_columns[j].name, oracle_type.__name__,
+                                                                  test_type.__name__), 'fail'
                 checked_column_types.append(j)
             check_column_types = [j for j in check_column_types if j not in checked_column_types]
             # check 5, ordered variant: row contents + order
