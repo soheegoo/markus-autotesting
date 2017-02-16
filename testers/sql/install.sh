@@ -28,6 +28,10 @@ sudo -u postgres psql <<-EOF
 	DROP DATABASE IF EXISTS ${TESTDB};
 	CREATE DATABASE ${SERVERDB} OWNER ${SERVERUSER};
 	CREATE DATABASE ${TESTDB} OWNER ${TESTUSER};
+	\connect ${SERVERDB}
+	DROP SCHEMA IF EXISTS public CASCADE;
+	\connect ${TESTDB}
+	DROP SCHEMA IF EXISTS public CASCADE;
 EOF
 for datafile in ${DATASETDIR}/*; do
 	schemaname=$(basename -s .sql ${datafile})
@@ -49,3 +53,5 @@ for datafile in ${DATASETDIR}/*; do
 	EOF
 done
 rm /tmp/ate.sql
+# TODO Should write settings to the config file
+#echo "[SQL] Updating python config file"
