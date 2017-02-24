@@ -1,5 +1,4 @@
 import os
-import pprint
 import subprocess
 
 import psycopg2
@@ -12,17 +11,19 @@ class MarkusSQLTester(MarkusUtilsMixin):
     SCHEMA_FILE = 'schema.ddl'
     DATASET_DIR = 'datasets'
     QUERY_DIR = 'queries'
-    ERROR_MSGS = {'no_submission': 'Submission file {} not found',
-                  'no_submission_order': 'Ordering required, order file {} not found',
-                  'bad_col_count': 'Expected {} columns instead of {}',
-                  'bad_col_name': "Expected column {} to have name '{}' instead of '{}'",
-                  'bad_col_type': "Expected a different type of values in column '{}' (expected a SQL equivalent of "
-                                  "Python type '{}' instead of '{}')",
-                  'bad_col_type_maybe': "Expected a different type of values in column '{}' (but no row values are "
-                                        "available to check whether they could be compatible types)",
-                  'bad_row_count': 'Expected {} rows instead of {}',
-                  'bad_row_content_no_order': 'Expected to find a row {} in the results',
-                  'bad_row_content_order': 'Expected row {} in the ordered results to be {} instead of {}'}
+    ERROR_MSGS = {
+        'no_submission': 'Submission file {} not found',
+        'no_submission_order': 'Ordering required, order file {} not found',
+        'bad_col_count': 'Expected {} columns instead of {}',
+        'bad_col_name': "Expected column {} to have name '{}' instead of '{}'",
+        'bad_col_type': "Expected a different type of values in column '{}' (expected a SQL equivalent of Python type "
+                        "'{}' instead of '{}')",
+        'bad_col_type_maybe': "Expected a different type of values in column '{}' (but no row values are available to "
+                              "check whether they could be compatible types)",
+        'bad_row_count': 'Expected {} rows instead of {}',
+        'bad_row_content_no_order': 'Expected to find a row {} in the results',
+        'bad_row_content_order': 'Expected row {} in the ordered results to be {} instead of {}'
+    }
 
     def __init__(self, oracle_database, test_database, user_name, user_password, path_to_solution, schema_name, specs,
                  order_bys={}, output_filename='feedback.txt'):
@@ -224,8 +225,8 @@ class MarkusSQLTester(MarkusUtilsMixin):
     def run(self):
 
         try:
+            self.init_db()
             with open(self.output_filename, 'w') as output_open:
-                self.init_db()
                 for sql_file in sorted(self.specs.keys()):
                     test_name, test_ext = os.path.splitext(sql_file)
                     for data_file, points_total in sorted(self.specs[sql_file].items()):
@@ -251,8 +252,8 @@ class MarkusSQLTester(MarkusUtilsMixin):
                                 self.print_file_error(output_open=output_open, data_name=data_name, test_name=test_name,
                                                       feedback=msg)
                                 continue
-                        # drop and recreate test schema + dataset, then fetch and compare results
                         try:
+                            # drop and recreate test schema + dataset, then fetch and compare results
                             self.set_test_schema(data_file=data_file)
                             test_results = self.get_test_results(test_name=test_name, sql_file=sql_file,
                                                                  sql_order_file=sql_order_file)
