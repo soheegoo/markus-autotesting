@@ -97,6 +97,7 @@ echo "[AUTOTEST] Installing gems"
 bundle install --deployment
 sudo -u ${USERSERVER} TERM_CHILD=1 BACKGROUND=yes QUEUES=${QUEUENAME} bundle exec rake resque:work
 echo "[AUTOTEST] Resque started for autotesting server"
+echo "[AUTOTEST] (You may want to add the Resque command to ${USERSERVER}'s crontab with a @reboot time)"
 cd ..
 mkdir -p ${FILESDIR}
 mkdir -p ${RESULTSDIR}
