@@ -97,7 +97,6 @@ class MarkusSQLTester(MarkusUtilsMixin):
         with open(sql_file) as sql_open:
             sql = sql_open.read()
             self.test_cursor.execute(sql)
-            self.test_connection.commit()
         if sql_order_file is not None:
             with open(sql_order_file) as sql_order_open:
                 sql = sql_order_open.read()
