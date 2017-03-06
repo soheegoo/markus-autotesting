@@ -19,7 +19,7 @@ TESTPWD=YOUR_TEST_PASSWORD
 
 echo "[SQL] Installing system packages"
 sudo apt-get install python3 postgresql
-echo "[SQL] Populating database with solutions"
+echo "[SQL] Creating solution and test databases and users"
 chmod go-rwx ${QUERYDIR}
 sudo -u postgres psql <<-EOF
 	CREATE ROLE ${SERVERUSER} LOGIN PASSWORD '${SERVERPWD}';
@@ -35,6 +35,7 @@ sudo -u postgres psql <<-EOF
 EOF
 for datafile in ${DATASETDIR}/*; do
 	schemaname=$(basename -s .sql ${datafile})
+	echo "[SQL] Creating solution schema ${schemaname} and populating it"
 	psql -U ${SERVERUSER} -d ${SERVERDB} -h localhost <<-EOF
 		DROP SCHEMA IF EXISTS ${schemaname} CASCADE;
 		CREATE SCHEMA ${schemaname};
@@ -47,6 +48,7 @@ for datafile in ${DATASETDIR}/*; do
 	for queryfile in ${QUERYDIR}/*; do
 		queryname=$(basename -s .sql ${queryfile})
 		if [[ ${schemaname} == ${queryname}* ]] || [[ ${schemaname} == all* ]]; then
+			echo "[SQL] Creating solution table ${queryname} for schema ${schemaname}"
 			echo "SET search_path TO ${schemaname};" | cat - ${queryfile} >| /tmp/ate.sql
 			psql -U ${SERVERUSER} -d ${SERVERDB} -h localhost -f /tmp/ate.sql
 		fi
