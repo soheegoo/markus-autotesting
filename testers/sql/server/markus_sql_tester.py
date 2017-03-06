@@ -12,8 +12,8 @@ class MarkusSQLTester(MarkusUtilsMixin):
     DATASET_DIR = 'datasets'
     QUERY_DIR = 'queries'
     ERROR_MSGS = {
-        'no_submission': 'Submission file {} not found',
-        'no_submission_order': 'Ordering required, order file {} not found',
+        'no_submission': "Submission file '{}' not found",
+        'no_submission_order': "Ordering required, order file '{}' not found",
         'bad_col_count': 'Expected {} columns instead of {}',
         'bad_col_name': "Expected column {} to have name '{}' instead of '{}'",
         'bad_col_type': "Expected a different type of values in column '{}' (expected a SQL equivalent of Python type "
