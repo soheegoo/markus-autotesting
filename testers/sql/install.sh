@@ -45,8 +45,11 @@ for datafile in ${DATASETDIR}/*; do
 	echo "SET search_path TO ${schemaname};" | cat - ${datafile} >| /tmp/ate.sql
 	psql -U ${SERVERUSER} -d ${SERVERDB} -h localhost -f /tmp/ate.sql
 	for queryfile in ${QUERYDIR}/*; do
-    	echo "SET search_path TO ${schemaname};" | cat - ${queryfile} >| /tmp/ate.sql
-		psql -U ${SERVERUSER} -d ${SERVERDB} -h localhost -f /tmp/ate.sql
+		queryname=$(basename -s .sql ${queryfile})
+		if [[ ${schemaname} == ${queryname}* ]] || [[ ${schemaname} == all* ]]; then
+			echo "SET search_path TO ${schemaname};" | cat - ${queryfile} >| /tmp/ate.sql
+			psql -U ${SERVERUSER} -d ${SERVERDB} -h localhost -f /tmp/ate.sql
+		fi
 	done
 	psql -U ${SERVERUSER} -d ${SERVERDB} -h localhost <<-EOF
 		GRANT SELECT ON ALL TABLES IN SCHEMA ${schemaname} TO ${TESTUSER};

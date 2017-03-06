@@ -14,7 +14,7 @@ if __name__ == '__main__':
     # names are the keys, dicts of dataset file names and points are the values.
     # (Students are required to create a solution table in their submission, named as the sql file without the file
     # extension; e.g. an 'example.sql' file must have a 'CREATE TABLE example [...];' in it)
-    TEST_POINTS = {'data1.sql': 1, 'data2.sql': 2}
+    TEST_POINTS = {'all_data1.sql': 1, 'all_data2.sql': 2}
     TEST_SPECS = {'correct_no_order.sql': TEST_POINTS, 'correct_with_order.sql': TEST_POINTS,
                   'bad_col_count.sql': TEST_POINTS, 'bad_col_name.sql': TEST_POINTS,
                   'bad_col_order.sql': TEST_POINTS, 'bad_col_type.sql': TEST_POINTS,
