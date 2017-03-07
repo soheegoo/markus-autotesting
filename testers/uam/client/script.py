@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
 import sys
+import os
 import markus_pam_config as cfg
 from markus_pam_tester import MarkusPAMTester
-# from markusapi import Markus
+from markusapi import Markus
 
 
 if __name__ == '__main__':
@@ -22,12 +23,13 @@ if __name__ == '__main__':
     tester = MarkusPAMTester(path_to_uam=cfg.PATH_TO_UAM, specs=TEST_SPECS, test_timeout=TEST_TIMEOUT,
                              global_timeout=GLOBAL_TIMEOUT)
     tester.run()
-    # use markus apis if needed (uncomment import markusapi)
+    # use markus apis if needed
     root_url = sys.argv[1]
     api_key = sys.argv[2]
     assignment_id = sys.argv[3]
     group_id = sys.argv[4]
     # file_name = 'result.json'
-    # api = Markus(api_key, root_url)
-    # with open(file_name) as open_file:
-    #     api.upload_feedback_file(assignment_id, group_id, file_name, open_file.read())
+    # if os.path.isfile(file_name):
+    #     api = Markus(api_key, root_url)
+    #     with open(file_name) as open_file:
+    #         api.upload_feedback_file(assignment_id, group_id, file_name, open_file.read())
