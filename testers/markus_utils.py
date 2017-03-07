@@ -48,19 +48,19 @@ class MarkusUtilsMixin:
                                            points_total=points_total)
 
     @staticmethod
-    def upload_svn_file(markus_root_url, file_name, group_name, assignment_name, svn_user, svn_password,
+    def upload_svn_file(markus_root_url, file_name, svn_file_name, group_name, assignment_name, svn_user, svn_password,
                         commit_message):
         markus_server_url, slash, markus_instance = markus_root_url.rpartition('/')
         repo_url = '/'.join([markus_server_url, 'svn', markus_instance, group_name])
         svn_co_command = ['svn', 'co', '--username', svn_user, '--password', svn_password, repo_url]
-        subprocess.run(svn_co_command)
-        repo_path = os.path.join(group_name, assignment_name, file_name)
+        subprocess.run(svn_co_command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        repo_path = os.path.join(group_name, assignment_name, svn_file_name)
         previous_file = os.path.isfile(repo_path)
         cp_command = ['cp', '-f', file_name, repo_path]
-        subprocess.run(cp_command)
+        subprocess.run(cp_command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         if not previous_file:
             svn_add_command = ['svn', 'add', repo_path]
-            subprocess.run(svn_add_command)
+            subprocess.run(svn_add_command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         svn_ci_command = ['svn', 'ci', '--username', svn_user, '--password', svn_password, '-m', commit_message,
                           repo_path]
-        subprocess.run(svn_ci_command)
+        subprocess.run(svn_ci_command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
