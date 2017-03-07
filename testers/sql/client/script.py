@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
 import sys
+import os
 import markus_sql_config as cfg
 from markus_sql_tester import MarkusSQLTester
-# from markusapi import Markus
+from markusapi import Markus
 
 
 if __name__ == '__main__':
@@ -34,12 +35,13 @@ if __name__ == '__main__':
                              user_password=cfg.PASSWORD, path_to_solution=cfg.PATH_TO_SOLUTION, schema_name=SCHEMA_NAME,
                              specs=TEST_SPECS, order_bys=ORDER_BYS)
     tester.run()
-    # use markus apis if needed (uncomment import markusapi)
+    # use markus apis if needed
     root_url = sys.argv[1]
     api_key = sys.argv[2]
     assignment_id = sys.argv[3]
     group_id = sys.argv[4]
     # file_name = 'feedback.txt'
-    # api = Markus(api_key, root_url)
-    # with open(file_name) as open_file:
-    #     api.upload_feedback_file(assignment_id, group_id, file_name, open_file.read())
+    # if os.path.isfile(file_name):
+    #     api = Markus(api_key, root_url)
+    #     with open(file_name) as open_file:
+    #         api.upload_feedback_file(assignment_id, group_id, file_name, open_file.read())
