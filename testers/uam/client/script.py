@@ -28,6 +28,7 @@ if __name__ == '__main__':
     api_key = sys.argv[2]
     assignment_id = sys.argv[3]
     group_id = sys.argv[4]
+    repo_name = sys.argv[5]
     # file_name = 'result.json'
     # if os.path.isfile(file_name):
     #     api = Markus(api_key, root_url)
