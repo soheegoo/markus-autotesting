@@ -1,6 +1,9 @@
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 public class SubmissionOracle {
 
@@ -30,6 +33,50 @@ public class SubmissionOracle {
         }
         catch (SQLException e) {
             return false;
+        }
+    }
+
+    /* TODO
+     0) Oracle has a main, where it calls inputs = getInputs() and solution.testName(inputs) through reflection
+     1) Tester calls inputs = getInputs()
+     2) Tester calls test.testName(inputs) through reflection
+     3) Tester calls oracle.testName(dataName) through reflection
+     4) Tester compares the outputs in a generic way
+     */
+    public List<Object> getInputs(String dataName) {
+
+        switch (dataName) {
+            case "allData1":
+            case "allData2":
+                int num = 1;
+                String text = "a";
+                return Arrays.asList(num, text);
+            default:
+                return new ArrayList<>();
+        }
+    }
+
+    public Object testSelect(String dataName) {
+
+        switch (dataName) {
+            case "allData1":
+                return Arrays.asList("a");
+            case "allData2":
+                return Arrays.asList("b");
+            default:
+                return null;
+        }
+    }
+
+    public Object testInsert(String dataName) {
+
+        switch (dataName) {
+            case "allData1":
+                return true;
+            case "allData2":
+                return false;
+            default:
+                return null;
         }
     }
 
