@@ -3,7 +3,6 @@ import subprocess
 
 import psycopg2
 from markus_utils import MarkusUtils
-# from markusapi import Markus
 
 
 class MarkusSQLTester:
