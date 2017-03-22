@@ -1,16 +1,14 @@
-import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 
-public class Submission {
-
-    Connection connection;
+public class Submission extends JDBCSubmission {
 
     Submission() throws ClassNotFoundException {
 
         Class.forName("org.postgresql.Driver");
     }
 
+    @Override
     public boolean connectDB(String URL, String username, String password) {
 
         try {
@@ -22,6 +20,7 @@ public class Submission {
         }
     }
 
+    @Override
     public boolean disconnectDB() {
 
         try {

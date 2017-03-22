@@ -43,14 +43,17 @@ public class SubmissionOracle {
      3) Tester calls oracle.testName(dataName) through reflection
      4) Tester compares the outputs in a generic way
      */
-    public List<Object> getInputs(String dataName) {
+    public List<Object> getInputs(String dataName, String testName) {
 
+        switch (testName) {
+            case "":
+
+        }
         switch (dataName) {
-            case "allData1":
-            case "allData2":
-                int num = 1;
-                String text = "a";
-                return Arrays.asList(num, text);
+            case "all_data1":
+            case "all_data2":
+                double number = 0;
+                return Arrays.asList(number);
             default:
                 return new ArrayList<>();
         }
