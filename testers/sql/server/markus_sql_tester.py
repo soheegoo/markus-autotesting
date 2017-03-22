@@ -2,11 +2,11 @@ import os
 import subprocess
 
 import psycopg2
-from markus_utils import MarkusUtilsMixin
+from markus_utils import MarkusUtils
 # from markusapi import Markus
 
 
-class MarkusSQLTester(MarkusUtilsMixin):
+class MarkusSQLTester:
 
     SCHEMA_FILE = 'schema.ddl'
     DATASET_DIR = 'datasets'
@@ -229,8 +229,7 @@ class MarkusSQLTester(MarkusUtilsMixin):
                         # check that the submission exists
                         if not os.path.isfile(sql_file):
                             msg = self.ERROR_MSGS['no_submission'].format(sql_file)
-                            MarkusUtilsMixin.print_test_error(name=test_data_name, message=msg,
-                                                              points_total=points_total)
+                            MarkusUtils.print_test_error(name=test_data_name, message=msg, points_total=points_total)
                             self.print_file_error(output_open=output_open, name=test_data_name, feedback=msg)
                             continue
                         # check if ordering is required
@@ -240,8 +239,8 @@ class MarkusSQLTester(MarkusUtilsMixin):
                             sql_order_file = '{}_order{}'.format(test_name, test_ext)
                             if not os.path.isfile(sql_order_file):
                                 msg = self.ERROR_MSGS['no_submission_order'].format(sql_order_file)
-                                MarkusUtilsMixin.print_test_error(name=test_data_name, message=msg,
-                                                                  points_total=points_total)
+                                MarkusUtils.print_test_error(name=test_data_name, message=msg,
+                                                             points_total=points_total)
                                 self.print_file_error(output_open=output_open, name=test_data_name, feedback=msg)
                                 continue
                         try:
@@ -255,18 +254,17 @@ class MarkusSQLTester(MarkusUtilsMixin):
                             output, status = self.check_results(oracle_results=oracle_results,
                                                                 test_results=test_results, order_on=order_on)
                             points_awarded = points_total if status == 'pass' else 0
-                            MarkusUtilsMixin.print_test_result(name=test_data_name, status=status, output=output,
-                                                               points_awarded=points_awarded, points_total=points_total)
+                            MarkusUtils.print_test_result(name=test_data_name, status=status, output=output,
+                                                          points_awarded=points_awarded, points_total=points_total)
                             self.print_file_psql(output_open=output_open, name=test_data_name,
                                                  oracle_schema_name=data_name, table_name=test_name, status=status,
                                                  feedback=output, order_by=order_by, sql_order_file=sql_order_file)
                         except Exception as e:
                             self.oracle_connection.commit()
                             self.test_connection.commit()
-                            MarkusUtilsMixin.print_test_error(name=test_data_name, message=str(e),
-                                                              points_total=points_total)
+                            MarkusUtils.print_test_error(name=test_data_name, message=str(e), points_total=points_total)
                             self.print_file_error(output_open=output_open, name=test_data_name, feedback=str(e))
         except Exception as e:
-            MarkusUtilsMixin.print_test_error(name='All SQL tests', message=str(e))
+            MarkusUtils.print_test_error(name='All SQL tests', message=str(e))
         finally:
             self.close_db()

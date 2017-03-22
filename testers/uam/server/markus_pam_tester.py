@@ -1,8 +1,8 @@
 from pam_tester import PAMTester, PAMResult
-from markus_utils import MarkusUtilsMixin
+from markus_utils import MarkusUtils
 
 
-class MarkusPAMTester(MarkusUtilsMixin, PAMTester):
+class MarkusPAMTester(PAMTester):
     """
     A wrapper to run the Python AutoMarker (pam - https://github.com/ProjectAT/uam) within Markus' test framework.
     """
@@ -17,12 +17,12 @@ class MarkusPAMTester(MarkusUtilsMixin, PAMTester):
             status = 'pass' if result.status == PAMResult.Status.PASS else 'fail'
             name = result.name if not result.description else '{name} ({desc})'.format(name=result.name,
                                                                                        desc=result.description)
-            MarkusUtilsMixin.print_test_result(name=name, status=status, output=result.message, points_awarded=awarded,
-                                               points_total=total)
+            MarkusUtils.print_test_result(name=name, status=status, output=result.message, points_awarded=awarded,
+                                          points_total=total)
 
     def print_error(self, message):
         """
         Prints an error in Markus' test framework format.
         :param message: The error message.
         """
-        MarkusUtilsMixin.print_test_error(name='All PAM tests', message=message)
+        MarkusUtils.print_test_error(name='All PAM tests', message=message)

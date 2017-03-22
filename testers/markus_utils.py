@@ -3,7 +3,7 @@ import subprocess
 from xml.sax import saxutils
 
 
-class MarkusUtilsMixin:
+class MarkusUtils:
 
     @staticmethod
     def print_test_result(name, status, output, points_awarded, points_total=None):
@@ -44,8 +44,8 @@ class MarkusUtilsMixin:
         :param points_total: The total points the test could have awarded, must be an integer > 0. Can be None if
                              unknown.
         """
-        MarkusUtilsMixin.print_test_result(name=name, status='error', output=message, points_awarded=0,
-                                           points_total=points_total)
+        MarkusUtils.print_test_result(name=name, status='error', output=message, points_awarded=0,
+                                      points_total=points_total)
 
     @staticmethod
     def upload_svn_file(markus_root_url, file_name, svn_file_name, repo_name, assignment_name, svn_user, svn_password,
