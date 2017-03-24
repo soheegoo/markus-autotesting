@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!ELEMENT output (zeroone?,one,zeromore*,onemore+,empty,attributes,ids+)>
+<!ELEMENT one (#PCDATA)>
+<!ELEMENT zeroone (#PCDATA)>
+<!ELEMENT zeromore (#PCDATA)>
+<!ELEMENT onemore (#PCDATA)>
+<!ELEMENT empty EMPTY>
+<!ELEMENT attributes EMPTY>
+<!ATTLIST attributes optional CDATA #IMPLIED>
+<!ATTLIST attributes required CDATA #REQUIRED>
+<!ATTLIST attributes enum (option1|option2|option3) #REQUIRED>
+<!ELEMENT ids EMPTY>
+<!ATTLIST ids id ID #REQUIRED>
