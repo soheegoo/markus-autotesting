@@ -21,7 +21,7 @@ if __name__ == '__main__':
                   'bad_col_order.sql': TEST_POINTS, 'bad_col_type.sql': TEST_POINTS,
                   'bad_row_count.sql': TEST_POINTS, 'bad_row_order.sql': TEST_POINTS,
                   'bad_row_content_no_order.sql': TEST_POINTS, 'bad_row_content_with_order.sql': TEST_POINTS,
-                  'compatible_column_type.sql': TEST_POINTS, 'missing.sql': TEST_POINTS}
+                  'bad_syntax': TEST_POINTS, 'compatible_column_type.sql': TEST_POINTS, 'missing.sql': TEST_POINTS}
     # The ORDER_BY clauses used to check the order of student sql submissions; if a sql file name is missing here, it is
     # checked without taking any ordering into account.
     # (Students are required to submit an additional sql file with '_order' suffix for each submission with ordering,
