@@ -9,7 +9,7 @@ from markusapi import Markus
 
 if __name__ == '__main__':
 
-    tester = MarkusXQueryTester()
+    tester = MarkusXQueryTester(cfg.PATH_TO_SOLUTION)
     tester.run()
     # use markus apis if needed
     root_url = sys.argv[1]
