@@ -15,14 +15,13 @@ echo '[XQUERY] Installing system packages'
 sudo apt-get install python3 galax libxml2-utils
 echo '[XQUERY] Creating solutions'
 chmod go-rwx ${QUERYDIR}
-for file in ${DATASETDIR}/*; do
-	datafile=$(basename ${file})
-	dataname=${datafile##*.} # longest leading matching pattern == until the last .
-	dataext=${datafile%.*} # shortest trailing matching pattern == from the last .
+for datafile in ${DATASETDIR}/*; do
+	dataset=$(basename ${datafile})
+	dataname=${dataset%.*} # shortest trailing matching pattern deleted == until the last '.'
+	dataext=${dataset##*.} # longest leading matching pattern deleted == from the last '.'
 	if [[ ${dataext} == dtd ]]; then
-		continue
+		continue # discard dataset dtds
 	fi
-	echo "${datafile}"
 	for queryfile in ${QUERYDIR}/*; do
 		queryname=$(basename -s .xq ${queryfile})
 		if [[ ${dataname} != ${queryname}* && ${dataname} != all* ]]; then
@@ -33,15 +32,15 @@ for file in ${DATASETDIR}/*; do
 		if [[ ! "${schemafile}" ]]; then
 			schemafile=$(find ${SCHEMADIR} -type f -name "'"${queryname}*.dtd"'")
 		fi
-		schemaname=$(basename -s .dtd ${schemafile})
+		schema=$(basename ${schemafile})
 		roottag=$(head -n 2 ${schemafile} | tail -n 1 | awk '{print $2;}')
-		echo "[XQUERY] Creating solution ${queryname} for data ${dataname}"
+		echo "[XQUERY] Creating solution '${queryname}' for data '${dataname}'"
 		echo '<?xml version="1.0" encoding="UTF-8"?>' >| /tmp/ate.xml
-		echo "<!DOCTYPE ${roottag} SYSTEM \"${schemaname}\">" >> /tmp/ate.xml
-		galax-run ${queryfile} >> /tmp/ate.xml
+		echo "<!DOCTYPE ${roottag} SYSTEM \"${schema}\">" >> /tmp/ate.xml
+		galax-run -doc dataset=${datafile} ${queryfile} >> /tmp/ate.xml
 		xmllint --format /tmp/ate.xml >| ${SOLUTIONDIR}/${queryname}+${dataname}.xml
 	done
 done
-#rm /tmp/ate.xml
-#echo '[XQUERY] Updating python config file'
-#echo "PATH_TO_SOLUTION = '""${SOLUTIONDIR}""'" >| server/markus_xquery_config.py
+rm /tmp/ate.xml
+echo '[XQUERY] Updating python config file'
+echo "PATH_TO_SOLUTION = '""${SOLUTIONDIR}""'" >| server/markus_xquery_config.py
