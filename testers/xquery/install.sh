@@ -28,9 +28,9 @@ for datafile in ${DATASETDIR}/*; do
 			continue
 		fi
 		# find corresponding output schema and root tag
-		schemafile=$(find ${SCHEMADIR} -type f -name 'all*.dtd')
+		schemafile=$(find ${SCHEMADIR} -type f -name all*.dtd)
 		if [[ ! "${schemafile}" ]]; then
-			schemafile=$(find ${SCHEMADIR} -type f -name "'"${queryname}*.dtd"'")
+			schemafile=$(find ${SCHEMADIR} -type f -name ${queryname}*.dtd)
 		fi
 		schema=$(basename ${schemafile})
 		roottag=$(head -n 2 ${schemafile} | tail -n 1 | awk '{print $2;}')
