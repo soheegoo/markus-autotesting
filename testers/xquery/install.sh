@@ -15,25 +15,27 @@ echo '[XQUERY] Installing system packages'
 sudo apt-get install python3 galax libxml2-utils
 echo '[XQUERY] Creating solutions'
 chmod go-rwx ${QUERYDIR}
-for datafile in ${DATASETDIR}/*; do
-	dataset=$(basename ${datafile})
-	dataname=${dataset%.*} # shortest trailing matching pattern deleted == until the last '.'
-	dataext=${dataset##*.} # longest leading matching pattern deleted == from the last '.'
-	if [[ ${dataext} == dtd ]]; then
-		continue # discard dataset dtds
+SCHEMAS=""
+for queryfile in ${QUERYDIR}/*; do
+	queryname=$(basename -s .xq ${queryfile})
+	# find corresponding output schema and root tag
+	schemafile=$(find ${SCHEMADIR} -type f -name all*.dtd)
+	if [[ ! "${schemafile}" ]]; then
+		schemafile=$(find ${SCHEMADIR} -type f -name ${queryname}*.dtd)
 	fi
-	for queryfile in ${QUERYDIR}/*; do
-		queryname=$(basename -s .xq ${queryfile})
-		if [[ ${dataname} != ${queryname}* && ${dataname} != all* ]]; then
+	schema=$(basename ${schemafile})
+	roottag=$(head -n 2 ${schemafile} | tail -n 1 | awk '{print $2;}')
+	SCHEMAS="'${queryname}.xq': ('${schema}', '${roottag}'), ${SCHEMAS}"
+	for datafile in ${DATASETDIR}/*; do
+		dataset=$(basename ${datafile})
+		dataname=${dataset%.*} # shortest trailing matching pattern deleted == until the last '.'
+		dataext=${dataset##*.} # longest leading matching pattern deleted == from the last '.'
+		if [[ ${dataext} == dtd ]]; then # discard dataset dtds
 			continue
 		fi
-		# find corresponding output schema and root tag
-		schemafile=$(find ${SCHEMADIR} -type f -name all*.dtd)
-		if [[ ! "${schemafile}" ]]; then
-			schemafile=$(find ${SCHEMADIR} -type f -name ${queryname}*.dtd)
+		if [[ ${dataname} != ${queryname}* && ${dataname} != all* ]]; then # discard datasets not used for this query
+			continue
 		fi
-		schema=$(basename ${schemafile})
-		roottag=$(head -n 2 ${schemafile} | tail -n 1 | awk '{print $2;}')
 		echo "[XQUERY] Creating solution '${queryname}' for data '${dataname}'"
 		echo '<?xml version="1.0" encoding="UTF-8"?>' >| /tmp/ate.xml
 		echo "<!DOCTYPE ${roottag} SYSTEM \"${schema}\">" >> /tmp/ate.xml
@@ -43,4 +45,5 @@ for datafile in ${DATASETDIR}/*; do
 done
 rm /tmp/ate.xml
 echo '[XQUERY] Updating python config file'
-echo "PATH_TO_SOLUTION = '""${SOLUTIONDIR}""'" >| server/markus_xquery_config.py
+echo "PATH_TO_SOLUTION = '${SOLUTIONDIR}'" >| server/markus_xquery_config.py
+echo "SCHEMAS = {${SCHEMAS}}" >> server/markus_xquery_config.py
