@@ -1,2 +1,2 @@
-PATH_TO_SOLUTION = '/path/to/solution'
-SCHEMAS = {'correct.xq': ('all_schema_out.dtd', 'output')}
+PATH_TO_SOLUTION = '/home/adisandro/Desktop/markus-autotesting/testers/xquery/solution'
+SCHEMAS = {'correct.xq': ('schema_out.dtd', 'output'), }

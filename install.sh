@@ -91,7 +91,7 @@ if [ "${KILL}" = true ]; then
 	kill -QUIT `pgrep -f resque` || { echo "[AUTOTEST] No running Resque worker found, no need to kill them"; }
 fi
 echo "[AUTOTEST] Installing system packages"
-sudo apt-get install ruby bundler redis-server
+sudo apt-get install ruby bundler redis-server jq
 cd ${SERVERDIR}
 echo "[AUTOTEST] Installing gems"
 bundle install --deployment

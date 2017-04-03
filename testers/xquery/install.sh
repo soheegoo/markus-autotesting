@@ -38,7 +38,7 @@ for queryfile in ${QUERYDIR}/*; do
 		fi
 		echo "[XQUERY] Creating solution '${queryname}' for data '${dataname}'"
 		echo '<?xml version="1.0" encoding="UTF-8"?>' >| /tmp/ate.xml
-		echo "<!DOCTYPE ${roottag} SYSTEM \"${schema}\">" >> /tmp/ate.xml
+		echo "<!DOCTYPE ${roottag} SYSTEM \"${SCHEMADIR}/${schema}\">" >> /tmp/ate.xml
 		galax-run -doc dataset=${datafile} ${queryfile} >> /tmp/ate.xml
 		xmllint --format /tmp/ate.xml >| ${SOLUTIONDIR}/${queryname}+${dataname}.xml
 	done

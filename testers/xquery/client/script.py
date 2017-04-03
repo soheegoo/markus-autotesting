@@ -13,7 +13,7 @@ if __name__ == '__main__':
 
     # The dataset files to be used for testing each student xquery submission, and the points assigned: student xquery
     # file names are the keys, dicts of dataset file names and points are the values.
-    TEST_POINTS = {'all_data1.xml': 1, 'all_data2.xml': 2}
+    TEST_POINTS = {'data1.xml': 1, 'data2.xml': 2}
     TEST_SPECS = {'correct.xq': TEST_POINTS}
     tester = MarkusXQueryTester(path_to_solution=cfg.PATH_TO_SOLUTION, specs=TEST_SPECS, schemas=cfg.SCHEMAS)
     tester.run()
