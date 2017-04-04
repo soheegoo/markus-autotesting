@@ -1,3 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE input SYSTEM "schema_in.dtd">
-<input>aaaa</input>
+<input>
+    <in>zzzz</in>
+    <in>aaaa</in>
+</input>

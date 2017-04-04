@@ -2,7 +2,7 @@ declare variable $dataset0 external;
 
 <output>
 {
-let $data := $dataset0/input
-return string($data)
+    for $in in $dataset0/input/in
+    return <out>{string($in)}</out>
 }
 </output>

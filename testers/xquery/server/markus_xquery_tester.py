@@ -117,3 +117,4 @@ class MarkusXQueryTest(MarkusTest):
         # TODO security of xml solutions, especially since we give away the solution location by dtd?
         # TODO create examples: bad query, not well formed, not valid, not correct, correct scrambled, multiinput
         # TODO check if failed with partial points is handled correctly in markus client
+        # TODO do decreasing marks with dict of error keys

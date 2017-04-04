@@ -23,8 +23,24 @@ if __name__ == '__main__':
     # The points assigned to each test case.
     TEST_SPECS = MarkusUtils.load_specs('/path/to/specs')
     TEST_MATRIX = TEST_SPECS['matrix']
-    TEST_MATRIX['correct.xq']['data1.xml']['points'] = [0, 1, 2, 3]
-    TEST_MATRIX['correct.xq']['data2.xml']['points'] = [0, 2, 4, 6]
+    POINTS1 = [0, 1, 2, 3]
+    POINTS2 = [0, 2, 4, 6]
+    POINTS3 = [0, 3, 6, 9]
+    TEST_MATRIX['correct.xq']['data1.xml']['points'] = POINTS1
+    TEST_MATRIX['correct.xq']['data2.xml']['points'] = POINTS2
+    TEST_MATRIX['correct_different_order.xq']['data1.xml']['points'] = POINTS1
+    TEST_MATRIX['correct_different_order.xq']['data2.xml']['points'] = POINTS2
+    TEST_MATRIX['correct_multi_data.xq']['data1.xml-data2.xml']['points'] = POINTS3
+    TEST_MATRIX['bad_query.xq']['data1.xml']['points'] = POINTS1
+    TEST_MATRIX['bad_query.xq']['data2.xml']['points'] = POINTS2
+    TEST_MATRIX['bad_xml.xq']['data1.xml']['points'] = POINTS1
+    TEST_MATRIX['bad_xml.xq']['data2.xml']['points'] = POINTS2
+    TEST_MATRIX['bad_dtd.xq']['data1.xml']['points'] = POINTS1
+    TEST_MATRIX['bad_dtd.xq']['data2.xml']['points'] = POINTS2
+    TEST_MATRIX['bad_content.xq']['data1.xml']['points'] = POINTS1
+    TEST_MATRIX['bad_content.xq']['data2.xml']['points'] = POINTS2
+    TEST_MATRIX['missing.xq']['data1.xml']['points'] = POINTS1
+    TEST_MATRIX['missing.xq']['data2.xml']['points'] = POINTS2
     # The feedback file name
     FEEDBACK_FILE = 'feedback_xquery.txt'
 
