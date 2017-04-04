@@ -3,11 +3,11 @@
     "correct.xq": {
       "data1.xml": {},
       "data2.xml": {},
-      "data1.xml+data2.xml": {},
       "extra": {
         "out_schema": "schema_out.dtd",
         "out_root_tag": "output"
       }
     }
-  }
+  },
+  "path_to_solution": "/path/to/solution"
 }

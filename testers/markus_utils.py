@@ -1,9 +1,15 @@
 import os
 import subprocess
+from json import loads
 from xml.sax import saxutils
 
 
 class MarkusUtils:
+
+    @staticmethod
+    def load_specs(specs_file):
+        with open(specs_file, 'r') as specs_open:
+            return loads(specs_open.read())
 
     @staticmethod
     def print_test_result(name, status, output, points_awarded, points_total=None):

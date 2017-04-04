@@ -1,16 +1,28 @@
-import glob
-import os
 import subprocess
 
-import xmltodict
+from os.path import isfile, join
 
-from markus_utils import MarkusUtils
+from xmltodict import parse
+
+from markus_tester import MarkusTester, MarkusTest
 
 
-class MarkusXQueryTester:
+class MarkusXQueryTester(MarkusTester):
 
     SCHEMA_DIR = 'schemas'
     DATASET_DIR = 'datasets'
+
+    def __init__(self, specs, feedback_file='feedback_xquery.txt'):
+        super().__init__(specs=specs, feedback_file=feedback_file)
+        self.path_to_solution = specs['path_to_solution']
+
+    def create_test(self, test_file, data_files, test_data_config, test_extra, feedback_open):
+        return MarkusXQueryTest(test_file, data_files, test_data_config, test_extra, feedback_open,
+                                self.path_to_solution)
+
+
+class MarkusXQueryTest(MarkusTest):
+
     ERROR_MSGS = {
         'no_submission': "Submission file '{}' not found",
         'bad_query': "Galax error: 'stdout: {}', 'stderr: {}'",
@@ -19,15 +31,18 @@ class MarkusXQueryTester:
         'not_correct': ""
     }
 
-    def __init__(self, path_to_solution, specs, schemas, output_filename='feedback_xquery.txt'):
+    def __init__(self, test_file, data_files, test_data_config, test_extra, feedback_open, path_to_solution):
+        super().__init__(test_file, data_files, test_data_config, test_extra, feedback_open)
         self.path_to_solution = path_to_solution
-        self.specs = specs
-        self.schemas = schemas
-        self.output_filename = output_filename
 
-    def check_query(self, data_file, xq_file):
-        dataset_file = os.path.join(self.path_to_solution, self.DATASET_DIR, data_file)
-        galax_cmd = ['galax-run', '-doc', 'dataset={}'.format(dataset_file), xq_file]
+    def check_query(self):
+        dataset_arg = []
+        for i, data_file in enumerate(self.data_files):
+            dataset_arg.append('-doc')
+            dataset_arg.append('dataset{}={}'.format(str(i), join(self.path_to_solution, MarkusXQueryTester.DATASET_DIR,
+                                                                  data_file)))
+        galax_cmd = ['galax-run', self.test_file]
+        galax_cmd[1:1] = dataset_arg
         galax = subprocess.run(galax_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True,
                                check=True)
 
@@ -41,9 +56,9 @@ class MarkusXQueryTester:
 
         return xmllint.stdout
 
-    def check_dtd(self, xq_file, test_xml):
-        schema_file = os.path.join(self.path_to_solution, self.SCHEMA_DIR, self.schemas[xq_file][0])
-        root_tag = self.schemas[xq_file][1]
+    def check_dtd(self, test_xml):
+        schema_file = join(self.path_to_solution, MarkusXQueryTester.SCHEMA_DIR, self.test_extra['out_schema'])
+        root_tag = self.test_extra['out_root_tag']
         i = test_xml.find('\n')
         test_xml = test_xml[:i] + '\n<!DOCTYPE {} SYSTEM "{}">'.format(root_tag, schema_file) + test_xml[i:]
         xmllint_cmd = ['xmllint', '--noout', '--valid', '-']
@@ -52,53 +67,53 @@ class MarkusXQueryTester:
 
         return test_xml
 
-    def check_xml(self, test_data_name, test_xml):
-        oracle_file = os.path.join(self.path_to_solution, '{}.xml'.format(test_data_name.replace(' ', '')))
-        with open(oracle_file, 'r') as solution_open:
-            oracle_xml = solution_open.read()
-            oracle_dict = xmltodict.parse(oracle_xml, process_namespaces=True)
-        test_dict = xmltodict.parse(test_xml, process_namespaces=True)
+    def check_xml(self, test_xml):
+        oracle_file = join(self.path_to_solution, '{}.xml'.format(self.test_data_name.replace(' ', '')))
+        with open(oracle_file, 'r') as oracle_open:
+            oracle_xml = oracle_open.read()
+            oracle_dict = parse(oracle_xml, process_namespaces=True)
+        test_dict = parse(test_xml, process_namespaces=True)
         if oracle_dict != test_dict:
             return self.ERROR_MSGS['not_correct'], 'fail'
 
         return '', 'pass'
 
-    def print_file(self, output_open, test_xml):
-        output_open.write(test_xml)
+    def print_file(self, feedback_open, test_xml):
+        feedback_open.write(test_xml)
 
     def print_file_error(self):
         pass
 
     def run(self):
-
+        # check that the submission exists
+        if not isfile(self.test_file):
+            msg = MarkusXQueryTest.ERROR_MSGS['no_submission'].format(self.test_file)
+            return self.error(message=msg)
+        #
         try:
-            with open(self.output_filename, 'w') as output_open:
-                for xq_file in sorted(self.specs.keys()):
-                    test_name = os.path.splitext(xq_file)[0]
-                    for data_file, points_total in sorted(self.specs[xq_file].items()):
-                        data_name = os.path.splitext(data_file)[0]
-                        test_data_name = '{} + {}'.format(test_name, data_name)
-                        # check that the submission exists
-                        if not os.path.isfile(xq_file):
-                            msg = self.ERROR_MSGS['no_submission'].format(xq_file)
-                            MarkusUtils.print_test_error(name=test_data_name, message=msg, points_total=points_total)
-                            continue
-                        try:
-                            test_xml = self.check_query(data_file=data_file, xq_file=xq_file)
-                            test_xml = self.check_well_formed(test_xml=test_xml)
-                            test_xml = self.check_dtd(xq_file=xq_file, test_xml=test_xml)
-                            output, status = self.check_xml(test_data_name=test_data_name, test_xml=test_xml)
-                            points_awarded = points_total if status == 'pass' else 0
-                            MarkusUtils.print_test_result(name=test_data_name, status=status, output=output,
-                                                          points_awarded=points_awarded, points_total=points_total)
-                            self.print_file(output_open=output_open, test_xml=test_xml)
-                        except subprocess.CalledProcessError as e:
-                            msg = self.ERROR_MSGS['bad_query'].format(e.stdout, e.stderr)
-                            MarkusUtils.print_test_error(name=test_data_name, message=msg, points_total=points_total)
-                        # TODO print test_output at the last successful step (raw, linted, or dtd-ed)
-                        # TODO order dicts before comparing parsed xmls
-                        # TODO what output to instructor/student on file?
-                        # TODO 1 test vs 4 tests?
-                        # TODO security of xml solutions, especially since we give away the solution location by dtd?
-        except Exception as e:
-            MarkusUtils.print_test_error(name='All XQUERY tests', message=str(e))
+            test_xml = self.check_query()
+        except subprocess.CalledProcessError as e:
+            msg = self.ERROR_MSGS['bad_query'].format(e.stdout, e.stderr)
+            return self.error(message=msg)
+        #
+        try:
+            test_xml = self.check_well_formed(test_xml=test_xml)
+        except subprocess.CalledProcessError as e:
+            msg = self.ERROR_MSGS['not_well_formed'].format(e.stdout, e.stderr)
+            return self.failed(points_awarded=self.points[0], message=msg)
+        #
+        try:
+            test_xml = self.check_dtd(test_xml=test_xml)
+        except subprocess.CalledProcessError as e:
+            msg = self.ERROR_MSGS['not_valid'].format(e.stdout, e.stderr)
+            return self.failed(points_awarded=self.points[1], message=msg)
+        #
+        output, status = self.check_xml(test_xml=test_xml)
+        self.print_file(feedback_open=self.feedback_open, test_xml=test_xml)
+        return self.passed() if status != 'pass' else self.failed(points_awarded=self.points[2], message=output)
+        # TODO print test_output at the last successful step (raw, linted, or dtd-ed)
+        # TODO order dicts before comparing parsed xmls
+        # TODO what output to instructor/student on file?
+        # TODO security of xml solutions, especially since we give away the solution location by dtd?
+        # TODO create examples: bad query, not well formed, not valid, not correct, correct scrambled, multiinput
+        # TODO check if failed with partial points is handled correctly in markus client

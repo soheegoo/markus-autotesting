@@ -1,8 +1,8 @@
-declare variable $dataset external;
+declare variable $dataset0 external;
 
 <output>
 {
-let $data := $dataset/input
+let $data := $dataset0/input
 return string($data)
 }
 </output>
