@@ -76,24 +76,21 @@ class MarkusXQueryTest(MarkusTest):
             oracle_xml = oracle_open.read()
             return oracle_xml
 
-    def sort_lists_in_dict(self, d):
-        for k, v in d.items():
-            if self.strip_spaces and isinstance(v, str):
-                d[k] = v.strip()
-            if isinstance(v, dict):
-                d[k] = self.sort_lists_in_dict(v)
-            elif isinstance(v, list):
-                for i in range(len(v)):
-                    if isinstance(v[i], dict):
-                        v[i] = self.sort_lists_in_dict(v[i])
-                d[k] = sorted(v)
-        return d
+    def sort_dict(self, obj):
+        if isinstance(obj, dict):
+            return sorted((k, self.sort_dict(v)) for k, v in obj.items())
+        if isinstance(obj, list):
+            return sorted(self.sort_dict(x) for x in obj)
+        if self.strip_spaces and isinstance(obj, str):
+            return obj.strip()
+        else:
+            return obj
 
     def check_content(self, oracle_xml, test_xml):
         oracle_dict = parse(oracle_xml, dict_constructor=dict)
-        oracle_dict = self.sort_lists_in_dict(oracle_dict)
+        oracle_dict = self.sort_dict(oracle_dict)
         test_dict = parse(test_xml, dict_constructor=dict)
-        test_dict = self.sort_lists_in_dict(test_dict)
+        test_dict = self.sort_dict(test_dict)
         if oracle_dict != test_dict:
             return 'fail'
         return 'pass'

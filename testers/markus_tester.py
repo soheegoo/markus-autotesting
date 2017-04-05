@@ -54,9 +54,10 @@ class MarkusTester:
                                  else None)
                 for test_file in sorted(self.specs.matrix.keys()):
                     test_extra = self.specs.matrix[test_file].get(MarkusTestSpecs.MATRIX_NONTEST_KEY)
-                    for data_files, test_data_config in sorted(self.specs.matrix[test_file].items()):
+                    for data_files in sorted(self.specs.matrix[test_file].keys()):
                         if data_files == MarkusTestSpecs.MATRIX_NONTEST_KEY:
                             continue
+                        test_data_config = self.specs.matrix[test_file][data_files]
                         if MarkusTestSpecs.DATA_FILES_SEPARATOR in data_files:
                             data_files = data_files.split(MarkusTestSpecs.DATA_FILES_SEPARATOR)
                         else:
