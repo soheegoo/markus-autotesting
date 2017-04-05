@@ -10,7 +10,7 @@ class MarkusTester:
 
     MATRIX_NONTEST_KEY = 'extra'
     MATRIX_POINTS_KEY = 'points'
-    DATA_FILES_SEPARATOR = '-'
+    DATA_FILES_SEPARATOR = ','
 
     def __init__(self, specs, feedback_file=None):
         self.specs = specs
@@ -52,7 +52,7 @@ class MarkusTest:
         self.test_data_name = '{} + {}'.format(self.test_name, self.data_name)
         # TODO Use a default or disable if not set? + Create function to assign same points to all
         self.points = test_data_config[MarkusTester.MATRIX_POINTS_KEY]
-        if isinstance(self.points, list):
+        if isinstance(self.points, dict):
             self.points_total = max(self.points)
         else:
             self.points_total = self.points

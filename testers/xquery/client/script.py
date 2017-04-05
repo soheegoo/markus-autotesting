@@ -23,9 +23,9 @@ if __name__ == '__main__':
     # The points assigned to each test case.
     TEST_SPECS = MarkusUtils.load_specs('/path/to/specs')
     TEST_MATRIX = TEST_SPECS['matrix']
-    POINTS1 = [0, 1, 2, 3]
-    POINTS2 = [0, 2, 4, 6]
-    POINTS3 = [0, 3, 6, 9]
+    POINTS1 = {'bad_xml': 0, 'bad_dtd': 1, 'bad_content': 2, '': 3}
+    POINTS2 = {'bad_xml': 0, 'bad_dtd': 2, 'bad_content': 4, '': 6}
+    POINTS3 = {'bad_xml': 0, 'bad_dtd': 3, 'bad_content': 6, '': 9}
     TEST_MATRIX['correct.xq']['data1.xml']['points'] = POINTS1
     TEST_MATRIX['correct.xq']['data2.xml']['points'] = POINTS2
     TEST_MATRIX['correct_different_order.xq']['data1.xml']['points'] = POINTS1

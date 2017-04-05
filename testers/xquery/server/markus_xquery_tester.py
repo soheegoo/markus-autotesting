@@ -25,10 +25,10 @@ class MarkusXQueryTest(MarkusTest):
 
     ERROR_MSGS = {
         'no_submission': "Submission file '{}' not found",
-        'bad_query': "Galax error: 'stdout: {}', 'stderr: {}'",
-        'not_well_formed': "",
-        'not_valid': "",
-        'not_correct': ""
+        'bad_query': "The query has a syntax error; galax-run stdout: '{}', stderr: '{}'",
+        'bad_xml': "The xml is not well-formed; xmllint stdout: '{}', stderr: '{}'",
+        'bad_dtd': "The xml does not conform to the dtd; xmllint stdout: '{}', stderr: '{}'",
+        'bad_content': "The xml does not match the solution"
     }
 
     def __init__(self, test_file, data_files, test_data_config, test_extra, feedback_open, path_to_solution):
@@ -74,9 +74,9 @@ class MarkusXQueryTest(MarkusTest):
             oracle_dict = parse(oracle_xml, process_namespaces=True)
         test_dict = parse(test_xml, process_namespaces=True)
         if oracle_dict != test_dict:
-            return self.ERROR_MSGS['not_correct'], 'fail'
+            return 'fail'
 
-        return '', 'pass'
+        return 'pass'
 
     def print_file(self, feedback_open, test_xml):
         feedback_open.write(test_xml)
@@ -99,22 +99,21 @@ class MarkusXQueryTest(MarkusTest):
         try:
             test_xml = self.check_well_formed(test_xml=test_xml)
         except subprocess.CalledProcessError as e:
-            msg = self.ERROR_MSGS['not_well_formed'].format(e.stdout, e.stderr)
-            return self.failed(points_awarded=self.points[0], message=msg)
+            msg = self.ERROR_MSGS['bad_xml'].format(e.stdout, e.stderr)
+            return self.failed(points_awarded=self.points['bad_xml'], message=msg)
         #
         try:
             test_xml = self.check_dtd(test_xml=test_xml)
         except subprocess.CalledProcessError as e:
-            msg = self.ERROR_MSGS['not_valid'].format(e.stdout, e.stderr)
-            return self.failed(points_awarded=self.points[1], message=msg)
+            msg = self.ERROR_MSGS['bad_dtd'].format(e.stdout, e.stderr)
+            return self.failed(points_awarded=self.points['bad_dtd'], message=msg)
         #
         output, status = self.check_xml(test_xml=test_xml)
         self.print_file(feedback_open=self.feedback_open, test_xml=test_xml)
-        return self.passed() if status != 'pass' else self.failed(points_awarded=self.points[2], message=output)
+        return (self.passed()
+                if status == 'pass'
+                else self.failed(points_awarded=self.points['bad_content'], message=self.ERROR_MSGS['bad_content']))
         # TODO print test_output at the last successful step (raw, linted, or dtd-ed)
         # TODO order dicts before comparing parsed xmls
         # TODO what output to instructor/student on file?
         # TODO security of xml solutions, especially since we give away the solution location by dtd?
-        # TODO create examples: bad query, not well formed, not valid, not correct, correct scrambled, multiinput
-        # TODO check if failed with partial points is handled correctly in markus client
-        # TODO do decreasing marks with dict of error keys
