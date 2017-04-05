@@ -81,17 +81,18 @@ done
 
 SERVERDIR=server
 TESTERSDIR=testers
+SPECSDIR=${WORKINGDIR}/specs
+VENVSDIR=${WORKINGDIR}/venvs
 FILESDIR=${WORKINGDIR}/files
 TESTSDIR=${WORKINGDIR}/tests
 RESULTSDIR=${WORKINGDIR}/test_runs
-VENVSDIR=${WORKINGDIR}/venvs
 
 if [ "${KILL}" = true ]; then
 	echo "[AUTOTEST] Killing running Resque workers"
 	kill -QUIT `pgrep -f resque` || { echo "[AUTOTEST] No running Resque worker found, no need to kill them"; }
 fi
 echo "[AUTOTEST] Installing system packages"
-sudo apt-get install ruby bundler redis-server
+sudo apt-get install ruby bundler redis-server jq
 cd ${SERVERDIR}
 echo "[AUTOTEST] Installing gems"
 bundle install --deployment
@@ -99,13 +100,14 @@ sudo -u ${USERSERVER} TERM_CHILD=1 BACKGROUND=yes QUEUES=${QUEUENAME} bundle exe
 echo "[AUTOTEST] Resque started for autotesting server"
 echo "[AUTOTEST] (You may want to add the Resque command to ${USERSERVER}'s crontab with a @reboot time)"
 cd ..
-mkdir -p ${FILESDIR}
-mkdir -p ${RESULTSDIR}
-chmod u=rwx,go= ${RESULTSDIR}
+mkdir -p ${SPECSDIR}
 mkdir -p ${VENVSDIR}
+mkdir -p ${FILESDIR}
 mkdir -p ${TESTSDIR}
 chmod ug=rwx,o= ${TESTSDIR}
-chown ${USERSERVER}:${USERSERVER} ${FILESDIR} ${RESULTSDIR} ${VENVSDIR}
+mkdir -p ${RESULTSDIR}
+chmod u=rwx,go= ${RESULTSDIR}
+chown ${USERSERVER}:${USERSERVER} ${SPECSDIR} ${VENVSDIR} ${FILESDIR} ${RESULTSDIR}
 chown ${USERTEST}:${USERSERVER} ${TESTSDIR}
 for i in "${!TESTERS[@]}"; do
 	TESTERNAME=${TESTERS[$i]}
