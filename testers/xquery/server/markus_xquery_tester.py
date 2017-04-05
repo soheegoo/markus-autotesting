@@ -112,22 +112,22 @@ class MarkusXQueryTest(MarkusTest):
             test_xml = self.check_xml(test_xml=test_xml)
         except subprocess.CalledProcessError as e:
             msg = self.ERROR_MSGS['bad_xml'].format(e.stderr)
-            return self.failed_and_feedback(points_awarded=self.points['bad_xml'], message=msg, test_solution=test_xml,
-                                            oracle_solution=oracle_xml)
+            return self.failed_and_feedback(points_awarded=self.points['bad_xml'], message=msg,
+                                            oracle_solution=oracle_xml, test_solution=test_xml)
         # check that the xml is conformant to the schema dtd
         try:
             test_xml = self.check_dtd(test_xml=test_xml)
         except subprocess.CalledProcessError as e:
             msg = self.ERROR_MSGS['bad_dtd'].format(e.stderr)
-            return self.failed_and_feedback(points_awarded=self.points['bad_dtd'], message=msg, test_solution=test_xml,
-                                            oracle_solution=oracle_xml)
+            return self.failed_and_feedback(points_awarded=self.points['bad_dtd'], message=msg,
+                                            oracle_solution=oracle_xml, test_solution=test_xml)
         # check that the xml has the expected content
         status = self.check_content(oracle_xml=oracle_xml, test_xml=test_xml)
         return (self.passed_and_feedback()
                 if status == 'pass'
                 else self.failed_and_feedback(points_awarded=self.points['bad_content'],
-                                              message=self.ERROR_MSGS['bad_content'], test_solution=test_xml,
-                                              oracle_solution=oracle_xml))
+                                              message=self.ERROR_MSGS['bad_content'], oracle_solution=oracle_xml,
+                                              test_solution=test_xml))
         # TODO security of xml solutions, especially since we give away the solution location by dtd?
         # TODO cut first two lines from file feedback
-        # TODO add strip spaces test (needs attributes)
+        # TODO add strip spaces and list of dict tests (needs attributes)
