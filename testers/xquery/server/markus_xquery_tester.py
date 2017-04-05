@@ -15,25 +15,28 @@ class MarkusXQueryTester(MarkusTester):
     def __init__(self, specs, feedback_file='feedback_xquery.txt'):
         super().__init__(specs=specs, feedback_file=feedback_file)
         self.path_to_solution = specs['path_to_solution']
+        self.strip_spaces = specs['strip_spaces']
 
     def create_test(self, test_file, data_files, test_data_config, test_extra, feedback_open):
         return MarkusXQueryTest(test_file, data_files, test_data_config, test_extra, feedback_open,
-                                self.path_to_solution)
+                                self.path_to_solution, self.strip_spaces)
 
 
 class MarkusXQueryTest(MarkusTest):
 
     ERROR_MSGS = {
         'no_submission': "Submission file '{}' not found",
-        'bad_query': "The query has a syntax error; galax-run stdout: '{}', stderr: '{}'",
-        'bad_xml': "The xml is not well-formed; xmllint stdout: '{}', stderr: '{}'",
-        'bad_dtd': "The xml does not conform to the dtd; xmllint stdout: '{}', stderr: '{}'",
+        'bad_query': "The query has a syntax error: '{}'",
+        'bad_xml': "The xml is not well-formed: '{}'",
+        'bad_dtd': "The xml does not conform to the dtd: '{}'",
         'bad_content': "The xml does not match the solution"
     }
 
-    def __init__(self, test_file, data_files, test_data_config, test_extra, feedback_open, path_to_solution):
+    def __init__(self, test_file, data_files, test_data_config, test_extra, feedback_open, path_to_solution,
+                 strip_spaces):
         super().__init__(test_file, data_files, test_data_config, test_extra, feedback_open)
         self.path_to_solution = path_to_solution
+        self.strip_spaces = strip_spaces
 
     def check_query(self):
         dataset_arg = []
@@ -48,7 +51,7 @@ class MarkusXQueryTest(MarkusTest):
 
         return galax.stdout
 
-    def check_well_formed(self, test_xml):
+    def check_xml(self, test_xml):
         test_xml = '<?xml version="1.0" encoding="UTF-8"?>' + test_xml
         xmllint_cmd = ['xmllint', '--format', '-']
         xmllint = subprocess.run(xmllint_cmd, input=test_xml, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -67,53 +70,67 @@ class MarkusXQueryTest(MarkusTest):
 
         return test_xml
 
-    def check_xml(self, test_xml):
+    def get_oracle_solution(self):
         oracle_file = join(self.path_to_solution, '{}.xml'.format(self.test_data_name.replace(' ', '')))
         with open(oracle_file, 'r') as oracle_open:
             oracle_xml = oracle_open.read()
-            oracle_dict = parse(oracle_xml, process_namespaces=True)
-        test_dict = parse(test_xml, process_namespaces=True)
+            return oracle_xml
+
+    def sort_lists_in_dict(self, d):
+        for k, v in d.items():
+            if self.strip_spaces and isinstance(v, str):
+                d[k] = v.strip()
+            if isinstance(v, dict):
+                d[k] = self.sort_lists_in_dict(v)
+            elif isinstance(v, list):
+                for i in range(len(v)):
+                    if isinstance(v[i], dict):
+                        v[i] = self.sort_lists_in_dict(v[i])
+                d[k] = sorted(v)
+        return d
+
+    def check_content(self, oracle_xml, test_xml):
+        oracle_dict = parse(oracle_xml, dict_constructor=dict)
+        oracle_dict = self.sort_lists_in_dict(oracle_dict)
+        test_dict = parse(test_xml, dict_constructor=dict)
+        test_dict = self.sort_lists_in_dict(test_dict)
         if oracle_dict != test_dict:
             return 'fail'
-
         return 'pass'
-
-    def print_file(self, feedback_open, test_xml):
-        feedback_open.write(test_xml)
-
-    def print_file_error(self):
-        pass
 
     def run(self):
         # check that the submission exists
         if not isfile(self.test_file):
             msg = MarkusXQueryTest.ERROR_MSGS['no_submission'].format(self.test_file)
-            return self.error(message=msg)
-        #
+            return self.error_and_feedback(message=msg)
+        # check that the query has no syntax or logic errors
         try:
             test_xml = self.check_query()
         except subprocess.CalledProcessError as e:
-            msg = self.ERROR_MSGS['bad_query'].format(e.stdout, e.stderr)
-            return self.error(message=msg)
-        #
+            msg = self.ERROR_MSGS['bad_query'].format(e.stderr)
+            return self.error_and_feedback(message=msg)
+        oracle_xml = self.get_oracle_solution()
+        # check that the xml is well-formed
         try:
-            test_xml = self.check_well_formed(test_xml=test_xml)
+            test_xml = self.check_xml(test_xml=test_xml)
         except subprocess.CalledProcessError as e:
-            msg = self.ERROR_MSGS['bad_xml'].format(e.stdout, e.stderr)
-            return self.failed(points_awarded=self.points['bad_xml'], message=msg)
-        #
+            msg = self.ERROR_MSGS['bad_xml'].format(e.stderr)
+            return self.failed_and_feedback(points_awarded=self.points['bad_xml'], message=msg, test_solution=test_xml,
+                                            oracle_solution=oracle_xml)
+        # check that the xml is conformant to the schema dtd
         try:
             test_xml = self.check_dtd(test_xml=test_xml)
         except subprocess.CalledProcessError as e:
-            msg = self.ERROR_MSGS['bad_dtd'].format(e.stdout, e.stderr)
-            return self.failed(points_awarded=self.points['bad_dtd'], message=msg)
-        #
-        output, status = self.check_xml(test_xml=test_xml)
-        self.print_file(feedback_open=self.feedback_open, test_xml=test_xml)
-        return (self.passed()
+            msg = self.ERROR_MSGS['bad_dtd'].format(e.stderr)
+            return self.failed_and_feedback(points_awarded=self.points['bad_dtd'], message=msg, test_solution=test_xml,
+                                            oracle_solution=oracle_xml)
+        # check that the xml has the expected content
+        status = self.check_content(oracle_xml=oracle_xml, test_xml=test_xml)
+        return (self.passed_and_feedback()
                 if status == 'pass'
-                else self.failed(points_awarded=self.points['bad_content'], message=self.ERROR_MSGS['bad_content']))
-        # TODO print test_output at the last successful step (raw, linted, or dtd-ed)
-        # TODO order dicts before comparing parsed xmls
-        # TODO what output to instructor/student on file?
+                else self.failed_and_feedback(points_awarded=self.points['bad_content'],
+                                              message=self.ERROR_MSGS['bad_content'], test_solution=test_xml,
+                                              oracle_solution=oracle_xml))
         # TODO security of xml solutions, especially since we give away the solution location by dtd?
+        # TODO cut first two lines from file feedback
+        # TODO add strip spaces test (needs attributes)
