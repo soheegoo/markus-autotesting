@@ -1,13 +1,22 @@
 #!/usr/bin/env python3
 
 import sys
-import os
-import markus_sql_config as cfg
+
+from os.path import isfile
+
 from markus_sql_tester import MarkusSQLTester
+from markus_tester import MarkusTestSpecs
 from markusapi import Markus
 
 
 if __name__ == '__main__':
+
+    # Markus identifiers
+    root_url = sys.argv[1]
+    api_key = sys.argv[2]
+    assignment_id = sys.argv[3]
+    group_id = sys.argv[4]
+    repo_name = sys.argv[5]
 
     # Modify uppercase variables with your settings
 
@@ -15,34 +24,31 @@ if __name__ == '__main__':
     # names are the keys, dicts of dataset file names and points are the values.
     # (Students are required to create a solution table in their submission, named as the sql file without the file
     # extension; e.g. an 'example.sql' file must have a 'CREATE TABLE example [...];' in it)
-    TEST_POINTS = {'all_data1.sql': 1, 'all_data2.sql': 2}
-    TEST_SPECS = {'correct_no_order.sql': TEST_POINTS, 'correct_with_order.sql': TEST_POINTS,
-                  'bad_col_count.sql': TEST_POINTS, 'bad_col_name.sql': TEST_POINTS,
-                  'bad_col_order.sql': TEST_POINTS, 'bad_col_type.sql': TEST_POINTS,
-                  'bad_row_count.sql': TEST_POINTS, 'bad_row_order.sql': TEST_POINTS,
-                  'bad_row_content_no_order.sql': TEST_POINTS, 'bad_row_content_with_order.sql': TEST_POINTS,
-                  'bad_query': TEST_POINTS, 'compatible_column_type.sql': TEST_POINTS, 'missing.sql': TEST_POINTS}
     # The ORDER_BY clauses used to check the order of student sql submissions; if a sql file name is missing here, it is
     # checked without taking any ordering into account.
     # (Students are required to submit an additional sql file with '_order' suffix for each submission with ordering,
     # which selects from their solution table and does the ordering; e.g. an 'example.sql' file must have an additional
     # 'example_order.sql' file with a 'SELECT * FROM example ORDER BY [...];' in it)
-    ORDER_BYS = {'correct_with_order.sql': 'word', 'bad_row_order.sql': 'word',
-                 'bad_row_content_with_order.sql': 'word'}
+    TEST_SPECS = MarkusTestSpecs('/path/to/specs')
+    # The points assigned to each test case.
+    POINTS1 = 1
+    POINTS2 = 2
+    POINTS = {'data1.sql': 1, 'data2.sql': 2}
+    TEST_SPECS = {'correct_no_order.sql': POINTS, 'correct_with_order.sql': POINTS,
+                  'bad_col_count.sql': POINTS, 'bad_col_name.sql': POINTS,
+                  'bad_col_order.sql': POINTS, 'bad_col_type.sql': POINTS,
+                  'bad_row_count.sql': POINTS, 'bad_row_order.sql': POINTS,
+                  'bad_row_content_no_order.sql': POINTS, 'bad_row_content_with_order.sql': POINTS,
+                  'bad_query': POINTS, 'compatible_column_type.sql': POINTS, 'missing.sql': POINTS}
     # The schema name
-    SCHEMA_NAME = 'ate'
-    tester = MarkusSQLTester(oracle_database=cfg.ORACLE_DATABASE, test_database=cfg.TEST_DATABASE, user_name=cfg.USER,
-                             user_password=cfg.PASSWORD, path_to_solution=cfg.PATH_TO_SOLUTION, schema_name=SCHEMA_NAME,
-                             specs=TEST_SPECS, order_bys=ORDER_BYS)
+    TEST_SPECS['schema_name'] = 'ate'
+    # The feedback file name
+    FEEDBACK_FILE = 'feedback_sql.txt'
+
+    tester = MarkusSQLTester(specs=TEST_SPECS, feedback_file=FEEDBACK_FILE)
     tester.run()
     # use markus apis if needed
-    root_url = sys.argv[1]
-    api_key = sys.argv[2]
-    assignment_id = sys.argv[3]
-    group_id = sys.argv[4]
-    repo_name = sys.argv[5]
-    # file_name = 'feedback.txt'
-    # if os.path.isfile(file_name):
+    # if isfile(FEEDBACK_FILE):
     #     api = Markus(api_key, root_url)
-    #     with open(file_name) as open_file:
-    #         api.upload_feedback_file(assignment_id, group_id, file_name, open_file.read())
+    #     with open(FEEDBACK_FILE) as feedback_open:
+    #         api.upload_feedback_file(assignment_id, group_id, FEEDBACK_FILE, feedback_open.read())

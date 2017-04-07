@@ -113,7 +113,7 @@ class MarkusTester:
         self.specs = specs
 
     def create_test(self, test_file, data_files, test_data_config, test_extra, feedback_open):
-        # TODO Make it more elegant using a factory pattern, and add all global test configs
+        # TODO Make it more elegant using a factory pattern, and add specs to the constructor
         return MarkusTest(test_file, data_files, test_data_config, test_extra, feedback_open)
 
     @staticmethod

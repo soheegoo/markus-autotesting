@@ -2,43 +2,31 @@ import os
 import subprocess
 
 import psycopg2
-from markus_utils import MarkusUtils
+
+from markus_tester import MarkusTester, MarkusTest
 
 
-class MarkusSQLTester:
+class MarkusSQLTester(MarkusTester):
 
     SCHEMA_FILE = 'schema.ddl'
     DATASET_DIR = 'datasets'
     QUERY_DIR = 'queries'
-    ERROR_MSGS = {
-        'no_submission': "Submission file '{}' not found",
-        'no_submission_order': "Ordering required, order file '{}' not found",
-        'bad_col_count': 'Expected {} columns instead of {}',
-        'bad_col_name': "Expected column {} to have name '{}' instead of '{}'",
-        'bad_col_type': "Expected a different type of values in column '{}' (expected a SQL equivalent of Python type "
-                        "'{}' instead of '{}')",
-        'bad_col_type_maybe': "Expected a different type of values in column '{}' (but no row values are available to "
-                              "check whether they could be compatible types)",
-        'bad_row_count': 'Expected {} rows instead of {}',
-        'bad_row_content_no_order': 'Expected to find a row {} in the results',
-        'bad_row_content_order': 'Expected row {} in the ordered results to be {} instead of {}'
-    }
 
-    def __init__(self, oracle_database, test_database, user_name, user_password, path_to_solution, schema_name, specs,
-                 order_bys={}, output_filename='feedback.txt'):
-        self.oracle_database = oracle_database
-        self.test_database = test_database
-        self.user_name = user_name
-        self.user_password = user_password
-        self.path_to_solution = path_to_solution
-        self.schema_name = schema_name
-        self.specs = specs
-        self.order_bys = order_bys
-        self.output_filename = output_filename
+    def __init__(self, specs, feedback_file='feedback_sql.txt'):
+        super().__init__(specs=specs, feedback_file=feedback_file)
+        self.oracle_database = specs['oracle_database']
+        self.test_database = specs['test_database']
+        self.user_name = specs['user_name']
+        self.user_password = specs['user_password']
+        self.path_to_solution = specs['path_to_solution']
+        self.schema_name = specs['schema_name']
         self.oracle_connection = None
         self.oracle_cursor = None
         self.test_connection = None
         self.test_cursor = None
+
+    def create_test(self, test_file, data_files, test_data_config, test_extra, feedback_open):
+        return MarkusSQLTest(test_file, data_files, test_data_config, test_extra, feedback_open)
 
     def init_db(self):
         self.oracle_connection = psycopg2.connect(database=self.oracle_database, user=self.user_name,
@@ -57,6 +45,26 @@ class MarkusSQLTester:
             self.oracle_cursor.close()
         if self.oracle_connection:
             self.oracle_connection.close()
+
+
+class MarkusSQLTest(MarkusTest):
+
+    ERROR_MSGS = {
+        'no_submission': "Submission file '{}' not found",
+        'no_submission_order': "Ordering required, order file '{}' not found",
+        'bad_col_count': 'Expected {} columns instead of {}',
+        'bad_col_name': "Expected column {} to have name '{}' instead of '{}'",
+        'bad_col_type': "Expected a different type of values in column '{}' (expected a SQL equivalent of Python type "
+                        "'{}' instead of '{}')",
+        'bad_col_type_maybe': "Expected a different type of values in column '{}' (but no row values are available to "
+                              "check whether they could be compatible types)",
+        'bad_row_count': 'Expected {} rows instead of {}',
+        'bad_row_content_no_order': 'Expected to find a row {} in the results',
+        'bad_row_content_order': 'Expected row {} in the ordered results to be {} instead of {}'
+    }
+
+    def __init__(self, test_file, data_files, test_data_config, test_extra, feedback_open):
+        super().__init__(test_file, data_files, test_data_config, test_extra, feedback_open)
 
     @staticmethod
     def select_query(schema_name, table_name, order_by=None):
