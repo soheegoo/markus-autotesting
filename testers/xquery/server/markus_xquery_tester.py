@@ -15,11 +15,10 @@ class MarkusXQueryTester(MarkusTester):
     def __init__(self, specs, feedback_file='feedback_xquery.txt'):
         super().__init__(specs=specs, feedback_file=feedback_file)
         self.path_to_solution = specs['path_to_solution']
-        self.strip_spaces = specs['strip_spaces']
 
     def create_test(self, test_file, data_files, test_data_config, test_extra, feedback_open):
         return MarkusXQueryTest(test_file, data_files, test_data_config, test_extra, feedback_open,
-                                self.path_to_solution, self.strip_spaces)
+                                self.path_to_solution)
 
 
 class MarkusXQueryTest(MarkusTest):
@@ -32,11 +31,9 @@ class MarkusXQueryTest(MarkusTest):
         'bad_content': "The xml does not match the solution"
     }
 
-    def __init__(self, test_file, data_files, test_data_config, test_extra, feedback_open, path_to_solution,
-                 strip_spaces):
+    def __init__(self, test_file, data_files, test_data_config, test_extra, feedback_open, path_to_solution):
         super().__init__(test_file, data_files, test_data_config, test_extra, feedback_open)
         self.path_to_solution = path_to_solution
-        self.strip_spaces = strip_spaces
 
     def check_query(self):
         dataset_arg = []
@@ -81,7 +78,7 @@ class MarkusXQueryTest(MarkusTest):
             return sorted((k, self.sort_dict(v)) for k, v in obj.items())
         if isinstance(obj, list):
             return sorted(self.sort_dict(x) for x in obj)
-        if self.strip_spaces and isinstance(obj, str):
+        if isinstance(obj, str):
             return obj.strip()
         else:
             return obj
@@ -92,8 +89,8 @@ class MarkusXQueryTest(MarkusTest):
         test_dict = parse(test_xml, dict_constructor=dict)
         test_dict = self.sort_dict(test_dict)
         if oracle_dict != test_dict:
-            return 'fail'
-        return 'pass'
+            return False
+        return True
 
     def run(self):
         # check that the submission exists
@@ -112,22 +109,19 @@ class MarkusXQueryTest(MarkusTest):
             test_xml = self.check_xml(test_xml=test_xml)
         except subprocess.CalledProcessError as e:
             msg = self.ERROR_MSGS['bad_xml'].format(e.stderr)
-            return self.failed_and_feedback(points_awarded=self.points['bad_xml'], message=msg, test_solution=test_xml,
-                                            oracle_solution=oracle_xml)
+            return self.failed_and_feedback(points_awarded=self.points['bad_xml'], message=msg,
+                                            oracle_solution=oracle_xml, test_solution=test_xml)
         # check that the xml is conformant to the schema dtd
         try:
             test_xml = self.check_dtd(test_xml=test_xml)
         except subprocess.CalledProcessError as e:
             msg = self.ERROR_MSGS['bad_dtd'].format(e.stderr)
-            return self.failed_and_feedback(points_awarded=self.points['bad_dtd'], message=msg, test_solution=test_xml,
-                                            oracle_solution=oracle_xml)
+            return self.failed_and_feedback(points_awarded=self.points['bad_dtd'], message=msg,
+                                            oracle_solution=oracle_xml, test_solution=test_xml)
         # check that the xml has the expected content
-        status = self.check_content(oracle_xml=oracle_xml, test_xml=test_xml)
-        return (self.passed_and_feedback()
-                if status == 'pass'
-                else self.failed_and_feedback(points_awarded=self.points['bad_content'],
-                                              message=self.ERROR_MSGS['bad_content'], test_solution=test_xml,
-                                              oracle_solution=oracle_xml))
-        # TODO security of xml solutions, especially since we give away the solution location by dtd?
-        # TODO cut first two lines from file feedback
-        # TODO add strip spaces test (needs attributes)
+        result = (self.passed_and_feedback()
+                  if self.check_content(oracle_xml=oracle_xml, test_xml=test_xml)
+                  else self.failed_and_feedback(points_awarded=self.points['bad_content'],
+                                                message=self.ERROR_MSGS['bad_content'], oracle_solution=oracle_xml,
+                                                test_solution=test_xml))
+        return result
