@@ -40,8 +40,6 @@ if __name__ == '__main__':
                                     'bad_content.xq':             ['data2.xml'],
                                     'missing.xq':                 ['data2.xml']})
     TEST_SPECS.set_points(POINTS3, {'correct_multi_data.xq':      ['data1.xml,data2.xml']})
-    # True to strip leading and trailing spaces from xml data
-    TEST_SPECS['strip_spaces'] = True
     # The feedback file name
     FEEDBACK_FILE = 'feedback_xquery.txt'
 

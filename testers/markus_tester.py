@@ -29,7 +29,7 @@ class MarkusTestSpecs:
     def matrix(self):
         return self[MarkusTestSpecs.MATRIX_KEY]
 
-    # TODO Create function to assing points to all datasets of a test or all tests of a dataset
+    # TODO Create function to assing points to all tests and datasets, all datasets of a test, all tests of a dataset
     def set_points(self, points, test_data):
         for test_file, data_files in test_data.items():
             for data_file in data_files:
