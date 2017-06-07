@@ -113,33 +113,6 @@ class MarkusTest:
     <status>{}</status>
 </test>'''.format(name, output_escaped, points_awarded, status)
 
-    def passed(self, message=''):
-        """
-        Passes this test with the test total points.
-        :param message: An optional message, will be shown as test output.
-        :return The formatted passed test.
-        """
-        return self.format_result(status='pass', points_awarded=self.points_total, output=message)
-
-    def failed(self, points_awarded, message):
-        """
-        Fails this test with 0 or some points awarded.
-        :param message: The failure message, will be shown as test output.
-        :param points_awarded: The points awarded by the test, must be an integer >= 0 and < test total points.
-        :return The formatted failed test.
-        """
-        if points_awarded >= self.points_total:
-            raise ValueError('The test points awarded must be < test total points')
-        return self.format_result(status='fail', points_awarded=points_awarded, output=message)
-
-    def error(self, message):
-        """
-        Err this test.
-        :param message: The error message, will be shown as test output.
-        :return The formatted erred test.
-        """
-        return self.format_result(status='error', points_awarded=0, output=message)
-
     def add_feedback(self, status, feedback='', oracle_solution=None, test_solution=None):
         """
         Adds the test feedback to the feedback file.
@@ -149,7 +122,7 @@ class MarkusTest:
         :param test_solution: The test solution, can be None.
         """
         if self.feedback_open is None:
-            raise ValueError('The test is not supposed to write to a feedback file')
+            raise ValueError('No feedback file enabled')
         self.feedback_open.write('========== {}: {} ==========\n\n'.format(self.test_data_name, status.upper()))
         if feedback:
             self.feedback_open.write('## Feedback: {}\n\n'.format(feedback))
@@ -162,20 +135,43 @@ class MarkusTest:
                 self.feedback_open.write(test_solution)
         self.feedback_open.write('\n')
 
-    def passed_and_feedback(self, message=''):
-        result = self.passed(message=message)
-        self.add_feedback(status='pass')
+    def passed(self, message=''):
+        """
+        Passes this test with the test total points. If a feedback file is enabled, adds feedback to it.
+        :param message: An optional message, will be shown as test output.
+        :return The formatted passed test.
+        """
+        result = self.format_result(status='pass', points_awarded=self.points_total, output=message)
+        if self.feedback_open:
+            self.add_feedback(status='pass')
         return result
 
-    def failed_and_feedback(self, points_awarded, message, oracle_solution=None, test_solution=None):
-        result = self.failed(points_awarded=points_awarded, message=message)
-        self.add_feedback(status='fail', feedback=message, oracle_solution=oracle_solution, test_solution=test_solution)
+    def failed(self, points_awarded, message, oracle_solution=None, test_solution=None):
+        """
+        Fails this test with 0 or some points awarded. If a feedback file is enabled, adds feedback to it.
+        :param points_awarded: The points awarded by the test, must be an integer >= 0 and < test total points.
+        :param message: The failure message, will be shown as test output.
+        :param oracle_solution: The correct solution to be optionally added to the feedback file.
+        :param test_solution: The student solution to be optionally added to the feedback file.
+        :return The formatted failed test.
+        """
+        if points_awarded >= self.points_total:
+            raise ValueError('The test points awarded must be < test total points')
+        result = self.format_result(status='fail', points_awarded=points_awarded, output=message)
+        if self.feedback_open:
+            self.add_feedback(status='fail', feedback=message, oracle_solution=oracle_solution,
+                              test_solution=test_solution)
         return result
 
-    def error_and_feedback(self, message, oracle_solution=None, test_solution=None):
-        result = self.error(message=message)
-        self.add_feedback(status='error', feedback=message, oracle_solution=oracle_solution,
-                          test_solution=test_solution)
+    def error(self, message):
+        """
+        Err this test. If a feedback file is enabled, adds feedback to it.
+        :param message: The error message, will be shown as test output.
+        :return The formatted erred test.
+        """
+        result = self.format_result(status='error', points_awarded=0, output=message)
+        if self.feedback_open:
+            self.add_feedback(status='error', feedback=message)
         return result
 
     def run(self):
