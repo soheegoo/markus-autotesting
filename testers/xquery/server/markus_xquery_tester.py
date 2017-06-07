@@ -96,32 +96,31 @@ class MarkusXQueryTest(MarkusTest):
         # check that the submission exists
         if not isfile(self.test_file):
             msg = MarkusXQueryTest.ERROR_MSGS['no_submission'].format(self.test_file)
-            return self.error_and_feedback(message=msg)
+            return self.error(message=msg)
         # check that the query has no syntax or logic errors
         try:
             test_xml = self.check_query()
         except subprocess.CalledProcessError as e:
             msg = self.ERROR_MSGS['bad_query'].format(e.stderr)
-            return self.error_and_feedback(message=msg)
+            return self.error(message=msg)
         oracle_xml = self.get_oracle_solution()
         # check that the xml is well-formed
         try:
             test_xml = self.check_xml(test_xml=test_xml)
         except subprocess.CalledProcessError as e:
             msg = self.ERROR_MSGS['bad_xml'].format(e.stderr)
-            return self.failed_and_feedback(points_awarded=self.points['bad_xml'], message=msg,
-                                            oracle_solution=oracle_xml, test_solution=test_xml)
+            return self.failed(points_awarded=self.points['bad_xml'], message=msg, oracle_solution=oracle_xml,
+                               test_solution=test_xml)
         # check that the xml is conformant to the schema dtd
         try:
             test_xml = self.check_dtd(test_xml=test_xml)
         except subprocess.CalledProcessError as e:
             msg = self.ERROR_MSGS['bad_dtd'].format(e.stderr)
-            return self.failed_and_feedback(points_awarded=self.points['bad_dtd'], message=msg,
-                                            oracle_solution=oracle_xml, test_solution=test_xml)
+            return self.failed(points_awarded=self.points['bad_dtd'], message=msg, oracle_solution=oracle_xml,
+                               test_solution=test_xml)
         # check that the xml has the expected content
-        result = (self.passed_and_feedback()
+        result = (self.passed()
                   if self.check_content(oracle_xml=oracle_xml, test_xml=test_xml)
-                  else self.failed_and_feedback(points_awarded=self.points['bad_content'],
-                                                message=self.ERROR_MSGS['bad_content'], oracle_solution=oracle_xml,
-                                                test_solution=test_xml))
+                  else self.failed(points_awarded=self.points['bad_content'], message=self.ERROR_MSGS['bad_content'],
+                                   oracle_solution=oracle_xml, test_solution=test_xml))
         return result

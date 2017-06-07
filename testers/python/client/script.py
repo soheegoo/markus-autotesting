@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 
 import sys
-import os
+
+from os.path import isfile
+
 import markus_pam_config as cfg
 from markus_pam_tester import MarkusPAMTester
 from markusapi import Markus
@@ -20,8 +22,10 @@ if __name__ == '__main__':
     TEST_TIMEOUT = 5
     # The max time to run all tests on the student submission.
     GLOBAL_TIMEOUT = 20
+    # The feedback file name
+    FEEDBACK_FILE = 'feedback_python.txt'
     tester = MarkusPAMTester(path_to_uam=cfg.PATH_TO_UAM, specs=TEST_SPECS, test_timeout=TEST_TIMEOUT,
-                             global_timeout=GLOBAL_TIMEOUT)
+                             global_timeout=GLOBAL_TIMEOUT, feedback_file=FEEDBACK_FILE)
     tester.run()
     # use markus apis if needed
     root_url = sys.argv[1]
@@ -29,8 +33,7 @@ if __name__ == '__main__':
     assignment_id = sys.argv[3]
     group_id = sys.argv[4]
     repo_name = sys.argv[5]
-    # file_name = 'result.json'
-    # if os.path.isfile(file_name):
+    # if isfile(FEEDBACK_FILE):
     #     api = Markus(api_key, root_url)
-    #     with open(file_name) as open_file:
-    #         api.upload_feedback_file(assignment_id, group_id, file_name, open_file.read())
+    #     with open(FEEDBACK_FILE) as open_file:
+    #         api.upload_feedback_file(assignment_id, group_id, FEEDBACK_FILE, open_file.read())
