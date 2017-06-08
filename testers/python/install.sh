@@ -6,16 +6,15 @@ if [ $# -ne 1 ]; then
 fi
 
 UAMDIR=$1
-GITDIR=${UAMDIR}/uam-git
 
 echo "[PYTHON] Installing system packages"
 sudo apt-get install python3
 echo "[PYTHON] Downloading latest version of UAM"
-if cd ${GITDIR}; then
+if cd ${UAMDIR}; then
 	git pull
 	cd ..
 else
-	git clone https://github.com/ProjectAT/uam.git ${GITDIR}
+	git clone https://github.com/ProjectAT/uam.git ${UAMDIR}
 fi
 echo "[PYTHON] Updating python config file"
-echo "PATH_TO_UAM = '""${GITDIR}""'" >| server/markus_pam_config.py
+echo "PATH_TO_UAM = '""${UAMDIR}""'" >| server/markus_pam_config.py
