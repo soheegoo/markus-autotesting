@@ -2,12 +2,12 @@ public class Submission {
 
     public Submission() {}
 
-    public returnTrue() {}
+    public boolean returnTrue() {}
 
-    public notReturnTrue() {}
+    public boolean returnFalse() {}
 
-    public loop() {}
+    public void loop() {}
 
-    public returnXml() {}
+    public String returnXml() {}
 
 }
