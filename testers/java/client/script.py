@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 
+import os
 import sys
-
-from os.path import isfile
 
 from markus_jam_tester import MarkusJAMTester
 from markus_tester import MarkusTestSpecs
@@ -21,13 +20,15 @@ if __name__ == '__main__':
     # Modify uppercase variables with your settings
 
     TEST_SPECS = MarkusTestSpecs('/path/to/specs')
+    POINTS = {'Test1.testPasses': 1, 'Test1.testFails': 2, 'Test2': 1}
+    FILES = {'Tests.java': POINTS}
     # The feedback file name
     FEEDBACK_FILE = 'feedback_java.txt'
 
     tester = MarkusJAMTester(specs=TEST_SPECS, feedback_file=FEEDBACK_FILE)
     tester.run()
     # use markus apis if needed
-    # if isfile(FEEDBACK_FILE):
-    #     api = Markus(api_key, root_url)
-    #     with open(FEEDBACK_FILE) as feedback_open:
-    #         api.upload_feedback_file(assignment_id, group_id, FEEDBACK_FILE, feedback_open.read())
+    if os.path.isfile(FEEDBACK_FILE):
+        api = Markus(api_key, root_url)
+        with open(FEEDBACK_FILE) as feedback_open:
+            api.upload_feedback_file(assignment_id, group_id, FEEDBACK_FILE, feedback_open.read())

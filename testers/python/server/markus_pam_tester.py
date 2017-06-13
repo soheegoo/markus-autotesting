@@ -1,7 +1,8 @@
-from contextlib import ExitStack
+import contextlib
 
 from markus_tester import MarkusTester, MarkusTest
-from pam_tester import PAMTester, PAMResult
+from pam_tester import PAMTester
+from uam_tester import UAMResult
 from markus_utils import MarkusUtils
 
 
@@ -17,7 +18,7 @@ class MarkusPAMTester(MarkusTester):
 
     def run(self):
         try:
-            with ExitStack() as stack:
+            with contextlib.ExitStack() as stack:
                 feedback_open = (stack.enter_context(open(self.feedback_file, 'w'))
                                  if self.feedback_file is not None
                                  else None)
@@ -27,7 +28,6 @@ class MarkusPAMTester(MarkusTester):
                     test = MarkusPAMTest(result, points_awarded, points_total, feedback_open)
                     xml = test.run()
                     print(xml)
-
         except Exception as e:
             MarkusUtils.print_test_error(name='All PAM tests', message=str(e))
 
@@ -44,9 +44,9 @@ class MarkusPAMTest(MarkusTest):
         self.points_awarded = points_awarded
 
     def run(self):
-        if self.pam_result.status == PAMResult.Status.PASS:
+        if self.pam_result.status == UAMResult.Status.PASS:
             return self.passed()
-        elif self.pam_result.status == PAMResult.Status.FAIL:
+        elif self.pam_result.status == UAMResult.Status.FAIL:
             # TODO add test_solution=self.pam_result.trace? (But test trace could be confusing)
             return self.failed(points_awarded=self.points_awarded, message=self.pam_result.message)
         else:

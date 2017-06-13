@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 
+import os
 import sys
-
-from os.path import isfile
 
 import markus_pam_config as cfg
 from markus_pam_tester import MarkusPAMTester
@@ -10,6 +9,13 @@ from markusapi import Markus
 
 
 if __name__ == '__main__':
+
+    # Markus identifiers
+    root_url = sys.argv[1]
+    api_key = sys.argv[2]
+    assignment_id = sys.argv[3]
+    group_id = sys.argv[4]
+    repo_name = sys.argv[5]
 
     # Modify uppercase variables with your settings
 
@@ -28,12 +34,7 @@ if __name__ == '__main__':
                              global_timeout=GLOBAL_TIMEOUT, feedback_file=FEEDBACK_FILE)
     tester.run()
     # use markus apis if needed
-    root_url = sys.argv[1]
-    api_key = sys.argv[2]
-    assignment_id = sys.argv[3]
-    group_id = sys.argv[4]
-    repo_name = sys.argv[5]
-    # if isfile(FEEDBACK_FILE):
+    # if os.path.isfile(FEEDBACK_FILE):
     #     api = Markus(api_key, root_url)
     #     with open(FEEDBACK_FILE) as open_file:
     #         api.upload_feedback_file(assignment_id, group_id, FEEDBACK_FILE, open_file.read())

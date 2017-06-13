@@ -1,30 +1,11 @@
-import json
 import os
 import subprocess
-import enum
 import sys
 
-
-class PAMResult:
-    """
-    A test result from pam.
-    """
-
-    class Status(enum.Enum):
-        PASS = 1
-        FAIL = 2
-        ERROR = 3
-
-    def __init__(self, class_name, name, status, description='', message='', trace=''):
-        self.class_name = class_name
-        self.name = name
-        self.status = status
-        self.description = description
-        self.message = message
-        self.trace = trace
+from uam_tester import UAMResult, UAMTester
 
 
-class PAMTester:
+class PAMTester(UAMTester):
     """
     A base wrapper class to run the Python AutoMarker (pam - https://github.com/ProjectAT/uam).
     """
@@ -40,40 +21,10 @@ class PAMTester:
         :param global_timeout: The max time to run all tests on the student submission.
         :param result_filename: The file name of pam's json output.
         """
-        self.path_to_uam = path_to_uam
+        super().__init__(path_to_uam, specs, result_filename)
         self.path_to_pam = path_to_uam + '/pam/pam.py'
-        self.specs = specs
         self.test_timeout = test_timeout
         self.global_timeout = global_timeout
-        self.result_filename = result_filename
-
-    def collect_results(self):
-        """
-        Collects pam results.
-        :return: A list of results (possibly empty).
-        """
-        results = []
-        with open(self.result_filename) as result_file:
-            result = json.load(result_file)
-            for test_class_name, test_class_result in result['results'].items():
-                if 'passes' in test_class_result:
-                    for test_name, test_desc in test_class_result['passes'].items():
-                        results.append(
-                            PAMResult(class_name=test_class_name.partition('.')[2], name=test_name,
-                                      status=PAMResult.Status.PASS, description=test_desc))
-                if 'failures' in test_class_result:
-                    for test_name, test_stack in test_class_result['failures'].items():
-                        results.append(
-                            PAMResult(class_name=test_class_name.partition('.')[2], name=test_name,
-                                      status=PAMResult.Status.FAIL, description=test_stack['description'],
-                                      message=test_stack['message'], trace=test_stack['details']))
-                if 'errors' in test_class_result:
-                    for test_name, test_stack in test_class_result['errors'].items():
-                        results.append(
-                            PAMResult(class_name=test_class_name.partition('.')[2], name=test_name,
-                                      status=PAMResult.Status.ERROR, description=test_stack['description'],
-                                      message=test_stack['message']))
-        return results
 
     def get_test_points(self, result):
         """
@@ -88,7 +39,7 @@ class PAMTester:
         test_points = self.specs[test_file]
         total = test_points.get(test_name, test_points.get(class_name, 1))
         awarded = 0
-        if result.status == PAMResult.Status.PASS:
+        if result.status == UAMResult.Status.PASS:
             awarded = total
         return awarded, total
 
