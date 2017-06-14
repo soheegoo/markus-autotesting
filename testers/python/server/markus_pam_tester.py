@@ -29,25 +29,25 @@ class MarkusPAMTester(MarkusTester):
                     xml = test.run()
                     print(xml)
         except Exception as e:
-            MarkusUtils.print_test_error(name='All PAM tests', message=str(e))
+            MarkusUtils.print_test_error(name='All PYTHON tests', message=str(e))
 
 
 class MarkusPAMTest(MarkusTest):
 
-    def __init__(self, pam_result, points_awarded, points_total, feedback_open):
-        test_name = (pam_result.name
-                     if not pam_result.description
-                     else '{} ({})'.format(pam_result.name, pam_result.description))
+    def __init__(self, uam_result, points_awarded, points_total, feedback_open):
+        test_name = (uam_result.name
+                     if not uam_result.description
+                     else '{} ({})'.format(uam_result.name, uam_result.description))
         super().__init__(test_name, [], {'points': points_total}, None, feedback_open)
         self.test_data_name = test_name
-        self.pam_result = pam_result
+        self.uam_result = uam_result
         self.points_awarded = points_awarded
 
     def run(self):
-        if self.pam_result.status == UAMResult.Status.PASS:
+        if self.uam_result.status == UAMResult.Status.PASS:
             return self.passed()
-        elif self.pam_result.status == UAMResult.Status.FAIL:
+        elif self.uam_result.status == UAMResult.Status.FAIL:
             # TODO add test_solution=self.pam_result.trace? (But test trace could be confusing)
-            return self.failed(points_awarded=self.points_awarded, message=self.pam_result.message)
+            return self.failed(points_awarded=self.points_awarded, message=self.uam_result.message)
         else:
-            return self.error(message=self.pam_result.message)
+            return self.error(message=self.uam_result.message)

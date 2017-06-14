@@ -2,7 +2,7 @@ import os
 import subprocess
 import sys
 
-from uam_tester import UAMResult, UAMTester
+from uam_tester import UAMTester
 
 
 class PAMTester(UAMTester):
@@ -22,26 +22,9 @@ class PAMTester(UAMTester):
         :param result_filename: The file name of pam's json output.
         """
         super().__init__(path_to_uam, specs, result_filename)
-        self.path_to_pam = path_to_uam + '/pam/pam.py'
+        self.path_to_pam = os.path.join(path_to_uam, 'pam', 'pam.py')
         self.test_timeout = test_timeout
         self.global_timeout = global_timeout
-
-    def get_test_points(self, result):
-        """
-        Gets the points awarded over the possible total for a pam test result based on the test specifications.
-        :param result: A pam test result.
-        :return: The tuple (points awarded, total possible points)
-        """
-        test_names = result.name.split('.')  # file.class.test or file.test
-        test_file = '{}.py'.format(test_names[0])
-        class_name = test_names[1] if len(test_names) == 3 else None
-        test_name = '{}.{}'.format(class_name, test_names[2]) if class_name else test_names[1]
-        test_points = self.specs[test_file]
-        total = test_points.get(test_name, test_points.get(class_name, 1))
-        awarded = 0
-        if result.status == UAMResult.Status.PASS:
-            awarded = total
-        return awarded, total
 
     def run(self):
         """

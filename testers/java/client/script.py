@@ -16,12 +16,14 @@ if __name__ == '__main__':
     assignment_id = sys.argv[3]
     group_id = sys.argv[4]
     repo_name = sys.argv[5]
+    TEST_SPECS = MarkusTestSpecs('/path/to/specs')
 
     # Modify uppercase variables with your settings
 
-    TEST_SPECS = MarkusTestSpecs('/path/to/specs')
     POINTS = {'Test1.testPasses': 1, 'Test1.testFails': 2, 'Test2': 1}
-    FILES = {'Tests.java': POINTS}
+    TEST_SPECS.set_test_points(POINTS, 'Tests.java')
+    # The max time to run all tests on the student submission.
+    TEST_SPECS['global_timeout'] = 20
     # The feedback file name
     FEEDBACK_FILE = 'feedback_java.txt'
 

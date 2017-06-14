@@ -10,13 +10,15 @@ class MarkusTestSpecs:
 
     MATRIX_KEY = 'matrix'
     MATRIX_NONTEST_KEY = 'extra'
+    MATRIX_NODATA_KEY = 'nodata'
     MATRIX_POINTS_KEY = 'points'
     DATA_FILES_SEPARATOR = ','
 
     def __init__(self, path_to_specs):
-        self._specs = {}
         with open(path_to_specs, 'r') as specs_open:
             self._specs = json.loads(specs_open.read())
+        if MarkusTestSpecs.MATRIX_KEY not in self._specs:
+            self._specs[MarkusTestSpecs.MATRIX_KEY] = {}
 
     def __getitem__(self, item):
         return self._specs[item]
@@ -41,7 +43,8 @@ class MarkusTestSpecs:
                 self.matrix[test_file][data_file][MarkusTestSpecs.MATRIX_POINTS_KEY] = points
 
     def set_test_points(self, points, test_file):
-        for data_file in self.matrix[test_file]:
+        test_data = self.matrix.setdefault(test_file, {MarkusTestSpecs.MATRIX_NODATA_KEY: {}})
+        for data_file in test_data:
             if data_file == MarkusTestSpecs.MATRIX_NONTEST_KEY:
                 continue
             self.matrix[test_file][data_file][MarkusTestSpecs.MATRIX_POINTS_KEY] = points
