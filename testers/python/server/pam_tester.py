@@ -10,7 +10,7 @@ class PAMTester(UAMTester):
     A base wrapper class to run the Python AutoMarker (pam - https://github.com/ProjectAT/uam).
     """
 
-    def __init__(self, path_to_uam, test_points, test_timeout=5, global_timeout=20, result_filename='result.json'):
+    def __init__(self, path_to_uam, test_points, test_timeout=10, global_timeout=30, result_filename='result.json'):
         """
         Initializes the various parameters to run pam.
         :param path_to_uam: The path to the uam installation.

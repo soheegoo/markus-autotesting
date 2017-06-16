@@ -12,13 +12,21 @@ class UAMResult:
         FAIL = 2
         ERROR = 3
 
-    def __init__(self, class_name, name, status, description='', message='', trace=''):
+    def __init__(self, file_name, class_name, test_name, status, description=None, message=None, trace=None):
+        self.file_name = file_name
         self.class_name = class_name
-        self.name = name
+        self.test_name = test_name
         self.status = status
         self.description = description
         self.message = message
         self.trace = trace
+
+    @property
+    def test_title(self):
+        title = self.test_name if not self.class_name else '{}.{}'.format(self.class_name, self.test_name)
+        if self.description:
+            title += ' ({})'.format(self.description)
+        return title
 
 
 class UAMTester:
@@ -53,38 +61,44 @@ class UAMTester:
         results = []
         with open(self.result_filename) as result_file:
             result = json.load(result_file)
-            for test_class_name, test_class_result in result['results'].items():
-                if 'passes' in test_class_result:
-                    for test_name, test_desc in test_class_result['passes'].items():
+            for file_class, test_result in result['results'].items():
+                file_class_names = file_class.split('.')
+                if len(file_class_names) == 1:  # Class (java) or file (python)
+                    file_name = file_class_names[0]
+                    class_name = file_class_names[0] if file_name.istitle() else None
+                else:  # file.Class (python)
+                    file_name = file_class_names[0]
+                    class_name = file_class_names[1]
+                if 'passes' in test_result:
+                    for test_id, test_desc in test_result['passes'].items():
+                        test_name = test_id.rpartition(':')[2] if ':' in test_id else test_id.rpartition('.')[2]
                         results.append(
-                            UAMResult(class_name=test_class_name.partition('.')[2], name=test_name,
-                                      status=UAMResult.Status.PASS, description=test_desc))
-                if 'failures' in test_class_result:
-                    for test_name, test_stack in test_class_result['failures'].items():
+                            UAMResult(file_name, class_name, test_name, status=UAMResult.Status.PASS,
+                                      description=test_desc))
+                if 'failures' in test_result:
+                    for test_id, test_stack in test_result['failures'].items():
+                        test_name = test_id.rpartition(':')[2] if ':' in test_id else test_id.rpartition('.')[2]
                         results.append(
-                            UAMResult(class_name=test_class_name.partition('.')[2], name=test_name,
-                                      status=UAMResult.Status.FAIL, description=test_stack['description'],
-                                      message=test_stack['message'], trace=test_stack['details']))
-                if 'errors' in test_class_result:
-                    for test_name, test_stack in test_class_result['errors'].items():
+                            UAMResult(file_name, class_name, test_name, status=UAMResult.Status.FAIL,
+                                      description=test_stack['description'], message=test_stack['message'],
+                                      trace=test_stack['details']))
+                if 'errors' in test_result:
+                    for test_id, test_stack in test_result['errors'].items():
+                        test_name = test_id.rpartition(':')[2] if ':' in test_id else test_id.rpartition('.')[2]
                         results.append(
-                            UAMResult(class_name=test_class_name.partition('.')[2], name=test_name,
-                                      status=UAMResult.Status.ERROR, description=test_stack['description'],
-                                      message=test_stack['message']))
+                            UAMResult(file_name, class_name, test_name, status=UAMResult.Status.ERROR,
+                                      description=test_stack['description'], message=test_stack['message']))
         return results
 
-    def get_test_points(self, result):
+    def get_test_points(self, result, file_ext):
         """
         Gets the points awarded over the possible total for a uam test result based on the test specifications.
         :param result: A uam test result.
         :return: The tuple (points awarded, total possible points)
         """
-        test_names = result.name.split('.')  # file.class.test or file.test
-        test_file = '{}.py'.format(test_names[0])
-        class_name = test_names[1] if len(test_names) == 3 else None
-        test_name = '{}.{}'.format(class_name, test_names[2]) if class_name else test_names[1]
+        test_file = '{}.{}'.format(result.file_name, file_ext)
         test_points = self.test_points[test_file]
-        total = test_points.get(test_name, test_points.get(class_name, 1))
+        total = test_points.get(result.test_name, test_points.get(result.class_name, 1))
         awarded = 0
         if result.status == UAMResult.Status.PASS:
             awarded = total

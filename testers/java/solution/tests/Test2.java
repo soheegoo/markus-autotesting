@@ -7,13 +7,13 @@ public class Test2 {
 
     Submission submission = new Submission();
 
-    @Test(timeout=5)
+    @Test(timeout=10)
     @Description(description="This test should timeout")
     public void testLoops() {
         submission.loop();
     }
 
-    @Test(timeout=5)
+    @Test(timeout=10)
     @Description(description="This test should fail and print xml")
     public void testFailsAndOutputsXml() {
         fail(submission.returnXml());

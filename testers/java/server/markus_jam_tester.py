@@ -21,7 +21,7 @@ class MarkusJAMTester(MarkusTester):
         super().__init__(specs, feedback_file)
         self.path_to_uam = specs['path_to_uam']
         self.path_to_tests = specs['path_to_tests']
-        self.global_timeout = specs.get('global_timeout', UAMTester.GLOBAL_TIMEOUT_DEFAULT)
+        self.global_timeout = specs['global_timeout']
         self.path_to_jam = os.path.join(self.path_to_uam, 'jam')
         self.path_to_jam_jars = os.path.join(self.path_to_jam, 'lib', '*')
         test_points = {
@@ -39,8 +39,8 @@ class MarkusJAMTester(MarkusTester):
                     'org.junit.runner.JAMCore']
         java_cmd.extend(sorted([os.path.splitext(test_file)[0] for test_file in self.specs.test_files]))
         java_cmd.append(os.path.join(self.path_to_jam, 'exceptionExplanations.xml'))
-        subprocess.run(java_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, check=True,
-                       timeout=self.global_timeout)
+        subprocess.run(java_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, check=False,
+                       timeout=self.global_timeout)  # apparently, jam returns error if at least a test fails
 
     def run(self):
         try:
@@ -61,17 +61,17 @@ class MarkusJAMTester(MarkusTester):
                 try:
                     self.check_java()
                     results = self.uam_tester.collect_results()
-                    for result in results:
-                        points_awarded, points_total = self.uam_tester.get_test_points(result)
-                        test = MarkusJAMTest(result, points_awarded, points_total, feedback_open)
-                        xml = test.run()
-                        print(xml)
                 except subprocess.TimeoutExpired:
                     raise Exception(self.ERROR_MGSG['timeout'])
                 except subprocess.CalledProcessError as e:
                     raise Exception(self.ERROR_MGSG['bad_java'].format(e.stdout))
                 except OSError:
                     raise Exception(self.ERROR_MGSG['no_result'])
+                for result in results:
+                    points_awarded, points_total = self.uam_tester.get_test_points(result, file_ext='java')
+                    test = MarkusJAMTest(result, points_awarded, points_total, feedback_open)
+                    xml = test.run()
+                    print(xml)
         except Exception as e:
             MarkusUtils.print_test_error(name='All JAVA tests', message=str(e))
 
@@ -79,11 +79,9 @@ class MarkusJAMTester(MarkusTester):
 class MarkusJAMTest(MarkusTest):
 
     def __init__(self, uam_result, points_awarded, points_total, feedback_open):
-        test_name = (uam_result.name
-                     if not uam_result.description
-                     else '{} ({})'.format(uam_result.name, uam_result.description))
-        super().__init__(test_name, [], {'points': points_total}, None, feedback_open)
-        self.test_data_name = test_name
+        super().__init__(uam_result.test_title, [], {MarkusTestSpecs.MATRIX_POINTS_KEY: points_total}, None,
+                         feedback_open)
+        self.test_data_name = uam_result.test_title
         self.uam_result = uam_result
         self.points_awarded = points_awarded
 
