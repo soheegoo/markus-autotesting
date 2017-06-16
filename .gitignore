@@ -1,3 +1,4 @@
 .idea
 __pycache__
 testers/uam-git/
+testers/java/**/*.class

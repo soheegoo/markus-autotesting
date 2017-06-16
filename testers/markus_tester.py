@@ -1,8 +1,7 @@
-from contextlib import ExitStack
-from json import loads
-
-from os.path import splitext
-from xml.sax.saxutils import escape
+import contextlib
+import json
+import os
+import xml
 
 from markus_utils import MarkusUtils
 
@@ -11,13 +10,15 @@ class MarkusTestSpecs:
 
     MATRIX_KEY = 'matrix'
     MATRIX_NONTEST_KEY = 'extra'
+    MATRIX_NODATA_KEY = 'nodata'
     MATRIX_POINTS_KEY = 'points'
     DATA_FILES_SEPARATOR = ','
 
     def __init__(self, path_to_specs):
-        self._specs = {}
         with open(path_to_specs, 'r') as specs_open:
-            self._specs = loads(specs_open.read())
+            self._specs = json.loads(specs_open.read())
+        if MarkusTestSpecs.MATRIX_KEY not in self._specs:
+            self._specs[MarkusTestSpecs.MATRIX_KEY] = {}
 
     def __getitem__(self, item):
         return self._specs[item]
@@ -29,11 +30,34 @@ class MarkusTestSpecs:
     def matrix(self):
         return self[MarkusTestSpecs.MATRIX_KEY]
 
-    # TODO Create function to assing points to all tests and datasets, all datasets of a test, all tests of a dataset
+    @property
+    def test_files(self):
+        return self.matrix.keys()
+
     def set_points(self, points, test_data):
         for test_file, data_files in test_data.items():
             for data_file in data_files:
                 self.matrix[test_file][data_file][MarkusTestSpecs.MATRIX_POINTS_KEY] = points
+
+    def set_all_points(self, points):
+        for test_file, test_data in self.matrix.items():
+            for data_file in test_data:
+                if data_file == MarkusTestSpecs.MATRIX_NONTEST_KEY:
+                    continue
+                self.matrix[test_file][data_file][MarkusTestSpecs.MATRIX_POINTS_KEY] = points
+
+    def set_test_points(self, test_file, points):
+        test_data = self.matrix.setdefault(test_file, {MarkusTestSpecs.MATRIX_NODATA_KEY: {}})
+        for data_file in test_data:
+            if data_file == MarkusTestSpecs.MATRIX_NONTEST_KEY:
+                continue
+            self.matrix[test_file][data_file][MarkusTestSpecs.MATRIX_POINTS_KEY] = points
+
+    def set_data_points(self, data_file, points):
+        for test_file in self.matrix:
+            if data_file not in self.matrix[test_file]:
+                continue
+            self.matrix[test_file][data_file][MarkusTestSpecs.MATRIX_POINTS_KEY] = points
 
 
 class MarkusTester:
@@ -48,11 +72,11 @@ class MarkusTester:
 
     def run(self):
         try:
-            with ExitStack() as stack:
+            with contextlib.ExitStack() as stack:
                 feedback_open = (stack.enter_context(open(self.feedback_file, 'w'))
                                  if self.feedback_file is not None
                                  else None)
-                for test_file in sorted(self.specs.matrix.keys()):
+                for test_file in sorted(self.specs.test_files):
                     test_extra = self.specs.matrix[test_file].get(MarkusTestSpecs.MATRIX_NONTEST_KEY)
                     for data_files in sorted(self.specs.matrix[test_file].keys()):
                         if data_files == MarkusTestSpecs.MATRIX_NONTEST_KEY:
@@ -73,9 +97,10 @@ class MarkusTest:
 
     def __init__(self, test_file, data_files, test_data_config, test_extra, feedback_open=None):
         self.test_file = test_file
-        self.test_name = splitext(test_file)[0]
+        self.test_name = os.path.splitext(test_file)[0]
         self.data_files = data_files
-        self.data_name = MarkusTestSpecs.DATA_FILES_SEPARATOR.join([splitext(data_file)[0] for data_file in data_files])
+        self.data_name = MarkusTestSpecs.DATA_FILES_SEPARATOR.join(
+                             [os.path.splitext(data_file)[0] for data_file in data_files])
         self.test_data_name = '{} + {}'.format(self.test_name, self.data_name)
         # TODO Use a default or disable if not set?
         self.points = test_data_config[MarkusTestSpecs.MATRIX_POINTS_KEY]
@@ -101,7 +126,7 @@ class MarkusTest:
             raise ValueError('The test points awarded must be >= 0')
         if points_awarded > self.points_total:
             raise ValueError('The test points awarded must be <= test total points')
-        output_escaped = escape(output.replace('\x00', ''), entities={"'": '&apos;'})
+        output_escaped = xml.sax.saxutils.escape(output.replace('\x00', ''), entities={"'": '&apos;'})
         name = '[{}/{}] {}'.format(points_awarded, self.points_total, self.test_data_name)
         return '''
 <test>
