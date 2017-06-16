@@ -30,6 +30,7 @@ class UAMTester:
         'no_result': 'UAM framework error: no result file generated',
         'timeout': 'Tests timed out'
     }
+    GLOBAL_TIMEOUT_DEFAULT = 30
 
     def __init__(self, path_to_uam, test_points, result_filename='result.json'):
         """
@@ -43,23 +44,6 @@ class UAMTester:
         self.path_to_uam = path_to_uam
         self.test_points = test_points
         self.result_filename = result_filename
-
-    def get_test_points(self, result):
-        """
-        Gets the points awarded over the possible total for a uam test result based on the test specifications.
-        :param result: A uam test result.
-        :return: The tuple (points awarded, total possible points)
-        """
-        test_names = result.name.split('.')  # file.class.test or file.test
-        test_file = '{}.py'.format(test_names[0])
-        class_name = test_names[1] if len(test_names) == 3 else None
-        test_name = '{}.{}'.format(class_name, test_names[2]) if class_name else test_names[1]
-        test_points = self.test_points[test_file]
-        total = test_points.get(test_name, test_points.get(class_name, 1))
-        awarded = 0
-        if result.status == UAMResult.Status.PASS:
-            awarded = total
-        return awarded, total
 
     def collect_results(self):
         """
@@ -88,3 +72,20 @@ class UAMTester:
                                       status=UAMResult.Status.ERROR, description=test_stack['description'],
                                       message=test_stack['message']))
         return results
+
+    def get_test_points(self, result):
+        """
+        Gets the points awarded over the possible total for a uam test result based on the test specifications.
+        :param result: A uam test result.
+        :return: The tuple (points awarded, total possible points)
+        """
+        test_names = result.name.split('.')  # file.class.test or file.test
+        test_file = '{}.py'.format(test_names[0])
+        class_name = test_names[1] if len(test_names) == 3 else None
+        test_name = '{}.{}'.format(class_name, test_names[2]) if class_name else test_names[1]
+        test_points = self.test_points[test_file]
+        total = test_points.get(test_name, test_points.get(class_name, 1))
+        awarded = 0
+        if result.status == UAMResult.Status.PASS:
+            awarded = total
+        return awarded, total

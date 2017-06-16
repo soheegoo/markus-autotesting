@@ -23,14 +23,14 @@ if __name__ == '__main__':
     POINTS = {'Test1.testPasses': 1, 'Test1.testFails': 2, 'Test2': 1}
     TEST_SPECS.set_test_points('Tests.java', POINTS)
     # The max time to run all tests on the student submission.
-    TEST_SPECS['global_timeout'] = 20
+    TEST_SPECS['global_timeout'] = 30
     # The feedback file name
     FEEDBACK_FILE = 'feedback_java.txt'
 
     tester = MarkusJAMTester(specs=TEST_SPECS, feedback_file=FEEDBACK_FILE)
     tester.run()
     # use markus apis if needed
-    if os.path.isfile(FEEDBACK_FILE):
-        api = Markus(api_key, root_url)
-        with open(FEEDBACK_FILE) as feedback_open:
-            api.upload_feedback_file(assignment_id, group_id, FEEDBACK_FILE, feedback_open.read())
+    # if os.path.isfile(FEEDBACK_FILE):
+    #     api = Markus(api_key, root_url)
+    #     with open(FEEDBACK_FILE) as feedback_open:
+    #         api.upload_feedback_file(assignment_id, group_id, FEEDBACK_FILE, feedback_open.read())

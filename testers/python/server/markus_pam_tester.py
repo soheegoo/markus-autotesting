@@ -1,8 +1,8 @@
 import contextlib
 
-from markus_tester import MarkusTester, MarkusTest
+from markus_tester import MarkusTester, MarkusTest, MarkusTestSpecs
 from pam_tester import PAMTester
-from uam_tester import UAMResult
+from uam_tester import UAMResult, UAMTester
 from markus_utils import MarkusUtils
 
 
@@ -11,10 +11,16 @@ class MarkusPAMTester(MarkusTester):
     A wrapper to run the Python AutoMarker (pam - https://github.com/ProjectAT/uam) within Markus' test framework.
     """
 
-    def __init__(self, path_to_uam, specs, test_timeout=5, global_timeout=20, feedback_file='feedback_python.txt'):
+    def __init__(self, specs, feedback_file='feedback_python.txt'):
         super().__init__(specs, feedback_file)
-        self.pam_tester = PAMTester(path_to_uam=path_to_uam, test_points=specs, test_timeout=test_timeout,
-                                    global_timeout=global_timeout, result_filename='result.json')
+        self.path_to_uam = specs['path_to_uam']
+        self.test_timeout = specs.get('test_timeout', 10)
+        self.global_timeout = specs.get('global_timeout', UAMTester.GLOBAL_TIMEOUT_DEFAULT)
+        test_points = {
+            test_file: specs.matrix[test_file][MarkusTestSpecs.MATRIX_NODATA_KEY][MarkusTestSpecs.MATRIX_POINTS_KEY]
+            for test_file in specs.test_files}
+        self.pam_tester = PAMTester(self.path_to_uam, test_points, self.test_timeout, self.global_timeout,
+                                    result_filename='result.json')
 
     def run(self):
         try:

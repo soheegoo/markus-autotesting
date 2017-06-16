@@ -21,7 +21,7 @@ class MarkusJAMTester(MarkusTester):
         super().__init__(specs, feedback_file)
         self.path_to_uam = specs['path_to_uam']
         self.path_to_tests = specs['path_to_tests']
-        self.global_timeout = specs['global_timeout']
+        self.global_timeout = specs.get('global_timeout', UAMTester.GLOBAL_TIMEOUT_DEFAULT)
         self.path_to_jam = os.path.join(self.path_to_uam, 'jam')
         self.path_to_jam_jars = os.path.join(self.path_to_jam, 'lib', '*')
         test_points = {
@@ -91,7 +91,7 @@ class MarkusJAMTest(MarkusTest):
         if self.uam_result.status == UAMResult.Status.PASS:
             return self.passed()
         elif self.uam_result.status == UAMResult.Status.FAIL:
-            # TODO add test_solution=self.pam_result.trace? (But test trace could be confusing)
+            # TODO add test_solution=self.uam_result.trace? (But test trace could be confusing)
             return self.failed(points_awarded=self.points_awarded, message=self.uam_result.message)
         else:
             return self.error(message=self.uam_result.message)
