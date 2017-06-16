@@ -12,8 +12,8 @@ class MarkusPAMTester(MarkusTester):
     """
 
     def __init__(self, path_to_uam, specs, test_timeout=5, global_timeout=20, feedback_file='feedback_python.txt'):
-        super().__init__(specs=specs, feedback_file=feedback_file)
-        self.pam_tester = PAMTester(path_to_uam=path_to_uam, specs=specs, test_timeout=test_timeout,
+        super().__init__(specs, feedback_file)
+        self.pam_tester = PAMTester(path_to_uam=path_to_uam, test_points=specs, test_timeout=test_timeout,
                                     global_timeout=global_timeout, result_filename='result.json')
 
     def run(self):

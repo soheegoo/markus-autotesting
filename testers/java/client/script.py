@@ -21,7 +21,7 @@ if __name__ == '__main__':
     # Modify uppercase variables with your settings
 
     POINTS = {'Test1.testPasses': 1, 'Test1.testFails': 2, 'Test2': 1}
-    TEST_SPECS.set_test_points(POINTS, 'Tests.java')
+    TEST_SPECS.set_test_points('Tests.java', POINTS)
     # The max time to run all tests on the student submission.
     TEST_SPECS['global_timeout'] = 20
     # The feedback file name

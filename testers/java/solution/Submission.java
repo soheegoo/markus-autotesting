@@ -2,12 +2,20 @@ public class Submission {
 
     public Submission() {}
 
-    public boolean returnTrue() {}
+    public boolean returnTrue() {
+        return true;
+    }
 
-    public boolean returnFalse() {}
+    public boolean returnFalse() {
+        return false;
+    }
 
-    public void loop() {}
+    public void loop() {
+        while (true) {}
+    }
 
-    public String returnXml() {}
+    public String returnXml() {
+        return "<escapeme>'\" &</escapeme>";
+    }
 
 }

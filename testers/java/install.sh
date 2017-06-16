@@ -17,12 +17,13 @@ sudo apt-get install python3 openjdk-8-jre
 echo "[JAVA] Downloading latest version of UAM"
 if cd ${UAMDIR}; then
 	git pull
-	cd ..
 else
 	git clone https://github.com/ProjectAT/uam.git ${UAMDIR}
 fi
 echo "[JAVA] Compiling JAM and solution"
-${JAMDIR}/compile_jam.sh
-${JAMDIR}/compile_tests.sh ${TESTSDIR} ${SOLUTIONDIR}
+pushd ${JAMDIR}
+./compile_jam.sh
+./compile_tests.sh ${TESTSDIR} ${SOLUTIONDIR}
+popd
 echo '[JAVA] Updating json specs file'
-sed -i -e "s#/path/to/uam#${UAMDIR}#g" ${SPECS}
+sed -i -e "s#/path/to/uam#${UAMDIR}#g;s#/path/to/tests#${TESTSDIR}#g" ${SPECS}

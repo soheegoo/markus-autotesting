@@ -30,6 +30,10 @@ class MarkusTestSpecs:
     def matrix(self):
         return self[MarkusTestSpecs.MATRIX_KEY]
 
+    @property
+    def test_files(self):
+        return self.matrix.keys()
+
     def set_points(self, points, test_data):
         for test_file, data_files in test_data.items():
             for data_file in data_files:
@@ -42,14 +46,14 @@ class MarkusTestSpecs:
                     continue
                 self.matrix[test_file][data_file][MarkusTestSpecs.MATRIX_POINTS_KEY] = points
 
-    def set_test_points(self, points, test_file):
+    def set_test_points(self, test_file, points):
         test_data = self.matrix.setdefault(test_file, {MarkusTestSpecs.MATRIX_NODATA_KEY: {}})
         for data_file in test_data:
             if data_file == MarkusTestSpecs.MATRIX_NONTEST_KEY:
                 continue
             self.matrix[test_file][data_file][MarkusTestSpecs.MATRIX_POINTS_KEY] = points
 
-    def set_data_points(self, points, data_file):
+    def set_data_points(self, data_file, points):
         for test_file in self.matrix:
             if data_file not in self.matrix[test_file]:
                 continue
@@ -72,7 +76,7 @@ class MarkusTester:
                 feedback_open = (stack.enter_context(open(self.feedback_file, 'w'))
                                  if self.feedback_file is not None
                                  else None)
-                for test_file in sorted(self.specs.matrix.keys()):
+                for test_file in sorted(self.specs.test_files):
                     test_extra = self.specs.matrix[test_file].get(MarkusTestSpecs.MATRIX_NONTEST_KEY)
                     for data_files in sorted(self.specs.matrix[test_file].keys()):
                         if data_files == MarkusTestSpecs.MATRIX_NONTEST_KEY:
