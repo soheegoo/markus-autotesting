@@ -3,12 +3,12 @@ import glob
 import os
 import subprocess
 
-from markus_tester import MarkusTester, MarkusTest, MarkusTestSpecs
+from markus_uam_tester import MarkusUAMTest, MarkusUAMTester
 from markus_utils import MarkusUtils
-from uam_tester import UAMTester, UAMResult
+from uam_tester import UAMTester
 
 
-class MarkusJAMTester(MarkusTester):
+class MarkusJAMTester(MarkusUAMTester):
 
     ERROR_MGSG = {
         'no_submission': 'Java submission files not found',
@@ -19,15 +19,9 @@ class MarkusJAMTester(MarkusTester):
 
     def __init__(self, specs, feedback_file='feedback_java.txt'):
         super().__init__(specs, feedback_file)
-        self.path_to_uam = specs['path_to_uam']
         self.path_to_tests = specs['path_to_tests']
-        self.global_timeout = specs['global_timeout']
         self.path_to_jam = os.path.join(self.path_to_uam, 'jam')
         self.path_to_jam_jars = os.path.join(self.path_to_jam, 'lib', '*')
-        test_points = {
-            test_file: specs.matrix[test_file][MarkusTestSpecs.MATRIX_NODATA_KEY][MarkusTestSpecs.MATRIX_POINTS_KEY]
-            for test_file in specs.test_files}
-        self.uam_tester = UAMTester(self.path_to_uam, test_points, result_filename='result.json')
 
     def init_java(self, java_files):
         javac_cmd = ['javac']
@@ -69,27 +63,8 @@ class MarkusJAMTester(MarkusTester):
                     raise Exception(self.ERROR_MGSG['no_result'])
                 for result in results:
                     points_awarded, points_total = self.uam_tester.get_test_points(result, file_ext='java')
-                    test = MarkusJAMTest(result, points_awarded, points_total, feedback_open)
+                    test = MarkusUAMTest(result, points_awarded, points_total, feedback_open)
                     xml = test.run()
                     print(xml)
         except Exception as e:
             MarkusUtils.print_test_error(name='All JAVA tests', message=str(e))
-
-
-class MarkusJAMTest(MarkusTest):
-
-    def __init__(self, uam_result, points_awarded, points_total, feedback_open):
-        super().__init__(uam_result.test_title, [], {MarkusTestSpecs.MATRIX_POINTS_KEY: points_total}, None,
-                         feedback_open)
-        self.test_data_name = uam_result.test_title
-        self.uam_result = uam_result
-        self.points_awarded = points_awarded
-
-    def run(self):
-        if self.uam_result.status == UAMResult.Status.PASS:
-            return self.passed()
-        elif self.uam_result.status == UAMResult.Status.FAIL:
-            # TODO add test_solution=self.uam_result.trace? (But test trace could be confusing)
-            return self.failed(points_awarded=self.points_awarded, message=self.uam_result.message)
-        else:
-            return self.error(message=self.uam_result.message)

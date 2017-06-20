@@ -1,5 +1,6 @@
 import enum
 import json
+import subprocess
 
 
 class UAMResult:
@@ -35,12 +36,13 @@ class UAMTester:
     """
 
     ERROR_MGSG = {
+        'uam_error': 'UAM framework error: {}',
         'no_result': 'UAM framework error: no result file generated',
         'timeout': 'Tests timed out'
     }
     GLOBAL_TIMEOUT_DEFAULT = 30
 
-    def __init__(self, path_to_uam, test_points, result_filename='result.json'):
+    def __init__(self, path_to_uam, test_points, global_timeout=GLOBAL_TIMEOUT_DEFAULT, result_filename='result.json'):
         """
         Initializes the basic parameters to run a uam tester.
         :param path_to_uam: The path to the uam installation.
@@ -51,6 +53,7 @@ class UAMTester:
         """
         self.path_to_uam = path_to_uam
         self.test_points = test_points
+        self.global_timeout = global_timeout
         self.result_filename = result_filename
 
     def collect_results(self):
@@ -92,9 +95,10 @@ class UAMTester:
 
     def get_test_points(self, result, file_ext):
         """
-        Gets the points awarded over the possible total for a uam test result based on the test specifications.
+        Gets the points awarded over the available total for a uam test result based on the test specifications.
         :param result: A uam test result.
-        :return: The tuple (points awarded, total possible points)
+        :param file_ext: The test file extension.
+        :return: The tuple (points awarded, total available points)
         """
         test_file = '{}.{}'.format(result.file_name, file_ext)
         test_points = self.test_points[test_file]
@@ -103,3 +107,20 @@ class UAMTester:
         if result.status == UAMResult.Status.PASS:
             awarded = total
         return awarded, total
+
+    def generate_results(self):
+        raise NotImplementedError
+
+    def run(self):
+        """
+        Runs the tester.
+        """
+        try:
+            self.generate_results()
+            return self.collect_results()
+        except subprocess.TimeoutExpired:
+            raise Exception(self.ERROR_MGSG['timeout'])
+        except subprocess.CalledProcessError as e:
+            raise Exception(self.ERROR_MGSG['uam_error'].format(e.stdout))
+        except OSError:
+            raise Exception(self.ERROR_MGSG['no_result'])
