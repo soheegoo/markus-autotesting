@@ -41,25 +41,38 @@ class UAMTester:
         'timeout': 'Tests timed out'
     }
     GLOBAL_TIMEOUT_DEFAULT = 30
+    TEST_TIMEOUT_DEFAULT = 10
 
-    def __init__(self, path_to_uam, test_points, global_timeout=GLOBAL_TIMEOUT_DEFAULT, result_filename='result.json'):
+    def __init__(self, path_to_uam, path_to_tests, test_points, global_timeout=GLOBAL_TIMEOUT_DEFAULT,
+                 test_timeout=TEST_TIMEOUT_DEFAULT, result_filename='result.json'):
         """
         Initializes the basic parameters to run a uam tester.
         :param path_to_uam: The path to the uam installation.
+        :param path_to_tests: The path to the tests.
         :param test_points: A dict of test files to run and points assigned: the keys are test file names, the values
                             are dicts of test functions (or test classes) to points; if a test function/class is
                             missing, it is assigned a default of 1 point (use an empty dict for all 1s).
-        :param result_filename: The file name of the json output.
+        :param global_timeout: The time limit to run all tests.
+        :param test_timeout: The time limit to run a single test.
+        :param result_filename: The file name of the output.
         """
         self.path_to_uam = path_to_uam
+        self.path_to_tests = path_to_tests
         self.test_points = test_points
         self.global_timeout = global_timeout
+        self.test_timeout = test_timeout
         self.result_filename = result_filename
+
+    def generate_results(self):
+        """
+        Runs the tester and generates the result file.
+        """
+        raise NotImplementedError
 
     def collect_results(self):
         """
-        Collects results from a uam tester.
-        :return: A list of results (possibly empty).
+        Collects results from a tester result file.
+        :return: A list of results.
         """
         results = []
         with open(self.result_filename) as result_file:
@@ -108,12 +121,10 @@ class UAMTester:
             awarded = total
         return awarded, total
 
-    def generate_results(self):
-        raise NotImplementedError
-
     def run(self):
         """
         Runs the tester.
+        :return A list of test results.
         """
         try:
             self.generate_results()

@@ -23,6 +23,9 @@ class MarkusTestSpecs:
     def __getitem__(self, item):
         return self._specs[item]
 
+    def get(self, item, default=None):
+        return self._specs.get(item, default)
+
     def __setitem__(self, key, value):
         self._specs[key] = value
 

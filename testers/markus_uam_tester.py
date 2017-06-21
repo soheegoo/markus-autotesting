@@ -1,21 +1,41 @@
+import contextlib
+
 from markus_tester import MarkusTester, MarkusTestSpecs, MarkusTest
+from markus_utils import MarkusUtils
 from uam_tester import UAMResult, UAMTester
 
 
 class MarkusUAMTester(MarkusTester):
+    """
+    A wrapper to run a UAM tester (https://github.com/ProjectAT/uam) within Markus' test framework.
+    """
 
-    def __init__(self, specs, feedback_file='feedback_uam.txt', tester_class=UAMTester):
+    def __init__(self, specs, feedback_file='feedback_uam.txt', tester_class=UAMTester, test_ext=''):
         super().__init__(specs, feedback_file)
-        self.path_to_uam = specs['path_to_uam']
-        self.global_timeout = specs['global_timeout']
+        path_to_tests = specs.get('path_to_tests', '.')
         test_points = {
             test_file: specs.matrix[test_file][MarkusTestSpecs.MATRIX_NODATA_KEY][MarkusTestSpecs.MATRIX_POINTS_KEY]
             for test_file in specs.test_files}
-        self.uam_tester = tester_class(self.path_to_uam, test_points, self.global_timeout,
+        global_timeout = specs.get('global_timeout', UAMTester.GLOBAL_TIMEOUT_DEFAULT)
+        test_timeout = specs.get('test_timeout', UAMTester.TEST_TIMEOUT_DEFAULT)
+        self.uam_tester = tester_class(specs['path_to_uam'], path_to_tests, test_points, global_timeout, test_timeout,
                                        result_filename='result.json')
+        self.test_ext = test_ext
 
-    def create_uam_tester(self, path_to_uam, test_points, global_timeout):
-        return UAMTester(path_to_uam, test_points, global_timeout, result_filename='result.json')
+    def run(self):
+        try:
+            with contextlib.ExitStack() as stack:
+                feedback_open = (stack.enter_context(open(self.feedback_file, 'w'))
+                                 if self.feedback_file is not None
+                                 else None)
+                results = self.uam_tester.run()
+                for result in results:
+                    points_awarded, points_total = self.uam_tester.get_test_points(result, self.test_ext)
+                    test = MarkusUAMTest(result, points_awarded, points_total, feedback_open)
+                    xml = test.run()
+                    print(xml)
+        except Exception as e:
+            MarkusUtils.print_test_error(name='All tests', message=str(e))
 
 
 class MarkusUAMTest(MarkusTest):
