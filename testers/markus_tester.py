@@ -1,7 +1,7 @@
 import contextlib
 import json
 import os
-import xml
+from xml.sax import saxutils
 
 
 class MarkusTestSpecs:
@@ -143,7 +143,7 @@ class MarkusTest:
             raise ValueError('The test points awarded must be >= 0')
         if points_total is not None and points_awarded > points_total:
             raise ValueError('The test points awarded must be <= test total points')
-        output_escaped = xml.sax.saxutils.escape(output.replace('\x00', ''), entities={"'": '&apos;'})
+        output_escaped = saxutils.escape(output.replace('\x00', ''), entities={"'": '&apos;'})
         if points_total is None:
             name = test_name
         else:

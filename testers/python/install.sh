@@ -18,4 +18,5 @@ else
 	git clone https://github.com/ProjectAT/uam.git ${UAMDIR}
 fi
 echo '[JAVA] Updating json specs file'
+# TODO copy default specs file to another location, the sed (maybe separate install.sh into additional env_setup.sh)
 sed -i -e "s#/path/to/uam#${UAMDIR}#g" ${SPECS}
