@@ -1,7 +1,6 @@
 import contextlib
 
 from markus_tester import MarkusTester, MarkusTestSpecs, MarkusTest
-from markus_utils import MarkusUtils
 from uam_tester import UAMResult, UAMTester
 
 
@@ -35,7 +34,7 @@ class MarkusUAMTester(MarkusTester):
                     xml = test.run()
                     print(xml)
         except Exception as e:
-            MarkusUtils.print_test_error(name='All tests', message=str(e))
+            MarkusTester.error_all(message=str(e))
 
 
 class MarkusUAMTest(MarkusTest):

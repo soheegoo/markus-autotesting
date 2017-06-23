@@ -2,8 +2,8 @@ import glob
 import subprocess
 
 from jam_tester import JAMTester
+from markus_tester import MarkusTester
 from markus_uam_tester import MarkusUAMTester
-from markus_utils import MarkusUtils
 
 
 class MarkusJAMTester(MarkusUAMTester):
@@ -20,7 +20,7 @@ class MarkusJAMTester(MarkusUAMTester):
         try:
             java_files = glob.glob('*.java')
             if not java_files:
-                MarkusUtils.print_test_error(name='All tests', message=self.ERROR_MGSG['no_submission'])
+                MarkusTester.error_all(message=self.ERROR_MGSG['no_submission'])
                 return
             try:
                 javac_cmd = ['javac']
@@ -29,8 +29,8 @@ class MarkusJAMTester(MarkusUAMTester):
                                check=True)
             except subprocess.CalledProcessError as e:
                 msg = self.ERROR_MGSG['bad_javac'].format(e.stdout)
-                MarkusUtils.print_test_error(name='All tests', message=msg)
+                MarkusTester.error_all(message=msg)
                 return
         except Exception as e:
-            MarkusUtils.print_test_error(name='All tests', message=str(e))
+            MarkusTester.error_all(message=str(e))
         super().run()
