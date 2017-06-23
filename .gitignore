@@ -1,6 +1,6 @@
 .idea
 __pycache__
 testers/uam-git/
-testers/java/uam-git/
-testers/python/uam-git/
+testers/java/uam-git
+testers/python/uam-git
 testers/java/**/*.class
