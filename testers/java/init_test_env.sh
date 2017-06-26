@@ -15,7 +15,7 @@ echo "[JAVA] Compiling solution"
 pushd ${JAMDIR}
 ./compile_tests.sh ${TESTSDIR} ${SOLUTIONDIR}
 popd
-rm -f ${SOLUTIONDIR}/*.java
+chmod go-rwx ${SOLUTIONDIR}/*.java
+chmod go-rwx ${TESTSDIR}/*.java
 echo '[JAVA] Updating json specs file'
-cp ${TESTERDIR}/specs.json ${SPECSDIR}
 sed -i -e "s#/path/to/tests#${TESTSDIR}#g" ${SPECSDIR}/specs.json
