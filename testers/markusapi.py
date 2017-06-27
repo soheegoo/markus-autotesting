@@ -143,14 +143,15 @@ class Markus:
                 'file_content': contents,
                 'mime_type': mimetypes.guess_type(title)[0]
             }
-            return self.submit_request(params, path, request_type)
+            content_type = 'application/x-www-form-urlencoded'
         else:  # binary data
             params = {
                 'filename': title.encode('utf-8'),
                 'file_content': contents,
                 'mime_type': mimetypes.guess_type(title)[0].encode('utf-8')
             }
-            return self.submit_binary_request(params, path, request_type)
+            content_type = 'multipart/form-data'
+        return self.submit_request(params, path, request_type, content_type)
 
     def upload_test_script_results(self, assignment_id, group_id, results, test_script_names):
         """ (Markus, int, str, str, list) -> list of str"""
@@ -206,17 +207,18 @@ class Markus:
         path = Markus.get_path(assignment_id, group_id) + 'update_marking_state'
         return self.submit_request(params, path, 'PUT')
 
-    def submit_binary_request(self, params, path, request_type):
-        headers = {'Content-type': 'multipart/form-data'}
-        return self.do_submit_request(params, path, request_type, headers)
-
     def submit_request(self, params, path, request_type, content_type='application/x-www-form-urlencoded'):
         headers = {'Content-type': content_type}
         if params is not None:
-            if content_type == 'application/json':
-                params = json.dumps(params)
-            else:
+            if content_type == 'application/x-www-form-urlencoded':
+                # simple params, sent as form query string (needs url encoding of reserved and non-alphanumeric chars)
                 params = urlencode(params)
+            elif content_type == 'multipart/form-data':
+                # complex params like binary files, sent as-is (assumes already-encoded data)
+                pass
+            elif content_type == 'application/json':
+                # json-encoded params
+                params = json.dumps(params)
         if request_type == 'GET':  # we only want this for GET requests
             headers['Accept'] = 'text/plain'
         return self.do_submit_request(params, path, request_type, headers)
