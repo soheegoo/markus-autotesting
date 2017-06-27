@@ -161,6 +161,23 @@ class Markus:
         path = Markus.get_path(assignment_id, group_id) + 'test_script_results'
         return self.submit_request(params, path, 'POST')
 
+    def upload_annotations(self, assignment_id, group_id, annotations):
+        """ (Markus, int, str, list) -> list of str
+
+        Each element of annotations must be a dictionary with the following keys:
+            - filename
+            - annotation_category_name
+            - content
+            - line_start
+            - line_end
+            - column_start
+            - column_end
+
+        This currently only works for plain-text file submissions.
+        """
+        path = Markus.get_path(assignment_id, group_id) + 'add_annotations'
+        return self.submit_request({'annotations': annotations}, path, 'POST', 'application/json')
+
     def update_marks_single_group(self, criteria_mark_map, assignment_id, group_id):
         """ (Markus, dict, int, int) -> list of str
         Update the marks of a single group. 
@@ -193,10 +210,13 @@ class Markus:
         headers = {'Content-type': 'multipart/form-data'}
         return self.do_submit_request(params, path, request_type, headers)
 
-    def submit_request(self, params, path, request_type):
-        headers = {'Content-type': 'application/x-www-form-urlencoded'}
+    def submit_request(self, params, path, request_type, content_type='application/x-www-form-urlencoded'):
+        headers = {'Content-type': content_type}
         if params is not None:
-            params = urlencode(params)
+            if content_type == 'application/json':
+                params = json.dumps(params)
+            else:
+                params = urlencode(params)
         if request_type == 'GET':  # we only want this for GET requests
             headers['Accept'] = 'text/plain'
         return self.do_submit_request(params, path, request_type, headers)
