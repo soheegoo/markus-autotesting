@@ -79,8 +79,8 @@ class MarkusTester:
         :param points_total: The total points the tests could award, must be an integer > 0. Can be None if unknown.
         :return The formatted erred tests.
         """
-        MarkusTest.format_result(test_name='All tests', status='error', points_awarded=0, output=message,
-                                 points_total=points_total)
+        return MarkusTest.format_result(test_name='All tests', status='error', points_awarded=0, output=message,
+                                        points_total=points_total)
 
     def run(self):
         try:
@@ -102,7 +102,7 @@ class MarkusTester:
                         xml = test.run()
                         print(xml)
         except Exception as e:
-            MarkusTester.error_all(message=str(e))
+            print(MarkusTester.error_all(message=str(e)))
 
 
 class MarkusTest:

@@ -34,7 +34,7 @@ class MarkusUAMTester(MarkusTester):
                     xml = test.run()
                     print(xml)
         except Exception as e:
-            MarkusTester.error_all(message=str(e))
+            print(MarkusTester.error_all(message=str(e)))
 
 
 class MarkusUAMTest(MarkusTest):
