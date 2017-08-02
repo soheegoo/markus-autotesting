@@ -47,6 +47,8 @@ Examples of architectures:
    The commands are exactly the same as #2, with one caveat: each client runs a client command, where the queue names
    are different.
 
+4) TODO add concurrency example
+
 Check out Resque on GitHub to get an idea of all the possible queue configurations.
 
 ## 3. ATE Config Options
@@ -55,31 +57,35 @@ Check out Resque on GitHub to get an idea of all the possible queue configuratio
 ATE can only be used when this is set to true.
 ##### ATE_EXPERIMENTAL_STUDENT_TESTS_ON
 Allows the instructor to let students run tests periodically.
+##### ATE_EXPERIMENTAL_STUDENT_TESTS_BUFFER_TIME
+TODO
+##### ATE_CLIENT_DIR
+The directory on the client where test scripts are stored and student repos are temporarily exported.
+The user running MarkUs must be able to write here.
+##### ATE_FILES_QUEUE_NAME
+The name of the queue on the test client where submission files wait to be copied.
 ##### ATE_SERVER_HOST
 The test server host. Use 'localhost' for a local server without authentication.
 ##### ATE_SERVER_FILES_USERNAME
 The test server username used to copy the test files over + to run the Resque server worker.
 SSH Login must be set up for this username to connect without a password from MarkUs.
 Ignored if `ATE_SERVER_HOST` is 'localhost'.
+##### ATE_SERVER_FILES_DIR
+The directory on the test server where to copy test files. Multiple clients can use the same directory.
+`ATE_SERVER_FILES_USERNAME` must be able to write here.
+##### ATE_SERVER_RESULTS_DIR
+The directory on the test server where to log test results.
+`ATE_SERVER_FILES_USERNAME` must be able to write here.
+##### ATE_SERVER_TESTS
+TODO document new options + say that same dir and same queue will bring a lot of pain
 ##### ATE_SERVER_TESTS_USERNAME
 The test server username used to run the tests.
 Can be the same as `ATE_SERVER_FILES_USERNAME`, or `ATE_SERVER_FILES_USERNAME` must be able to sudo -u to it.
 Ignored if `ATE_SERVER_HOST` is 'localhost'.
-##### ATE_CLIENT_DIR
-The directory on the client where test scripts are stored and student repos are temporarily exported.
-The user running MarkUs must be able to write here.
-##### ATE_SERVER_FILES_DIR
-The directory on the test server where to copy test files. Multiple clients can use the same directory.
-`ATE_SERVER_FILES_USERNAME` must be able to write here.
 ##### ATE_SERVER_TESTS_DIR
 The directory on the test server where to run tests. Only one test at at time is executed to avoid interference.
 Can be the same as `ATE_SERVER_FILES_DIR`.
 `ATE_SERVER_FILES_USERNAME` and `ATE_SERVER_TESTS_USERNAME` must be able to write here.
-##### ATE_SERVER_RESULTS_DIR
-The directory on the test server where to log test results.
-`ATE_SERVER_FILES_USERNAME` must be able to write here.
-##### ATE_FILES_QUEUE_NAME
-The name of the queue on the test client where submission files wait to be copied.
 ##### ATE_TESTS_QUEUE_NAME
 The name of the queue on the test server where tests wait to be executed.
 
