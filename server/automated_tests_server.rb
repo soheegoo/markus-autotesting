@@ -2,7 +2,6 @@ require 'httparty'
 require 'open3'
 
 class AutomatedTestsServer
-  TIME_LIMIT = 600
 
   def self.get_test_scripts_chmod(test_scripts, tests_path)
     return test_scripts.map {|script| "chmod ugo+x '#{tests_path}/#{script}'"}.join('; ')
@@ -11,8 +10,8 @@ class AutomatedTestsServer
   # the user running this Resque worker should be:
   # a) the user running MarkUs if ATE_SERVER_HOST == 'localhost'
   # b) ATE_SERVER_FILES_USERNAME otherwise
-  def self.perform(markus_address, user_api_key, server_api_key, test_username, test_scripts, files_path, tests_path,
-                   results_path, assignment_id, group_id, group_repo_name, submission_id)
+  def self.perform(markus_address, user_api_key, server_api_key, test_username, test_scripts, test_timeouts, files_path,
+                   tests_path, results_path, assignment_id, group_id, group_repo_name, submission_id)
 
     # move files to the test location (if needed)
     test_scripts_executables = get_test_scripts_chmod(test_scripts, tests_path)
@@ -27,7 +26,7 @@ class AutomatedTestsServer
     all_output = '<testrun>'
     all_errors = ''
     pid = nil
-    test_scripts.each do |script|
+    test_scripts.each_with_index do |script, i|
       run_command = "cd '#{tests_path}'; ./'#{script}' #{markus_address} #{user_api_key} #{assignment_id} #{group_id} #{group_repo_name}"
       unless test_username.nil?
         run_command = "sudo -u #{test_username} -- bash -c \"#{run_command}\""
@@ -39,22 +38,22 @@ class AutomatedTestsServer
         # mimic capture3 to read safely
         stdout_thread = Thread.new { stdout.read }
         stderr_thread = Thread.new { stderr.read }
-        if !thread.join(TIME_LIMIT) # still running, let's kill the process group
+        if !thread.join(test_timeouts[i]) # still running, let's kill the process group
           if test_username.nil?
             Process.kill('KILL', -pid)
           else
             Open3.capture3("sudo -u #{test_username} -- bash -c \"kill -KILL -#{pid}\"")
           end
           # timeout output
-          output = '
+          output = "
 <test>
   <name>All tests</name>
   <input></input>
   <expected></expected>
-  <actual>Timeout</actual>
+  <actual>#{test_timeouts[i]} seconds timeout expired</actual>
   <marks_earned>0</marks_earned>
   <status>error</status>
-</test>'
+</test>"
         else
           # normal output
           output = stdout_thread.value
