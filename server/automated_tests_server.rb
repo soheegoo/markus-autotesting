@@ -10,8 +10,8 @@ class AutomatedTestsServer
   # the user running this Resque worker should be:
   # a) the user running MarkUs if ATE_SERVER_HOST == 'localhost'
   # b) ATE_SERVER_FILES_USERNAME otherwise
-  def self.perform(markus_address, user_api_key, server_api_key, test_username, test_scripts, test_timeouts, files_path,
-                   tests_path, results_path, assignment_id, group_id, group_repo_name, submission_id)
+  def self.perform(markus_address, user_api_key, server_api_key, test_username, test_scripts, files_path, tests_path,
+                   results_path, assignment_id, group_id, group_repo_name, submission_id)
 
     # move files to the test location (if needed)
     test_scripts_executables = get_test_scripts_chmod(test_scripts, tests_path)
@@ -26,8 +26,8 @@ class AutomatedTestsServer
     all_output = '<testrun>'
     all_errors = ''
     pid = nil
-    test_scripts.each_with_index do |script, i|
-      run_command = "cd '#{tests_path}'; ./'#{script}' #{markus_address} #{user_api_key} #{assignment_id} #{group_id} #{group_repo_name}"
+    test_scripts.each do |script|
+      run_command = "cd '#{tests_path}'; ./'#{script[:script_name]}' #{markus_address} #{user_api_key} #{assignment_id} #{group_id} #{group_repo_name}"
       unless test_username.nil?
         run_command = "sudo -u #{test_username} -- bash -c \"#{run_command}\""
       end
@@ -39,7 +39,7 @@ class AutomatedTestsServer
         # mimic capture3 to read safely
         stdout_thread = Thread.new { stdout.read }
         stderr_thread = Thread.new { stderr.read }
-        if !thread.join(test_timeouts[i]) # still running, let's kill the process group
+        if !thread.join(script[:timeout]) # still running, let's kill the process group
           if test_username.nil?
             Process.kill('KILL', -pid)
           else
@@ -51,7 +51,7 @@ class AutomatedTestsServer
   <name>All tests</name>
   <input></input>
   <expected></expected>
-  <actual>#{test_timeouts[i]} seconds timeout expired</actual>
+  <actual>#{script[:timeout]} seconds timeout expired</actual>
   <marks_earned>0</marks_earned>
   <status>error</status>
 </test>"
@@ -65,7 +65,7 @@ class AutomatedTestsServer
       run_time = (Time.now - start_time) * 1000.0 # milliseconds
       all_output += "
 <test_script>
-  <script_name>#{script}</script_name>
+  <script_name>#{script[:script_name]}</script_name>
   <time>#{run_time.to_i}</time>
   #{output}
 </test_script>"
