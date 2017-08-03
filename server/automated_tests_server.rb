@@ -33,6 +33,7 @@ class AutomatedTestsServer
       end
       output = ''
       errors = ''
+      start_time = Time.now
       Open3.popen3(run_command, pgroup: true) do |stdin, stdout, stderr, thread|
         pid = thread.pid
         # mimic capture3 to read safely
@@ -61,9 +62,11 @@ class AutomatedTestsServer
         # always collect errors
         errors = stderr_thread.value
       end
+      run_time = (Time.now - start_time) * 1000.0 # milliseconds
       all_output += "
 <test_script>
   <script_name>#{script}</script_name>
+  <time>#{run_time.to_i}</time>
   #{output}
 </test_script>"
       all_errors += errors
@@ -71,8 +74,9 @@ class AutomatedTestsServer
     all_output += "\n</testrun>"
 
     # store results
+    time = Time.now.to_f * 1000.0 # milliseconds
     results_path = File.join(results_path, markus_address.gsub('/', '_'), "a#{assignment_id}", "g#{group_id}",
-                             "s#{submission_id}", "run_#{Time.now.to_i}#{pid}")
+                             "s#{submission_id}", "run_#{time.to_i}_#{pid}")
     FileUtils.mkdir_p(results_path)
     File.write("#{results_path}/output.txt", all_output)
     File.write("#{results_path}/errors.txt", all_errors)
