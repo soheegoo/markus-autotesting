@@ -2,7 +2,6 @@ require 'httparty'
 require 'open3'
 
 class AutomatedTestsServer
-  TIME_LIMIT = 600
 
   def self.get_test_scripts_chmod(test_scripts, tests_path)
     return test_scripts.map {|script| "chmod ugo+x '#{tests_path}/#{script}'"}.join('; ')
@@ -26,33 +25,36 @@ class AutomatedTestsServer
     # run tests
     all_output = '<testrun>'
     all_errors = ''
+    pid = nil
     test_scripts.each do |script|
-      run_command = "cd '#{tests_path}'; ./'#{script}' #{markus_address} #{user_api_key} #{assignment_id} #{group_id} #{group_repo_name}"
+      run_command = "cd '#{tests_path}'; ./'#{script[:script_name]}' #{markus_address} #{user_api_key} #{assignment_id} #{group_id} #{group_repo_name}"
       unless test_username.nil?
         run_command = "sudo -u #{test_username} -- bash -c \"#{run_command}\""
       end
       output = ''
       errors = ''
+      start_time = Time.now
       Open3.popen3(run_command, pgroup: true) do |stdin, stdout, stderr, thread|
+        pid = thread.pid
         # mimic capture3 to read safely
         stdout_thread = Thread.new { stdout.read }
         stderr_thread = Thread.new { stderr.read }
-        if !thread.join(TIME_LIMIT) # still running, let's kill the process group
+        if !thread.join(script[:timeout]) # still running, let's kill the process group
           if test_username.nil?
-            Process.kill('KILL', -thread.pid)
+            Process.kill('KILL', -pid)
           else
-            Open3.capture3("sudo -u #{test_username} -- bash -c \"kill -KILL -#{thread.pid}\"")
+            Open3.capture3("sudo -u #{test_username} -- bash -c \"kill -KILL -#{pid}\"")
           end
           # timeout output
-          output = '
-            <test>
-              <name>All tests</name>
-              <input></input>
-              <expected></expected>
-              <actual>Timeout</actual>
-              <marks_earned>0</marks_earned>
-              <status>error</status>
-            </test>'
+          output = "
+<test>
+  <name>All tests</name>
+  <input></input>
+  <expected></expected>
+  <actual>#{script[:timeout]} seconds timeout expired</actual>
+  <marks_earned>0</marks_earned>
+  <status>error</status>
+</test>"
         else
           # normal output
           output = stdout_thread.value
@@ -60,18 +62,21 @@ class AutomatedTestsServer
         # always collect errors
         errors = stderr_thread.value
       end
+      run_time = (Time.now - start_time) * 1000.0 # milliseconds
       all_output += "
-        <test_script>
-          <script_name>#{script}</script_name>
-          #{output}
-        </test_script>"
+<test_script>
+  <script_name>#{script[:script_name]}</script_name>
+  <time>#{run_time.to_i}</time>
+  #{output}
+</test_script>"
       all_errors += errors
     end
     all_output += "\n</testrun>"
 
     # store results
+    time = Time.now.to_f * 1000.0 # milliseconds
     results_path = File.join(results_path, markus_address.gsub('/', '_'), "a#{assignment_id}", "g#{group_id}",
-                             "s#{submission_id}", "run_#{Time.now.to_i}")
+                             "s#{submission_id}", "run_#{time.to_i}_#{pid}")
     FileUtils.mkdir_p(results_path)
     File.write("#{results_path}/output.txt", all_output)
     File.write("#{results_path}/errors.txt", all_errors)
