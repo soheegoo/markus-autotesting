@@ -3,10 +3,6 @@ require 'open3'
 
 class AutomatedTestsServer
 
-  def self.get_test_scripts_chmod(test_scripts, tests_path)
-    return test_scripts.map {|script| "chmod ugo+x '#{tests_path}/#{script}'"}.join('; ')
-  end
-
   # the user running this Resque worker should be:
   # a) the user running MarkUs if ATE_SERVER_HOST == 'localhost'
   # b) ATE_SERVER_FILES_USERNAME otherwise
@@ -14,20 +10,20 @@ class AutomatedTestsServer
                    results_path, assignment_id, group_id, group_repo_name, submission_id)
 
     # move files to the test location (if needed)
-    test_scripts_executables = get_test_scripts_chmod(test_scripts, tests_path)
     if files_path != tests_path
       FileUtils.mkdir_p(tests_path, {mode: 0777}) # create tests dir if not already existing..
       FileUtils.cp_r("#{files_path}/.", tests_path) # == cp -r '#{files_path}'/* '#{tests_path}'
       FileUtils.rm_rf(files_path)
     end
-    Open3.capture3(test_scripts_executables)
+    executables = test_scripts.map {|script| "chmod ugo+x '#{tests_path}/#{script['script_name']}'"}.join('; ')
+    Open3.capture3(executables)
 
     # run tests
     all_output = '<testrun>'
     all_errors = ''
     pid = nil
     test_scripts.each do |script|
-      run_command = "cd '#{tests_path}'; ./'#{script[:script_name]}' #{markus_address} #{user_api_key} #{assignment_id} #{group_id} #{group_repo_name}"
+      run_command = "cd '#{tests_path}'; ./'#{script['script_name']}' #{markus_address} #{user_api_key} #{assignment_id} #{group_id} #{group_repo_name}"
       unless test_username.nil?
         run_command = "sudo -u #{test_username} -- bash -c \"#{run_command}\""
       end
@@ -39,7 +35,7 @@ class AutomatedTestsServer
         # mimic capture3 to read safely
         stdout_thread = Thread.new { stdout.read }
         stderr_thread = Thread.new { stderr.read }
-        if !thread.join(script[:timeout]) # still running, let's kill the process group
+        if !thread.join(script['timeout']) # still running, let's kill the process group
           if test_username.nil?
             Process.kill('KILL', -pid)
           else
@@ -51,7 +47,7 @@ class AutomatedTestsServer
   <name>All tests</name>
   <input></input>
   <expected></expected>
-  <actual>#{script[:timeout]} seconds timeout expired</actual>
+  <actual>#{script['timeout']} seconds timeout expired</actual>
   <marks_earned>0</marks_earned>
   <status>error</status>
 </test>"
@@ -65,7 +61,7 @@ class AutomatedTestsServer
       run_time = (Time.now - start_time) * 1000.0 # milliseconds
       all_output += "
 <test_script>
-  <script_name>#{script[:script_name]}</script_name>
+  <script_name>#{script['script_name']}</script_name>
   <time>#{run_time.to_i}</time>
   #{output}
 </test_script>"
