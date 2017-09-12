@@ -236,7 +236,7 @@ class MarkusSQLTest(MarkusTest):
                         # check that the submission exists
                         if not os.path.isfile(sql_file):
                             msg = self.ERROR_MSGS['no_submission'].format(sql_file)
-                            MarkusUtils.print_test_error(name=test_data_name, message=msg, points_total=points_total)
+                            self.error(message=msg)
                             self.print_file_error(output_open=output_open, name=test_data_name, feedback=msg)
                             continue
                         # check if ordering is required
@@ -246,8 +246,7 @@ class MarkusSQLTest(MarkusTest):
                             sql_order_file = '{}_order{}'.format(test_name, test_ext)
                             if not os.path.isfile(sql_order_file):
                                 msg = self.ERROR_MSGS['no_submission_order'].format(sql_order_file)
-                                MarkusUtils.print_test_error(name=test_data_name, message=msg,
-                                                             points_total=points_total)
+                                self.error(message=msg)
                                 self.print_file_error(output_open=output_open, name=test_data_name, feedback=msg)
                                 continue
                         try:
@@ -260,18 +259,19 @@ class MarkusSQLTest(MarkusTest):
                             order_on = True if order_by else False
                             output, status = self.check_results(oracle_results=oracle_results,
                                                                 test_results=test_results, order_on=order_on)
-                            points_awarded = points_total if status == 'pass' else 0
-                            MarkusUtils.print_test_result(name=test_data_name, status=status, output=output,
-                                                          points_awarded=points_awarded, points_total=points_total)
+                            if status == 'pass':
+                                self.passed()
+                            else:
+                                self.failed(points_awarded=0, message=output)
                             self.print_file_psql(output_open=output_open, name=test_data_name,
                                                  oracle_schema_name=data_name, table_name=test_name, status=status,
                                                  feedback=output, order_by=order_by, sql_order_file=sql_order_file)
                         except Exception as e:
                             self.oracle_connection.commit()
                             self.test_connection.commit()
-                            MarkusUtils.print_test_error(name=test_data_name, message=str(e), points_total=points_total)
+                            self.error(message=str(e))
                             self.print_file_error(output_open=output_open, name=test_data_name, feedback=str(e))
         except Exception as e:
-            MarkusUtils.print_test_error(name='All SQL tests', message=str(e))
+            MarkusTester.error_all(message=str(e))
         finally:
             self.close_db()

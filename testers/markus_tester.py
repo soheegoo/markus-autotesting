@@ -201,14 +201,14 @@ class MarkusTest:
         else:
             name = '[{}/{}] {}'.format(points_awarded, points_total, test_name)
         return '''
-        <test>
-            <name>{}</name>
-            <input></input>
-            <expected></expected>
-            <actual>{}</actual>
-            <marks_earned>{}</marks_earned>
-            <status>{}</status>
-        </test>'''.format(name, output_escaped, points_awarded, status.value)
+<test>
+  <name>{}</name>
+  <input></input>
+  <expected></expected>
+  <actual>{}</actual>
+  <marks_earned>{}</marks_earned>
+  <status>{}</status>
+</test>'''.format(name, output_escaped, points_awarded, status.value)
 
     def format(self, status, points_awarded, output):
         """
