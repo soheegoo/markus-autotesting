@@ -92,7 +92,7 @@ class AutomatedTestsServer
                    'Accept' => 'application/json'},
                :body => {
                    'requested_by' => user_api_key,
-                   'test_scripts' => test_scripts,
+                   'test_scripts' => test_scripts.map {|script| script['script_name']},
                    'file_content' => all_output}}
     unless submission_id.nil?
       options[:body]['submission_id'] = submission_id
