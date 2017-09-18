@@ -1,71 +1,115 @@
+import collections
 import contextlib
 import json
 import os
 from xml.sax import saxutils
+import sys
 
 
-class MarkusTestSpecs:
+class MarkusTestSpecs(collections.MutableMapping):
 
+    # special keys
     MATRIX_KEY = 'matrix'
-    MATRIX_NONTEST_KEY = 'extra'
     MATRIX_NODATA_KEY = 'nodata'
-    MATRIX_POINTS_KEY = 'points'
+    MATRIX_NONTEST_KEY = 'extra'
+    FEEDBACK_FILE_KEY = 'feedback_file'
     DATA_FILES_SEPARATOR = ','
 
-    def __init__(self, path_to_specs):
+    def __init__(self, path_to_specs=None):
+        if path_to_specs is None:  # try to find specs automagically
+            path_to_specs = sys.executable.replace('venvs', 'specs').replace('bin/python3', 'specs.json')
         with open(path_to_specs, 'r') as specs_open:
             self._specs = json.loads(specs_open.read())
         if MarkusTestSpecs.MATRIX_KEY not in self._specs:
             self._specs[MarkusTestSpecs.MATRIX_KEY] = {}
+        if MarkusTestSpecs.FEEDBACK_FILE_KEY not in self._specs:
+            self._specs[MarkusTestSpecs.FEEDBACK_FILE_KEY] = None
 
-    def __getitem__(self, item):
-        return self._specs[item]
+    def _setitem(self, key, value):
+        self._specs[key] = value
 
-    def get(self, item, default=None):
-        return self._specs.get(item, default)
+    def _set_points(self, _, value):
+        """
+        SPECS['points'] = {'test1': {'data1': points11, 'data2': points12},
+                           'test2': {'data1': points21, 'data2': points22}}
+        Assigns points to the passed tests and datasets, creating them if they don't exist yet.
+        """
+        for test_file, data_files in value.items():
+            if test_file in self.matrix:
+                for data_file, points in data_files.items():
+                    self.matrix[test_file][data_file] = points
+            else:
+                self.matrix[test_file] = data_files
+
+    def _set_test_points(self, _, value):
+        """
+        SPECS['test_points'] = {'test1': points1, 'test2': points2}
+        Assigns points to all datasets of the passed tests, creating the tests if they don't exist yet.
+        """
+        for test_file, points in value.items():
+            data_files = self.matrix.setdefault(test_file, {MarkusTestSpecs.MATRIX_NODATA_KEY: {}})
+            for data_file in data_files:
+                if data_file == MarkusTestSpecs.MATRIX_NONTEST_KEY:
+                    continue
+                self.matrix[test_file][data_file] = points
+
+    def _set_data_points(self, _, value):
+        """
+        SPECS['data_points'] = {'data1': points1, 'data2': points2}
+        Assigns points to all existing tests that use the passed datasets, does nothing for tests that don't use them.
+        """
+        for test_file in self.matrix:
+            for data_file, points in value.items():
+                if data_file not in self.matrix[test_file]:
+                    continue
+                self.matrix[test_file][data_file] = points
+
+    def _set_all_points(self, _, points):
+        """
+        SPECS['all_points'] = points
+        Assigns points to all existing tests and datasets.
+        """
+        for test_file, data_files in self.matrix.items():
+            for data_file in data_files:
+                if data_file == MarkusTestSpecs.MATRIX_NONTEST_KEY:
+                    continue
+                self.matrix[test_file][data_file] = points
 
     def __setitem__(self, key, value):
-        self._specs[key] = value
+        switch = {'points': self._set_points, 'test_points': self._set_test_points,
+                  'data_points': self._set_data_points, 'all_points': self._set_all_points}
+        setter = switch.get(key, self._setitem)
+        setter(key, value)
+
+    def __getitem__(self, key):
+        return self._specs[key]
+
+    def __delitem__(self, key):
+        del self._specs[key]
+
+    def __iter__(self):
+        return iter(self._specs)
+
+    def __len__(self):
+        return len(self._specs)
 
     @property
     def matrix(self):
         return self[MarkusTestSpecs.MATRIX_KEY]
 
     @property
+    def feedback_file(self):
+        return self[MarkusTestSpecs.FEEDBACK_FILE_KEY]
+
+    @property
     def test_files(self):
         return self.matrix.keys()
-
-    def set_points(self, points, test_data):
-        for test_file, data_files in test_data.items():
-            for data_file in data_files:
-                self.matrix[test_file][data_file][MarkusTestSpecs.MATRIX_POINTS_KEY] = points
-
-    def set_all_points(self, points):
-        for test_file, test_data in self.matrix.items():
-            for data_file in test_data:
-                if data_file == MarkusTestSpecs.MATRIX_NONTEST_KEY:
-                    continue
-                self.matrix[test_file][data_file][MarkusTestSpecs.MATRIX_POINTS_KEY] = points
-
-    def set_test_points(self, test_file, points):
-        test_data = self.matrix.setdefault(test_file, {MarkusTestSpecs.MATRIX_NODATA_KEY: {}})
-        for data_file in test_data:
-            if data_file == MarkusTestSpecs.MATRIX_NONTEST_KEY:
-                continue
-            self.matrix[test_file][data_file][MarkusTestSpecs.MATRIX_POINTS_KEY] = points
-
-    def set_data_points(self, data_file, points):
-        for test_file in self.matrix:
-            if data_file not in self.matrix[test_file]:
-                continue
-            self.matrix[test_file][data_file][MarkusTestSpecs.MATRIX_POINTS_KEY] = points
 
 
 class MarkusTester:
 
-    def __init__(self, specs, feedback_file=None):
+    def __init__(self, specs):
         self.specs = specs
-        self.feedback_file = feedback_file
 
     def create_test(self, test_file, data_files, test_data_config, test_extra, feedback_open):
         # TODO Make it more elegant using a factory pattern, and add all global test configs
@@ -85,20 +129,20 @@ class MarkusTester:
     def run(self):
         try:
             with contextlib.ExitStack() as stack:
-                feedback_open = (stack.enter_context(open(self.feedback_file, 'w'))
-                                 if self.feedback_file is not None
+                feedback_open = (stack.enter_context(open(self.specs.feedback_file, 'w'))
+                                 if self.specs.feedback_file is not None
                                  else None)
                 for test_file in sorted(self.specs.test_files):
                     test_extra = self.specs.matrix[test_file].get(MarkusTestSpecs.MATRIX_NONTEST_KEY)
                     for data_files in sorted(self.specs.matrix[test_file].keys()):
                         if data_files == MarkusTestSpecs.MATRIX_NONTEST_KEY:
                             continue
-                        test_data_config = self.specs.matrix[test_file][data_files]
+                        points = self.specs.matrix[test_file][data_files]
                         if MarkusTestSpecs.DATA_FILES_SEPARATOR in data_files:
                             data_files = data_files.split(MarkusTestSpecs.DATA_FILES_SEPARATOR)
                         else:
                             data_files = [data_files]
-                        test = self.create_test(test_file, data_files, test_data_config, test_extra, feedback_open)
+                        test = self.create_test(test_file, data_files, points, test_extra, feedback_open)
                         xml = test.run()
                         print(xml)
         except Exception as e:
@@ -107,22 +151,20 @@ class MarkusTester:
 
 class MarkusTest:
 
-    def __init__(self, test_file, data_files, test_data_config, test_extra, feedback_open=None):
+    def __init__(self, test_file, data_files, points, test_extra, feedback_open=None):
         self.test_file = test_file
         self.test_name = os.path.splitext(test_file)[0]
         self.data_files = data_files
         self.data_name = MarkusTestSpecs.DATA_FILES_SEPARATOR.join(
                              [os.path.splitext(data_file)[0] for data_file in data_files])
         self.test_data_name = '{} + {}'.format(self.test_name, self.data_name)
-        # TODO Use a default or disable if not set?
-        self.points = test_data_config[MarkusTestSpecs.MATRIX_POINTS_KEY]
+        self.points = points  # TODO Use a default or disable if not set?
         if isinstance(self.points, dict):
             self.points_total = max(self.points.values())
         else:
             self.points_total = self.points
         if self.points_total <= 0:
             raise ValueError('The test total points must be > 0')
-        self.test_data_config = test_data_config
         self.test_extra = test_extra
         self.feedback_open = feedback_open
 

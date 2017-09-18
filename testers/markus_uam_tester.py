@@ -9,12 +9,11 @@ class MarkusUAMTester(MarkusTester):
     A wrapper to run a UAM tester (https://github.com/ProjectAT/uam) within Markus' test framework.
     """
 
-    def __init__(self, specs, feedback_file='feedback_uam.txt', tester_class=UAMTester, test_ext=''):
-        super().__init__(specs, feedback_file)
+    def __init__(self, specs, tester_class=UAMTester, test_ext=''):
+        super().__init__(specs)
         path_to_tests = specs.get('path_to_tests', '.')
-        test_points = {
-            test_file: specs.matrix[test_file][MarkusTestSpecs.MATRIX_NODATA_KEY][MarkusTestSpecs.MATRIX_POINTS_KEY]
-            for test_file in specs.test_files}
+        test_points = {test_file: specs.matrix[test_file][MarkusTestSpecs.MATRIX_NODATA_KEY]
+                       for test_file in specs.test_files}
         global_timeout = specs.get('global_timeout', UAMTester.GLOBAL_TIMEOUT_DEFAULT)
         test_timeout = specs.get('test_timeout', UAMTester.TEST_TIMEOUT_DEFAULT)
         self.uam_tester = tester_class(specs['path_to_uam'], path_to_tests, test_points, global_timeout, test_timeout,
@@ -24,8 +23,8 @@ class MarkusUAMTester(MarkusTester):
     def run(self):
         try:
             with contextlib.ExitStack() as stack:
-                feedback_open = (stack.enter_context(open(self.feedback_file, 'w'))
-                                 if self.feedback_file is not None
+                feedback_open = (stack.enter_context(open(self.specs.feedback_file, 'w'))
+                                 if self.specs.feedback_file is not None
                                  else None)
                 results = self.uam_tester.run()
                 for result in results:
@@ -40,8 +39,7 @@ class MarkusUAMTester(MarkusTester):
 class MarkusUAMTest(MarkusTest):
 
     def __init__(self, uam_result, points_awarded, points_total, feedback_open):
-        super().__init__(uam_result.test_title, [], {MarkusTestSpecs.MATRIX_POINTS_KEY: points_total}, None,
-                         feedback_open)
+        super().__init__(uam_result.test_title, [], points_total, None, feedback_open)
         self.test_data_name = uam_result.test_title
         self.uam_result = uam_result
         self.points_awarded = points_awarded
