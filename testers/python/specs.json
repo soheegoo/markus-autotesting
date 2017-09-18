@@ -1,5 +1,5 @@
 {
-  "path_to_uam": "/home/adisandro/Desktop/markus-autotesting/testers/python/uam-git",
+  "path_to_uam": "/path/to/uam",
   "test_timeout": 10,
   "global_timeout": 30,
   "feedback_file": null
