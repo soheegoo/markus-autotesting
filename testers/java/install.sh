@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 
-if [ $# -ne 2 ]; then
-	echo usage: $0 java_tester_dir uam_dir
+if [ $# -ne 1 ]; then
+	echo usage: $0 uam_dir
 	exit 1
 fi
 
-TESTERDIR=$(readlink -f $1)
-UAMDIR=$(readlink -f $2)
+THISSCRIPT=$(readlink -f ${BASH_SOURCE})
+TESTERDIR=$(dirname ${THISSCRIPT})
+UAMDIR=$(readlink -f $1)
 UAMLINK=${TESTERDIR}/uam-git
 JAMDIR=${UAMLINK}/jam
 
@@ -26,5 +27,5 @@ echo "[JAVA] Compiling JAM"
 pushd ${JAMDIR}
 ./compile_jam.sh
 popd
-echo '[JAVA] Updating json specs file'
+echo "[JAVA] Updating json specs file"
 sed -i -e "s#/path/to/uam#${UAMLINK}#g" ${TESTERDIR}/specs.json

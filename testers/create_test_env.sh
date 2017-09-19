@@ -27,7 +27,7 @@ if pushd ${TESTERDIR}; then
     mkdir -p ${SPECSDIR}
     cp specs.json ${SPECSDIR}
     if [[ -e init_test_env.sh ]]; then
-        ./init_test_env.sh ${TESTERDIR} ${SPECSDIR}
+        ./init_test_env.sh ${WORKINGDIR} ${SPECSDIR}
     fi
     echo "[ENV] Creating virtualenv ${VENVDIR}"
     python${PYVERSION} -m venv ${VENVDIR}

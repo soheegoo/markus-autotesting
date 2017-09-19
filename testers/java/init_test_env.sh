@@ -1,21 +1,25 @@
 #!/usr/bin/env bash
 
 if [ $# -ne 2 ]; then
-	echo usage: $0 java_tester_dir specs_dir
+	echo usage: $0 autotest_working_dir specs_dir
 	exit 1
 fi
 
-TESTERDIR=$1
-SPECSDIR=$2
+THISSCRIPT=$(readlink -f ${BASH_SOURCE})
+TESTERDIR=$(dirname ${THISSCRIPT})
+WORKINGDIR=$(readlink -f $1)
+SPECSDIR=$(readlink -f $2)
 JAMDIR=${TESTERDIR}/uam-git/jam
-SOLUTIONDIR=${SPECSDIR}/solution
-TESTSDIR=${SOLUTIONDIR}/tests
+SOLUTIONDIRSRC=${WORKINGDIR}/solution
+TESTSDIRSRC=${SOLUTIONDIRSRC}/tests
+SOLUTIONDIRTGT=${SPECSDIR}/solution
+TESTSDIRTGT=${SOLUTIONDIRTGT}/tests
 
-echo "[JAVA] Compiling solution"
+echo "[JAVA] Copying and compiling solution"
+cp -a ${SOLUTIONDIRSRC} ${SOLUTIONDIRTGT}
 pushd ${JAMDIR}
-./compile_tests.sh ${TESTSDIR} ${SOLUTIONDIR}
+./compile_tests.sh ${TESTSDIRTGT} ${SOLUTIONDIRTGT}
 popd
-chmod go-rwx ${SOLUTIONDIR}/*.java
-chmod go-rwx ${TESTSDIR}/*.java
-echo '[JAVA] Updating json specs file'
-sed -i -e "s#/path/to/tests#${TESTSDIR}#g" ${SPECSDIR}/specs.json
+chmod go-rwx ${SOLUTIONDIRTGT}/*.java ${TESTSDIRTGT}/*.java
+echo "[JAVA] Updating json specs file"
+sed -i -e "s#/path/to/tests#${TESTSDIRTGT}#g" ${SPECSDIR}/specs.json
