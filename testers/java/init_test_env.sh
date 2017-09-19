@@ -17,9 +17,9 @@ TESTSDIRTGT=${SOLUTIONDIRTGT}/tests
 
 echo "[JAVA] Copying and compiling solution"
 cp -a ${SOLUTIONDIRSRC} ${SOLUTIONDIRTGT}
-pushd ${JAMDIR}
+pushd ${JAMDIR} > /dev/null
 ./compile_tests.sh ${TESTSDIRTGT} ${SOLUTIONDIRTGT}
-popd
-chmod go-rwx ${SOLUTIONDIRTGT}/*.java ${TESTSDIRTGT}/*.java
+popd > /dev/null
+rm -f ${SOLUTIONDIRTGT}/*.java ${TESTSDIRTGT}/*.java
 echo "[JAVA] Updating json specs file"
 sed -i -e "s#/path/to/tests#${TESTSDIRTGT}#g" ${SPECSDIR}/specs.json
