@@ -16,7 +16,7 @@ SOLUTIONDIRTGT=${SPECSDIR}/solution
 TESTSDIRTGT=${SOLUTIONDIRTGT}/tests
 
 echo "[JAVA] Copying and compiling solution"
-cp -a ${SOLUTIONDIRSRC} ${SOLUTIONDIRTGT}
+cp -a ${SOLUTIONDIRSRC} ${SPECSDIR}
 pushd ${JAMDIR} > /dev/null
 ./compile_tests.sh ${TESTSDIRTGT} ${SOLUTIONDIRTGT}
 popd > /dev/null
