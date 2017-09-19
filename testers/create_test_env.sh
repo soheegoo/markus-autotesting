@@ -22,12 +22,12 @@ TESTERDIR=${THISSCRIPTDIR}/${TESTERNAME}
 
 echo "[ENV] Installing system packages"
 sudo apt-get install python3 python3-venv
-if pushd ${TESTERDIR}; then
+if pushd ${TESTERDIR} > /dev/null; then
     echo "[ENV] Creating specs directory ${SPECSDIR}"
     mkdir -p ${SPECSDIR}
     cp specs.json ${SPECSDIR}
     if [[ -e init_test_env.sh ]]; then
-        ./init_test_env.sh ${TESTERDIR} ${SPECSDIR}
+        ./init_test_env.sh ${WORKINGDIR} ${SPECSDIR}
     fi
     echo "[ENV] Creating virtualenv ${VENVDIR}"
     python${PYVERSION} -m venv ${VENVDIR}
@@ -39,7 +39,7 @@ if pushd ${TESTERDIR}; then
     echo "$(pwd)/server" > ${VENVDIR}/lib/python${PYVERSION}/site-packages/markus_${TESTERNAME}.pth
     cd ..
     echo "$(pwd)" > ${VENVDIR}/lib/python${PYVERSION}/site-packages/markus.pth
-    popd
+    popd > /dev/null
 else
     echo "[ENV] The tester ${TESTERNAME} does not exist"
 fi

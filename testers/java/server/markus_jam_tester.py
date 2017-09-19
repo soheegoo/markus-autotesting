@@ -13,8 +13,8 @@ class MarkusJAMTester(MarkusUAMTester):
         'bad_javac': "Java compilation error: '{}'"
     }
 
-    def __init__(self, specs, feedback_file='feedback_java.txt'):
-        super().__init__(specs, feedback_file, tester_class=JAMTester, test_ext='java')
+    def __init__(self, specs):
+        super().__init__(specs, tester_class=JAMTester, test_ext='java')
 
     def run(self):
         try:

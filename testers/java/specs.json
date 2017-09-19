@@ -1,4 +1,6 @@
 {
   "path_to_uam": "/path/to/uam",
-  "path_to_tests": "/path/to/tests"
+  "path_to_tests": "/path/to/tests",
+  "global_timeout": 30,
+  "feedback_file": null
 }
