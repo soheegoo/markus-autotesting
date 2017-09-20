@@ -12,8 +12,8 @@ class MarkusSQLTester(MarkusTester):
     DATASET_DIR = 'datasets'
     QUERY_DIR = 'queries'
 
-    def __init__(self, specs, feedback_file='feedback_sql.txt'):
-        super().__init__(specs=specs, feedback_file=feedback_file)
+    def __init__(self, specs):
+        super().__init__(specs=specs)
         self.oracle_database = specs['oracle_database']
         self.test_database = specs['test_database']
         self.user_name = specs['user_name']

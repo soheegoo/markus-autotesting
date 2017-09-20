@@ -1,46 +1,46 @@
 {
   "matrix": {
     "correct_no_order.sql": {
-      "data1.sql": {}, "data2.sql": {}
+      "data1.sql": 1, "data2.sql": 1
     },
     "correct_with_order.sql": {
-      "data1.sql": {}, "data2.sql": {},
+      "data1.sql": 1, "data2.sql": 1,
       "extra": {"order_by": "word"}
     },
     "bad_col_count.sql": {
-      "data1.sql": {}, "data2.sql": {}
+      "data1.sql": 1, "data2.sql": 1
     },
     "bad_col_name.sql": {
-      "data1.sql": {}, "data2.sql": {}
+      "data1.sql": 1, "data2.sql": 1
     },
     "bad_col_order.sql": {
-      "data1.sql": {}, "data2.sql": {}
+      "data1.sql": 1, "data2.sql": 1
     },
     "bad_col_type.sql": {
-      "data1.sql": {}, "data2.sql": {}
+      "data1.sql": 1, "data2.sql": 1
     },
     "bad_row_count.sql": {
-      "data1.sql": {}, "data2.sql": {}
+      "data1.sql": 1, "data2.sql": 1
     },
     "bad_row_order.sql": {
-      "data1.sql": {}, "data2.sql": {},
+      "data1.sql": 1, "data2.sql": 1,
       "extra": {"order_by": "word"}
     },
     "bad_row_content_no_order.sql": {
-      "data1.sql": {}, "data2.sql": {}
+      "data1.sql": 1, "data2.sql": 1
     },
     "bad_row_content_with_order.sql": {
-      "data1.sql": {}, "data2.sql": {},
+      "data1.sql": 1, "data2.sql": 1,
       "extra": {"order_by": "word"}
     },
     "bad_query.sql": {
-      "data1.sql": {}, "data2.sql": {}
+      "data1.sql": 1, "data2.sql": 1
     },
     "compatible_column_type.sql": {
-      "data1.sql": {}, "data2.sql": {}
+      "data1.sql": 1, "data2.sql": 1
     },
     "missing.sql": {
-      "data1.sql": {}, "data2.sql": {}
+      "data1.sql": 1, "data2.sql": 1
     }
   },
   "oracle_database": "ate_oracle",

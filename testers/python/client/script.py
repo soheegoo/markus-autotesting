@@ -36,7 +36,7 @@ if __name__ == '__main__':
     tester = MarkusPAMTester(specs=SPECS)
     tester.run()
     # Use markus apis if needed
-    # if os.path.isfile(FEEDBACK_FILE):
+    # if os.path.isfile(SPECS['feedback_file']):
     #     api = Markus(api_key, root_url)
-    #     with open(FEEDBACK_FILE) as feedback_open:
-    #         api.upload_feedback_file(assignment_id, group_id, FEEDBACK_FILE, feedback_open.read())
+    #     with open(SPECS['feedback_file']) as feedback_open:
+    #         api.upload_feedback_file(assignment_id, group_id, SPECS['feedback_file'], feedback_open.read())

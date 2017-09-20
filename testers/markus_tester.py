@@ -31,8 +31,7 @@ class MarkusTestSpecs(collections.MutableMapping):
 
     def _set_points(self, _, value):
         """
-        SPECS['points'] = {'test1': {'data1': points11, 'data2': points12},
-                           'test2': {'data1': points21, 'data2': points22}}
+        SPECS['points'] = {'test1': {'data1': 11, 'data2': 12}, 'test2': {'data1': 21, 'data2': 22}}
         Assigns points to the passed tests and datasets, creating them if they don't exist yet.
         """
         for test_file, data_files in value.items():
@@ -44,7 +43,7 @@ class MarkusTestSpecs(collections.MutableMapping):
 
     def _set_test_points(self, _, value):
         """
-        SPECS['test_points'] = {'test1': points1, 'test2': points2}
+        SPECS['test_points'] = {'test1': 1, 'test2': 2}
         Assigns points to all datasets of the passed tests, creating the tests if they don't exist yet.
         """
         for test_file, points in value.items():
@@ -56,7 +55,7 @@ class MarkusTestSpecs(collections.MutableMapping):
 
     def _set_data_points(self, _, value):
         """
-        SPECS['data_points'] = {'data1': points1, 'data2': points2}
+        SPECS['data_points'] = {'data1': 1, 'data2': 2}
         Assigns points to all existing tests that use the passed datasets, does nothing for tests that don't use them.
         """
         for test_file in self.matrix:
