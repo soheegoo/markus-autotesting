@@ -1,9 +1,10 @@
+import contextlib
 import os
 import subprocess
 
 import psycopg2
 
-from markus_tester import MarkusTester, MarkusTest
+from markus_tester import MarkusTester, MarkusTest, MarkusTestSpecs
 
 
 class MarkusSQLTester(MarkusTester):
@@ -46,6 +47,27 @@ class MarkusSQLTester(MarkusTester):
         if self.oracle_connection:
             self.oracle_connection.close()
 
+    def run(self):
+        try:
+            self.init_db()
+            with contextlib.ExitStack() as stack:
+                feedback_open = (stack.enter_context(open(self.specs.feedback_file, 'w'))
+                                 if self.specs.feedback_file is not None
+                                 else None)
+                for test_file in sorted(self.specs.test_files):
+                    test_extra = self.specs.matrix[test_file].get(MarkusTestSpecs.MATRIX_NONTEST_KEY)
+                    for data_file in sorted(self.specs.matrix[test_file].keys()):
+                        if data_file == MarkusTestSpecs.MATRIX_NONTEST_KEY:
+                            continue
+                        points = self.specs.matrix[test_file][data_file]
+                        test = self.create_test(test_file, [data_file], points, test_extra, feedback_open)
+                        xml = test.run()
+                        print(xml)
+        except Exception as e:
+            print(MarkusTester.error_all(message=str(e)))
+        finally:
+            self.close_db()
+
 
 class MarkusSQLTest(MarkusTest):
 
@@ -63,8 +85,9 @@ class MarkusSQLTest(MarkusTest):
         'bad_row_content_order': 'Expected row {} in the ordered results to be {} instead of {}'
     }
 
-    def __init__(self, test_file, data_files, test_data_config, test_extra, feedback_open):
-        super().__init__(test_file, data_files, test_data_config, test_extra, feedback_open)
+    def __init__(self, test_file, data_files, points, test_extra, feedback_open):
+        super().__init__(test_file, data_files, points, test_extra, feedback_open)
+        self.data_file = data_files[0]
 
     @staticmethod
     def select_query(schema_name, table_name, order_by=None):
@@ -190,6 +213,7 @@ class MarkusSQLTest(MarkusTest):
         if feedback:
             output_open.write('## Feedback: {}\n\n'.format(feedback))
 
+    # TODO Refactor as add_feedback
     def print_file_psql(self, output_open, name, oracle_schema_name, table_name, status, feedback, order_by=None,
                         sql_order_file=None):
         # header
@@ -225,53 +249,39 @@ class MarkusSQLTest(MarkusTest):
 
     def run(self):
 
+        # check that the submission exists
+        if not os.path.isfile(self.test_file):
+            msg = self.ERROR_MSGS['no_submission'].format(self.test_file)
+            self.print_file_error(output_open=self.feedback_open, name=self.test_data_name, feedback=msg)
+            return self.error(message=msg)
+        # check if ordering is required
+        sql_order_file = None
+        order_by = self.order_bys.get(self.test_file)
+        if order_by:
+            sql_order_file = '{}_order{}'.format(self.test_name, os.path.splitext(self.test_file)[1])
+            if not os.path.isfile(sql_order_file):
+                msg = self.ERROR_MSGS['no_submission_order'].format(sql_order_file)
+                self.print_file_error(output_open=self.feedback_open, name=self.test_data_name, feedback=msg)
+                return self.error(message=msg)
         try:
-            self.init_db()
-            with open(self.output_filename, 'w') as output_open:
-                for sql_file in sorted(self.specs.keys()):
-                    test_name, test_ext = os.path.splitext(sql_file)
-                    for data_file, points_total in sorted(self.specs[sql_file].items()):
-                        data_name = os.path.splitext(data_file)[0]
-                        test_data_name = '{} + {}'.format(test_name, data_name)
-                        # check that the submission exists
-                        if not os.path.isfile(sql_file):
-                            msg = self.ERROR_MSGS['no_submission'].format(sql_file)
-                            self.error(message=msg)
-                            self.print_file_error(output_open=output_open, name=test_data_name, feedback=msg)
-                            continue
-                        # check if ordering is required
-                        sql_order_file = None
-                        order_by = self.order_bys.get(sql_file)
-                        if order_by:
-                            sql_order_file = '{}_order{}'.format(test_name, test_ext)
-                            if not os.path.isfile(sql_order_file):
-                                msg = self.ERROR_MSGS['no_submission_order'].format(sql_order_file)
-                                self.error(message=msg)
-                                self.print_file_error(output_open=output_open, name=test_data_name, feedback=msg)
-                                continue
-                        try:
-                            # drop and recreate test schema + dataset, then fetch and compare results
-                            self.set_test_schema(data_file=data_file)
-                            test_results = self.get_test_results(table_name=test_name, sql_file=sql_file,
-                                                                 sql_order_file=sql_order_file)
-                            oracle_results = self.get_oracle_results(schema_name=data_name, table_name=test_name,
-                                                                     order_by=order_by)
-                            order_on = True if order_by else False
-                            output, status = self.check_results(oracle_results=oracle_results,
-                                                                test_results=test_results, order_on=order_on)
-                            if status == 'pass':
-                                self.passed()
-                            else:
-                                self.failed(points_awarded=0, message=output)
-                            self.print_file_psql(output_open=output_open, name=test_data_name,
-                                                 oracle_schema_name=data_name, table_name=test_name, status=status,
-                                                 feedback=output, order_by=order_by, sql_order_file=sql_order_file)
-                        except Exception as e:
-                            self.oracle_connection.commit()
-                            self.test_connection.commit()
-                            self.error(message=str(e))
-                            self.print_file_error(output_open=output_open, name=test_data_name, feedback=str(e))
+            # drop and recreate test schema + dataset, then fetch and compare results
+            self.set_test_schema(data_file=self.data_file)
+            test_results = self.get_test_results(table_name=self.test_name, sql_file=self.test_file,
+                                                 sql_order_file=sql_order_file)
+            oracle_results = self.get_oracle_results(schema_name=self.data_name, table_name=self.test_name,
+                                                     order_by=order_by)
+            order_on = True if order_by else False
+            output, status = self.check_results(oracle_results=oracle_results, test_results=test_results,
+                                                order_on=order_on)
+            self.print_file_psql(output_open=self.feedback_open, name=self.test_data_name,
+                                 oracle_schema_name=self.data_name, table_name=self.test_name, status=status,
+                                 feedback=output, order_by=order_by, sql_order_file=sql_order_file)
+            if status == 'pass':
+                return self.passed()
+            else:
+                return self.failed(points_awarded=0, message=output)
         except Exception as e:
-            MarkusTester.error_all(message=str(e))
-        finally:
-            self.close_db()
+            self.oracle_connection.commit()
+            self.test_connection.commit()
+            self.print_file_error(output_open=self.feedback_open, name=self.test_data_name, feedback=str(e))
+            return self.error(message=str(e))
