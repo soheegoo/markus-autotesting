@@ -40,7 +40,6 @@ class MarkusUAMTest(MarkusTest):
 
     def __init__(self, uam_result, points_total, feedback_open):
         super().__init__(uam_result.test_title, [], points_total, None, feedback_open)
-        self.test_data_name = uam_result.test_title
         self.uam_result = uam_result
 
     def run(self):

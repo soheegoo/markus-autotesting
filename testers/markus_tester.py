@@ -164,7 +164,10 @@ class MarkusTest:
         self.data_files = data_files
         self.data_name = MarkusTestSpecs.DATA_FILES_SEPARATOR.join(
                              [os.path.splitext(data_file)[0] for data_file in data_files])
-        self.test_data_name = '{} + {}'.format(self.test_name, self.data_name)
+        if self.data_name == '':
+            self.test_data_name = self.test_name
+        else:
+            self.test_data_name = '{} + {}'.format(self.test_name, self.data_name)
         self.points = points  # TODO Use a default or disable if not set?
         if isinstance(self.points, dict):
             self.points_total = max(self.points.values())
