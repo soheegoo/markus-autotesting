@@ -109,18 +109,19 @@ class MarkusXQueryTest(MarkusTest):
             test_xml = self.check_xml(test_xml=test_xml)
         except subprocess.CalledProcessError as e:
             msg = self.ERROR_MSGS['bad_xml'].format(e.stderr)
-            return self.failed(points_awarded=self.points['bad_xml'], message=msg, oracle_solution=oracle_xml,
-                               test_solution=test_xml)
+            return self.partially_passed(points_awarded=self.points['bad_xml'], message=msg, oracle_solution=oracle_xml,
+                                         test_solution=test_xml)
         # check that the xml is conformant to the schema dtd
         try:
             test_xml = self.check_dtd(test_xml=test_xml)
         except subprocess.CalledProcessError as e:
             msg = self.ERROR_MSGS['bad_dtd'].format(e.stderr)
-            return self.failed(points_awarded=self.points['bad_dtd'], message=msg, oracle_solution=oracle_xml,
-                               test_solution=test_xml)
+            return self.partially_passed(points_awarded=self.points['bad_dtd'], message=msg, oracle_solution=oracle_xml,
+                                         test_solution=test_xml)
         # check that the xml has the expected content
-        result = (self.passed()
-                  if self.check_content(oracle_xml=oracle_xml, test_xml=test_xml)
-                  else self.failed(points_awarded=self.points['bad_content'], message=self.ERROR_MSGS['bad_content'],
-                                   oracle_solution=oracle_xml, test_solution=test_xml))
-        return result
+        if self.check_content(oracle_xml=oracle_xml, test_xml=test_xml):
+            return self.passed()
+        else:
+            return self.partially_passed(points_awarded=self.points['bad_content'],
+                                         message=self.ERROR_MSGS['bad_content'],
+                                         oracle_solution=oracle_xml, test_solution=test_xml)

@@ -28,8 +28,8 @@ class MarkusUAMTester(MarkusTester):
                                  else None)
                 results = self.uam_tester.run()
                 for result in results:
-                    points_awarded, points_total = self.uam_tester.get_test_points(result, self.test_ext)
-                    test = MarkusUAMTest(result, points_awarded, points_total, feedback_open)
+                    points_total = self.uam_tester.get_test_points(result, self.test_ext)
+                    test = MarkusUAMTest(result, points_total, feedback_open)
                     xml = test.run()
                     print(xml)
         except Exception as e:
@@ -38,17 +38,16 @@ class MarkusUAMTester(MarkusTester):
 
 class MarkusUAMTest(MarkusTest):
 
-    def __init__(self, uam_result, points_awarded, points_total, feedback_open):
+    def __init__(self, uam_result, points_total, feedback_open):
         super().__init__(uam_result.test_title, [], points_total, None, feedback_open)
         self.test_data_name = uam_result.test_title
         self.uam_result = uam_result
-        self.points_awarded = points_awarded
 
     def run(self):
         if self.uam_result.status == UAMResult.Status.PASS:
             return self.passed()
         elif self.uam_result.status == UAMResult.Status.FAIL:
             # TODO add test_solution=self.uam_result.trace? (But test trace could be confusing)
-            return self.failed(points_awarded=self.points_awarded, message=self.uam_result.message)
+            return self.failed(message=self.uam_result.message)
         else:
             return self.error(message=self.uam_result.message)
