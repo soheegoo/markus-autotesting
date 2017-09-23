@@ -108,18 +108,14 @@ class UAMTester:
 
     def get_test_points(self, result, file_ext):
         """
-        Gets the points awarded over the available total for a uam test result based on the test specifications.
+        Gets the available total points for a uam test result based on the test specifications.
         :param result: A uam test result.
         :param file_ext: The test file extension.
-        :return: The tuple (points awarded, total available points)
+        :return: The total available points
         """
         test_file = '{}.{}'.format(result.file_name, file_ext)
         test_points = self.test_points[test_file]
-        total = test_points.get(result.test_name, test_points.get(result.class_name, 1))
-        awarded = 0
-        if result.status == UAMResult.Status.PASS:
-            awarded = total
-        return awarded, total
+        return test_points.get(result.test_name, test_points.get(result.class_name, 1))
 
     def run(self):
         """
