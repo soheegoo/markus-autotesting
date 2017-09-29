@@ -162,8 +162,8 @@ class Markus:
         path = Markus.get_path(assignment_id, group_id) + 'test_script_results'
         return self.submit_request(params, path, 'POST')
 
-    def upload_annotations(self, assignment_id, group_id, annotations):
-        """ (Markus, int, str, list) -> list of str
+    def upload_annotations(self, assignment_id, group_id, annotations, force_complete=False):
+        """ (Markus, int, int, list, bool) -> list of str
 
         Each element of annotations must be a dictionary with the following keys:
             - filename
@@ -176,8 +176,12 @@ class Markus:
 
         This currently only works for plain-text file submissions.
         """
+        params = {
+            'annotations': annotations,
+            'force_complete': force_complete
+        }
         path = Markus.get_path(assignment_id, group_id) + 'add_annotations'
-        return self.submit_request({'annotations': annotations}, path, 'POST', 'application/json')
+        return self.submit_request(params, path, 'POST', 'application/json')
 
     def update_marks_single_group(self, criteria_mark_map, assignment_id, group_id):
         """ (Markus, dict, int, int) -> list of str
