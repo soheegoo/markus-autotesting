@@ -6,4 +6,4 @@ if [ $# -ne 0 ]; then
 fi
 
 echo "[SQL] Installing system packages"
-sudo apt-get install python3 postgresql
+sudo apt-get install python3 postgresql jq

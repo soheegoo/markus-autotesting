@@ -6,47 +6,6 @@ import psycopg2
 from markus_tester import MarkusTester, MarkusTest
 
 
-class MarkusSQLTester(MarkusTester):
-
-    SCHEMA_FILE = 'schema.ddl'
-    DATASET_DIR = 'datasets'
-    QUERY_DIR = 'queries'
-
-    def __init__(self, specs, test_class=MarkusSQLTest):
-        super().__init__(specs, test_class)
-        self.oracle_connection = None
-        self.oracle_cursor = None
-        self.test_connection = None
-        self.test_cursor = None
-
-    def init_db(self):
-        self.oracle_connection = psycopg2.connect(database=self.specs['oracle_database'], user=self.specs['user_name'],
-                                                  password=self.specs['user_password'], host='localhost')
-        self.oracle_cursor = self.oracle_connection.cursor()
-        self.test_connection = psycopg2.connect(database=self.specs['test_database'], user=self.specs['user_name'],
-                                                password=self.specs['user_password'], host='localhost')
-        self.test_cursor = self.test_connection.cursor()
-
-    def close_db(self):
-        if self.test_cursor:
-            self.test_cursor.close()
-        if self.test_connection:
-            self.test_connection.close()
-        if self.oracle_cursor:
-            self.oracle_cursor.close()
-        if self.oracle_connection:
-            self.oracle_connection.close()
-
-    def run(self):
-        try:
-            self.init_db()
-            super().run()
-        except Exception as e:
-            print(MarkusTester.error_all(message=str(e)))
-        finally:
-            self.close_db()
-
-
 class MarkusSQLTest(MarkusTest):
 
     ERROR_MSGS = {
@@ -247,3 +206,44 @@ class MarkusSQLTest(MarkusTest):
             self.oracle_connection.commit()
             self.test_connection.commit()
             return self.error(message=str(e))
+
+
+class MarkusSQLTester(MarkusTester):
+
+    SCHEMA_FILE = 'schema.ddl'
+    DATASET_DIR = 'datasets'
+    QUERY_DIR = 'queries'
+
+    def __init__(self, specs, test_class=MarkusSQLTest):
+        super().__init__(specs, test_class)
+        self.oracle_connection = None
+        self.oracle_cursor = None
+        self.test_connection = None
+        self.test_cursor = None
+
+    def init_db(self):
+        self.oracle_connection = psycopg2.connect(database=self.specs['oracle_database'], user=self.specs['user_name'],
+                                                  password=self.specs['user_password'], host='localhost')
+        self.oracle_cursor = self.oracle_connection.cursor()
+        self.test_connection = psycopg2.connect(database=self.specs['test_database'], user=self.specs['user_name'],
+                                                password=self.specs['user_password'], host='localhost')
+        self.test_cursor = self.test_connection.cursor()
+
+    def close_db(self):
+        if self.test_cursor:
+            self.test_cursor.close()
+        if self.test_connection:
+            self.test_connection.close()
+        if self.oracle_cursor:
+            self.oracle_cursor.close()
+        if self.oracle_connection:
+            self.oracle_connection.close()
+
+    def run(self):
+        try:
+            self.init_db()
+            super().run()
+        except Exception as e:
+            print(MarkusTester.error_all(message=str(e)))
+        finally:
+            self.close_db()

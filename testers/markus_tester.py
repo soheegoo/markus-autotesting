@@ -106,46 +106,6 @@ class MarkusTestSpecs(collections.MutableMapping):
         return self.matrix.keys()
 
 
-class MarkusTester:
-
-    def __init__(self, specs, test_class=MarkusTest):
-        self.specs = specs
-        self.test_class = test_class
-
-    @staticmethod
-    def error_all(message, points_total=None):
-        """
-        Err all tests of this tester with a single message.
-        :param message: The error message.
-        :param points_total: The total points the tests could award, must be an integer > 0. Can be None if unknown.
-        :return The formatted erred tests.
-        """
-        return MarkusTest.format_result(test_name='All tests', status=MarkusTest.Status.ERROR, points_awarded=0,
-                                        output=message, points_total=points_total)
-
-    def run(self):
-        try:
-            with contextlib.ExitStack() as stack:
-                feedback_open = (stack.enter_context(open(self.specs.feedback_file, 'w'))
-                                 if self.specs.feedback_file is not None
-                                 else None)
-                for test_file in sorted(self.specs.test_files):
-                    test_extra = self.specs.matrix[test_file].get(MarkusTestSpecs.MATRIX_NONTEST_KEY)
-                    for data_files in sorted(self.specs.matrix[test_file].keys()):
-                        if data_files == MarkusTestSpecs.MATRIX_NONTEST_KEY:
-                            continue
-                        points = self.specs.matrix[test_file][data_files]
-                        if MarkusTestSpecs.DATA_FILES_SEPARATOR in data_files:
-                            data_files = data_files.split(MarkusTestSpecs.DATA_FILES_SEPARATOR)
-                        else:
-                            data_files = [data_files]
-                        test = self.test_class(self, test_file, data_files, points, test_extra, feedback_open)
-                        xml = test.run()
-                        print(xml)
-        except Exception as e:
-            print(MarkusTester.error_all(message=str(e)))
-
-
 class MarkusTest:
 
     class Status(enum.Enum):
@@ -303,3 +263,43 @@ class MarkusTest:
         :return The formatted test.
         """
         raise NotImplementedError
+
+
+class MarkusTester:
+
+    def __init__(self, specs, test_class=MarkusTest):
+        self.specs = specs
+        self.test_class = test_class
+
+    @staticmethod
+    def error_all(message, points_total=None):
+        """
+        Err all tests of this tester with a single message.
+        :param message: The error message.
+        :param points_total: The total points the tests could award, must be an integer > 0. Can be None if unknown.
+        :return The formatted erred tests.
+        """
+        return MarkusTest.format_result(test_name='All tests', status=MarkusTest.Status.ERROR, points_awarded=0,
+                                        output=message, points_total=points_total)
+
+    def run(self):
+        try:
+            with contextlib.ExitStack() as stack:
+                feedback_open = (stack.enter_context(open(self.specs.feedback_file, 'w'))
+                                 if self.specs.feedback_file is not None
+                                 else None)
+                for test_file in sorted(self.specs.test_files):
+                    test_extra = self.specs.matrix[test_file].get(MarkusTestSpecs.MATRIX_NONTEST_KEY, {})
+                    for data_files in sorted(self.specs.matrix[test_file].keys()):
+                        if data_files == MarkusTestSpecs.MATRIX_NONTEST_KEY:
+                            continue
+                        points = self.specs.matrix[test_file][data_files]
+                        if MarkusTestSpecs.DATA_FILES_SEPARATOR in data_files:
+                            data_files = data_files.split(MarkusTestSpecs.DATA_FILES_SEPARATOR)
+                        else:
+                            data_files = [data_files]
+                        test = self.test_class(self, test_file, data_files, points, test_extra, feedback_open)
+                        xml = test.run()
+                        print(xml)
+        except Exception as e:
+            print(MarkusTester.error_all(message=str(e)))
