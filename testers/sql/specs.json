@@ -43,8 +43,8 @@
       "data1.sql": 1, "data2.sql": 1
     }
   },
-  "oracle_database": "ate_oracle",
-  "test_database": "ate_tests",
+  "oracle_database": "ateoracle",
+  "test_database": "atetest",
   "user_name": "atetest",
   "user_password": "YOUR_TEST_PASSWORD",
   "path_to_solution": "/path/to/solution",

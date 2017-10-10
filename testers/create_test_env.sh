@@ -25,7 +25,11 @@ sudo apt-get install python3 python3-venv
 if pushd ${TESTERDIR} > /dev/null; then
     echo "[ENV] Creating specs directory ${SPECSDIR}"
     mkdir -p ${SPECSDIR}
-    cp specs.json ${SPECSDIR}
+    if [[ -e ${WORKINGDIR}/specs.json ]]; then
+        cp ${WORKINGDIR}/specs.json ${SPECSDIR}
+    else
+        cp specs.json ${SPECSDIR}
+    fi
     if [[ -e init_test_env.sh ]]; then
         ./init_test_env.sh ${WORKINGDIR} ${SPECSDIR}
     fi
