@@ -108,12 +108,9 @@ class MarkusTestSpecs(collections.MutableMapping):
 
 class MarkusTester:
 
-    def __init__(self, specs):
+    def __init__(self, specs, test_class=MarkusTest):
         self.specs = specs
-
-    def create_test(self, test_file, data_files, test_data_config, test_extra, feedback_open):
-        # TODO Make it more elegant using a factory pattern, and add specs to the constructor
-        return MarkusTest(test_file, data_files, test_data_config, test_extra, feedback_open)
+        self.test_class = test_class
 
     @staticmethod
     def error_all(message, points_total=None):
@@ -142,7 +139,7 @@ class MarkusTester:
                             data_files = data_files.split(MarkusTestSpecs.DATA_FILES_SEPARATOR)
                         else:
                             data_files = [data_files]
-                        test = self.create_test(test_file, data_files, points, test_extra, feedback_open)
+                        test = self.test_class(self, test_file, data_files, points, test_extra, feedback_open)
                         xml = test.run()
                         print(xml)
         except Exception as e:
@@ -157,7 +154,8 @@ class MarkusTest:
         FAIL = 'fail'
         ERROR = 'error'
 
-    def __init__(self, test_file, data_files, points, test_extra, feedback_open=None):
+    def __init__(self, tester, test_file, data_files, points, test_extra, feedback_open=None):
+        self.tester = tester
         self.test_file = test_file
         self.test_name = os.path.splitext(test_file)[0]
         self.data_files = data_files

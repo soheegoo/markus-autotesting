@@ -9,8 +9,8 @@ class MarkusUAMTester(MarkusTester):
     A wrapper to run a UAM tester (https://github.com/ProjectAT/uam) within Markus' test framework.
     """
 
-    def __init__(self, specs, tester_class=UAMTester, test_ext=''):
-        super().__init__(specs)
+    def __init__(self, specs, test_class=MarkusUAMTest, tester_class=UAMTester, test_ext=''):
+        super().__init__(specs, test_class)
         path_to_tests = specs.get('path_to_tests', '.')
         test_points = {test_file: specs.matrix[test_file][MarkusTestSpecs.MATRIX_NODATA_KEY]
                        for test_file in specs.test_files}
@@ -29,7 +29,7 @@ class MarkusUAMTester(MarkusTester):
                 results = self.uam_tester.run()
                 for result in results:
                     points_total = self.uam_tester.get_test_points(result, self.test_ext)
-                    test = MarkusUAMTest(result, points_total, feedback_open)
+                    test = self.test_class(result, points_total, feedback_open)
                     xml = test.run()
                     print(xml)
         except Exception as e:

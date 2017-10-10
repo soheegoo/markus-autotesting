@@ -3,7 +3,7 @@ import subprocess
 
 from jam_tester import JAMTester
 from markus_tester import MarkusTester
-from markus_uam_tester import MarkusUAMTester
+from markus_uam_tester import MarkusUAMTester, MarkusUAMTest
 
 
 class MarkusJAMTester(MarkusUAMTester):
@@ -13,8 +13,8 @@ class MarkusJAMTester(MarkusUAMTester):
         'bad_javac': "Java compilation error: '{}'"
     }
 
-    def __init__(self, specs):
-        super().__init__(specs, tester_class=JAMTester, test_ext='java')
+    def __init__(self, specs, test_class=MarkusUAMTest):
+        super().__init__(specs, test_class, tester_class=JAMTester, test_ext='java')
 
     def run(self):
         try:

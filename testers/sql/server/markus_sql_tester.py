@@ -1,10 +1,9 @@
-import contextlib
 import os
 import subprocess
 
 import psycopg2
 
-from markus_tester import MarkusTester, MarkusTest, MarkusTestSpecs
+from markus_tester import MarkusTester, MarkusTest
 
 
 class MarkusSQLTester(MarkusTester):
@@ -13,28 +12,19 @@ class MarkusSQLTester(MarkusTester):
     DATASET_DIR = 'datasets'
     QUERY_DIR = 'queries'
 
-    def __init__(self, specs):
-        super().__init__(specs=specs)
-        self.oracle_database = specs['oracle_database']
-        self.test_database = specs['test_database']
-        self.user_name = specs['user_name']
-        self.user_password = specs['user_password']
-        self.path_to_solution = specs['path_to_solution']
-        self.schema_name = specs['schema_name']
+    def __init__(self, specs, test_class=MarkusSQLTest):
+        super().__init__(specs, test_class)
         self.oracle_connection = None
         self.oracle_cursor = None
         self.test_connection = None
         self.test_cursor = None
 
-    def create_test(self, test_file, data_files, test_data_config, test_extra, feedback_open):
-        return MarkusSQLTest(test_file, data_files, test_data_config, test_extra, feedback_open)
-
     def init_db(self):
-        self.oracle_connection = psycopg2.connect(database=self.oracle_database, user=self.user_name,
-                                                  password=self.user_password, host='localhost')
+        self.oracle_connection = psycopg2.connect(database=self.specs['oracle_database'], user=self.specs['user_name'],
+                                                  password=self.specs['user_password'], host='localhost')
         self.oracle_cursor = self.oracle_connection.cursor()
-        self.test_connection = psycopg2.connect(database=self.test_database, user=self.user_name,
-                                                password=self.user_password, host='localhost')
+        self.test_connection = psycopg2.connect(database=self.specs['test_database'], user=self.specs['user_name'],
+                                                password=self.specs['user_password'], host='localhost')
         self.test_cursor = self.test_connection.cursor()
 
     def close_db(self):
@@ -50,19 +40,7 @@ class MarkusSQLTester(MarkusTester):
     def run(self):
         try:
             self.init_db()
-            with contextlib.ExitStack() as stack:
-                feedback_open = (stack.enter_context(open(self.specs.feedback_file, 'w'))
-                                 if self.specs.feedback_file is not None
-                                 else None)
-                for test_file in sorted(self.specs.test_files):
-                    test_extra = self.specs.matrix[test_file].get(MarkusTestSpecs.MATRIX_NONTEST_KEY)
-                    for data_file in sorted(self.specs.matrix[test_file].keys()):
-                        if data_file == MarkusTestSpecs.MATRIX_NONTEST_KEY:
-                            continue
-                        points = self.specs.matrix[test_file][data_file]
-                        test = self.create_test(test_file, [data_file], points, test_extra, feedback_open)
-                        xml = test.run()
-                        print(xml)
+            super().run()
         except Exception as e:
             print(MarkusTester.error_all(message=str(e)))
         finally:
@@ -85,9 +63,19 @@ class MarkusSQLTest(MarkusTest):
         'bad_row_content_order': 'Expected row {} in the ordered results to be {} instead of {}'
     }
 
-    def __init__(self, test_file, data_files, points, test_extra, feedback_open):
-        super().__init__(test_file, data_files, points, test_extra, feedback_open)
+    def __init__(self, tester, test_file, data_files, points, test_extra, feedback_open):
+        super().__init__(tester, test_file, data_files, points, test_extra, feedback_open)
         self.data_file = data_files[0]
+        self.oracle_database = tester.specs['oracle_database']
+        self.test_database = tester.specs['test_database']
+        self.user_name = tester.specs['user_name']
+        self.user_password = tester.specs['user_password']
+        self.path_to_solution = tester.specs['path_to_solution']
+        self.schema_name = tester.specs['schema_name']
+        self.oracle_connection = tester.oracle_connection
+        self.oracle_cursor = tester.oracle_cursor
+        self.test_connection = tester.test_connection
+        self.test_cursor = tester.test_cursor
 
     @staticmethod
     def select_query(schema_name, table_name, order_by=None):
@@ -111,14 +99,15 @@ class MarkusSQLTest(MarkusTest):
     def set_test_schema(self, data_file=None):
         self.test_cursor.execute('DROP SCHEMA IF EXISTS %(schema)s CASCADE',
                                  {'schema': psycopg2.extensions.AsIs(self.schema_name)})
-        self.test_cursor.execute('CREATE SCHEMA %(schema)s', {'schema': psycopg2.extensions.AsIs(self.schema_name)})
+        self.test_cursor.execute('CREATE SCHEMA %(schema)s',
+                                 {'schema': psycopg2.extensions.AsIs(self.schema_name)})
         self.test_cursor.execute('SET search_path TO %(schema)s',
                                  {'schema': psycopg2.extensions.AsIs(self.schema_name)})
-        with open(os.path.join(self.path_to_solution, self.SCHEMA_FILE)) as schema_open:
+        with open(os.path.join(self.path_to_solution, MarkusSQLTester.SCHEMA_FILE)) as schema_open:
             schema = schema_open.read()
             self.test_cursor.execute(schema)
         if data_file is not None:
-            with open(os.path.join(self.path_to_solution, self.DATASET_DIR, data_file)) as data_open:
+            with open(os.path.join(self.path_to_solution, MarkusSQLTester.DATASET_DIR, data_file)) as data_open:
                 data = data_open.read()
                 self.test_cursor.execute(data)
         self.test_connection.commit()
@@ -205,83 +194,56 @@ class MarkusSQLTest(MarkusTest):
         # all good
         return '', 'pass'
 
-    @staticmethod
-    def print_file_summary(output_open, name, status, feedback):
-        # test summary
-        output_open.write('========== {}: {} ==========\n\n'.format(name, status.upper()))
-        # feedback
-        if feedback:
-            output_open.write('## Feedback: {}\n\n'.format(feedback))
+    def get_psql_dump(self, order_by=None, sql_order_file=None):
+        oracle_query, oracle_vars = self.select_query(schema_name=self.data_name, table_name=self.test_name,
+                                                      order_by=order_by)
+        oracle_command = ['psql', '-U', self.user_name, '-d', self.oracle_database, '-h', 'localhost', '-c',
+                          self.oracle_cursor.mogrify(oracle_query, oracle_vars)]
+        test_command = ['psql', '-U', self.user_name, '-d', self.test_database, '-h', 'localhost']
+        if sql_order_file is not None:
+            test_command.extend(['-f', sql_order_file])
+        else:
+            test_query, test_vars = self.select_query(schema_name=self.schema_name, table_name=self.test_name)
+            test_command.extend(['-c', self.test_cursor.mogrify(test_query, test_vars)])
+        env = os.environ.copy()
+        env['PGPASSWORD'] = self.user_password
+        oracle_proc = subprocess.run(oracle_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=True,
+                                     env=env, universal_newlines=True)
+        test_proc = subprocess.run(test_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=True, env=env,
+                                   universal_newlines=True)
 
-    # TODO Refactor as add_feedback
-    def print_file_psql(self, output_open, name, oracle_schema_name, table_name, status, feedback, order_by=None,
-                        sql_order_file=None):
-        # header
-        self.print_file_summary(output_open=output_open, name=name, status=status, feedback=feedback)
-        # table dump using psql if not passed
-        if status != 'pass':
-            oracle_query, oracle_vars = self.select_query(schema_name=oracle_schema_name, table_name=table_name,
-                                                          order_by=order_by)
-            oracle_command = ['psql', '-U', self.user_name, '-d', self.oracle_database, '-h', 'localhost', '-c',
-                              self.oracle_cursor.mogrify(oracle_query, oracle_vars)]
-            test_command = ['psql', '-U', self.user_name, '-d', self.test_database, '-h', 'localhost']
-            if sql_order_file is not None:
-                test_command.extend(['-f', sql_order_file])
-            else:
-                test_query, test_vars = self.select_query(schema_name=self.schema_name, table_name=table_name)
-                test_command.extend(['-c', self.test_cursor.mogrify(test_query, test_vars)])
-            # comparison of solutions
-            env = os.environ.copy()
-            env['PGPASSWORD'] = self.user_password
-            output_open.write('## Expected Solution:\n\n')
-            proc = subprocess.run(oracle_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True,
-                                  shell=False, env=env, universal_newlines=True)
-            output_open.write(proc.stdout)
-            output_open.write('## Your Solution:\n\n')
-            proc = subprocess.run(test_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, shell=False,
-                                  env=env, universal_newlines=True)
-            output_open.write(proc.stdout)
-        output_open.write('\n')
-
-    def print_file_error(self, output_open, name, feedback):
-        self.print_file_summary(output_open=output_open, name=name, status='error', feedback=feedback)
-        output_open.write('\n')
+        return oracle_proc.stdout, test_proc.stdout
 
     def run(self):
 
         # check that the submission exists
         if not os.path.isfile(self.test_file):
-            msg = self.ERROR_MSGS['no_submission'].format(self.test_file)
-            self.print_file_error(output_open=self.feedback_open, name=self.test_data_name, feedback=msg)
-            return self.error(message=msg)
+            message = self.ERROR_MSGS['no_submission'].format(self.test_file)
+            return self.error(message)
         # check if ordering is required
         sql_order_file = None
-        order_by = self.order_bys.get(self.test_file)
-        if order_by:
+        order_on = False
+        order_by = self.test_extra.get('order_by')
+        if order_by is not None:
+            order_on = True
             sql_order_file = '{}_order{}'.format(self.test_name, os.path.splitext(self.test_file)[1])
             if not os.path.isfile(sql_order_file):
-                msg = self.ERROR_MSGS['no_submission_order'].format(sql_order_file)
-                self.print_file_error(output_open=self.feedback_open, name=self.test_data_name, feedback=msg)
-                return self.error(message=msg)
+                message = self.ERROR_MSGS['no_submission_order'].format(sql_order_file)
+                return self.error(message)
         try:
             # drop and recreate test schema + dataset, then fetch and compare results
-            self.set_test_schema(data_file=self.data_file)
+            self.set_test_schema(self.data_file)
             test_results = self.get_test_results(table_name=self.test_name, sql_file=self.test_file,
                                                  sql_order_file=sql_order_file)
             oracle_results = self.get_oracle_results(schema_name=self.data_name, table_name=self.test_name,
                                                      order_by=order_by)
-            order_on = True if order_by else False
-            output, status = self.check_results(oracle_results=oracle_results, test_results=test_results,
-                                                order_on=order_on)
-            self.print_file_psql(output_open=self.feedback_open, name=self.test_data_name,
-                                 oracle_schema_name=self.data_name, table_name=self.test_name, status=status,
-                                 feedback=output, order_by=order_by, sql_order_file=sql_order_file)
+            message, status = self.check_results(oracle_results, test_results, order_on)
             if status == 'pass':
                 return self.passed()
             else:
-                return self.failed(points_awarded=0, message=output)
+                oracle_solution, test_solution = self.get_psql_dump(order_by, sql_order_file)
+                return self.failed(message, oracle_solution, test_solution)
         except Exception as e:
             self.oracle_connection.commit()
             self.test_connection.commit()
-            self.print_file_error(output_open=self.feedback_open, name=self.test_data_name, feedback=str(e))
             return self.error(message=str(e))

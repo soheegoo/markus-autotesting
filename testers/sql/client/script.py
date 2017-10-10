@@ -19,8 +19,6 @@ if __name__ == '__main__':
     repo_name = sys.argv[5]
     SPECS = MarkusTestSpecs()
 
-    # The dataset files to be used for testing each student sql submission, and the points assigned: student sql file
-    # names are the keys, dicts of dataset file names and points are the values.
     # Students are required to create a solution table in their submission, named as the sql file without the file
     # extension; e.g. an 'example.sql' file must have a 'CREATE TABLE example [...];' in it.
     # Students are also required to submit an additional sql file with '_order' suffix for each submission that cares
@@ -34,7 +32,7 @@ if __name__ == '__main__':
     #    SPECS['test_points'] = {'test1': 1, 'test2': 2}
     # 3) to all tests of some datasets
     #    SPECS['data_points'] = {'data1': 1, 'data2': 2}
-    # If tests/datasets are missing compared to the pre-generated solutions, they are assigned a default of 1 point.
+    # If you don't specify some tests/datasets from the solution, they are assigned a default of 1 point.
     SPECS['data_points'] = {'data1.sql': 1, 'data2.sql': 2}
 
     # The schema name

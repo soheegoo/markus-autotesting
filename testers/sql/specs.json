@@ -47,5 +47,6 @@
   "test_database": "ate_tests",
   "user_name": "atetest",
   "user_password": "YOUR_TEST_PASSWORD",
-  "path_to_solution": "/path/to/solution"
+  "path_to_solution": "/path/to/solution",
+  "feedback_file": null
 }
