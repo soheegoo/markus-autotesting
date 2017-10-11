@@ -31,8 +31,7 @@ class MarkusTestSpecs(collections.MutableMapping):
 
     def _set_points(self, _, value):
         """
-        SPECS['points'] = {'test1': {'data1': points11, 'data2': points12},
-                           'test2': {'data1': points21, 'data2': points22}}
+        SPECS['points'] = {'test1': {'data1': 11, 'data2': 12}, 'test2': {'data1': 21, 'data2': 22}}
         Assigns points to the passed tests and datasets, creating them if they don't exist yet.
         """
         for test_file, data_files in value.items():
@@ -44,7 +43,7 @@ class MarkusTestSpecs(collections.MutableMapping):
 
     def _set_test_points(self, _, value):
         """
-        SPECS['test_points'] = {'test1': points1, 'test2': points2}
+        SPECS['test_points'] = {'test1': 1, 'test2': 2}
         Assigns points to all datasets of the passed tests, creating the tests if they don't exist yet.
         """
         for test_file, points in value.items():
@@ -56,7 +55,7 @@ class MarkusTestSpecs(collections.MutableMapping):
 
     def _set_data_points(self, _, value):
         """
-        SPECS['data_points'] = {'data1': points1, 'data2': points2}
+        SPECS['data_points'] = {'data1': 1, 'data2': 2}
         Assigns points to all existing tests that use the passed datasets, does nothing for tests that don't use them.
         """
         for test_file in self.matrix:
@@ -107,49 +106,6 @@ class MarkusTestSpecs(collections.MutableMapping):
         return self.matrix.keys()
 
 
-class MarkusTester:
-
-    def __init__(self, specs):
-        self.specs = specs
-
-    def create_test(self, test_file, data_files, test_data_config, test_extra, feedback_open):
-        # TODO Make it more elegant using a factory pattern, and add all global test configs
-        return MarkusTest(test_file, data_files, test_data_config, test_extra, feedback_open)
-
-    @staticmethod
-    def error_all(message, points_total=None):
-        """
-        Err all tests of this tester with a single message.
-        :param message: The error message.
-        :param points_total: The total points the tests could award, must be an integer > 0. Can be None if unknown.
-        :return The formatted erred tests.
-        """
-        return MarkusTest.format_result(test_name='All tests', status=MarkusTest.Status.ERROR, points_awarded=0,
-                                        output=message, points_total=points_total)
-
-    def run(self):
-        try:
-            with contextlib.ExitStack() as stack:
-                feedback_open = (stack.enter_context(open(self.specs.feedback_file, 'w'))
-                                 if self.specs.feedback_file is not None
-                                 else None)
-                for test_file in sorted(self.specs.test_files):
-                    test_extra = self.specs.matrix[test_file].get(MarkusTestSpecs.MATRIX_NONTEST_KEY)
-                    for data_files in sorted(self.specs.matrix[test_file].keys()):
-                        if data_files == MarkusTestSpecs.MATRIX_NONTEST_KEY:
-                            continue
-                        points = self.specs.matrix[test_file][data_files]
-                        if MarkusTestSpecs.DATA_FILES_SEPARATOR in data_files:
-                            data_files = data_files.split(MarkusTestSpecs.DATA_FILES_SEPARATOR)
-                        else:
-                            data_files = [data_files]
-                        test = self.create_test(test_file, data_files, points, test_extra, feedback_open)
-                        xml = test.run()
-                        print(xml)
-        except Exception as e:
-            print(MarkusTester.error_all(message=str(e)))
-
-
 class MarkusTest:
 
     class Status(enum.Enum):
@@ -158,7 +114,8 @@ class MarkusTest:
         FAIL = 'fail'
         ERROR = 'error'
 
-    def __init__(self, test_file, data_files, points, test_extra, feedback_open=None):
+    def __init__(self, tester, test_file, data_files, points, test_extra, feedback_open=None):
+        self.tester = tester
         self.test_file = test_file
         self.test_name = os.path.splitext(test_file)[0]
         self.data_files = data_files
@@ -201,14 +158,14 @@ class MarkusTest:
         else:
             name = '[{}/{}] {}'.format(points_awarded, points_total, test_name)
         return '''
-        <test>
-            <name>{}</name>
-            <input></input>
-            <expected></expected>
-            <actual>{}</actual>
-            <marks_earned>{}</marks_earned>
-            <status>{}</status>
-        </test>'''.format(name, output_escaped, points_awarded, status.value)
+<test>
+  <name>{}</name>
+  <input></input>
+  <expected></expected>
+  <actual>{}</actual>
+  <marks_earned>{}</marks_earned>
+  <status>{}</status>
+</test>'''.format(name, output_escaped, points_awarded, status.value)
 
     def format(self, status, points_awarded, output):
         """
@@ -306,3 +263,43 @@ class MarkusTest:
         :return The formatted test.
         """
         raise NotImplementedError
+
+
+class MarkusTester:
+
+    def __init__(self, specs, test_class=MarkusTest):
+        self.specs = specs
+        self.test_class = test_class
+
+    @staticmethod
+    def error_all(message, points_total=None):
+        """
+        Err all tests of this tester with a single message.
+        :param message: The error message.
+        :param points_total: The total points the tests could award, must be an integer > 0. Can be None if unknown.
+        :return The formatted erred tests.
+        """
+        return MarkusTest.format_result(test_name='All tests', status=MarkusTest.Status.ERROR, points_awarded=0,
+                                        output=message, points_total=points_total)
+
+    def run(self):
+        try:
+            with contextlib.ExitStack() as stack:
+                feedback_open = (stack.enter_context(open(self.specs.feedback_file, 'w'))
+                                 if self.specs.feedback_file is not None
+                                 else None)
+                for test_file in sorted(self.specs.test_files):
+                    test_extra = self.specs.matrix[test_file].get(MarkusTestSpecs.MATRIX_NONTEST_KEY, {})
+                    for data_files in sorted(self.specs.matrix[test_file].keys()):
+                        if data_files == MarkusTestSpecs.MATRIX_NONTEST_KEY:
+                            continue
+                        points = self.specs.matrix[test_file][data_files]
+                        if MarkusTestSpecs.DATA_FILES_SEPARATOR in data_files:
+                            data_files = data_files.split(MarkusTestSpecs.DATA_FILES_SEPARATOR)
+                        else:
+                            data_files = [data_files]
+                        test = self.test_class(self, test_file, data_files, points, test_extra, feedback_open)
+                        xml = test.run()
+                        print(xml)
+        except Exception as e:
+            print(MarkusTester.error_all(message=str(e)))

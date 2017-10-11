@@ -10,16 +10,14 @@ TESTERDIR=$(dirname ${THISSCRIPT})
 WORKINGDIR=$(readlink -f $1)
 SPECSDIR=$(readlink -f $2)
 JAMDIR=${TESTERDIR}/uam-git/jam
-SOLUTIONDIRSRC=${WORKINGDIR}/solution
-TESTSDIRSRC=${SOLUTIONDIRSRC}/tests
-SOLUTIONDIRTGT=${SPECSDIR}/solution
-TESTSDIRTGT=${SOLUTIONDIRTGT}/tests
+SOLUTIONDIR=${SPECSDIR}/solution
+TESTSDIR=${SOLUTIONDIR}/tests
 
-echo "[JAVA] Copying and compiling solution"
-cp -a ${SOLUTIONDIRSRC} ${SPECSDIR}
+echo "[JAVA] Compiling solution"
+cp -a ${WORKINGDIR}/solution ${SPECSDIR}
 pushd ${JAMDIR} > /dev/null
-./compile_tests.sh ${TESTSDIRTGT} ${SOLUTIONDIRTGT}
+./compile_tests.sh ${TESTSDIR} ${SOLUTIONDIR}
 popd > /dev/null
-rm -f ${SOLUTIONDIRTGT}/*.java ${TESTSDIRTGT}/*.java
+rm -f ${SOLUTIONDIR}/*.java ${TESTSDIR}/*.java
 echo "[JAVA] Updating json specs file"
-sed -i -e "s#/path/to/tests#${TESTSDIRTGT}#g" ${SPECSDIR}/specs.json
+sed -i -e "s#/path/to/tests#${TESTSDIR}#g" ${SPECSDIR}/specs.json

@@ -4,13 +4,30 @@ from markus_tester import MarkusTester, MarkusTestSpecs, MarkusTest
 from uam_tester import UAMResult, UAMTester
 
 
+class MarkusUAMTest(MarkusTest):
+
+    def __init__(self, tester, uam_result, points_total, feedback_open):
+        super().__init__(tester, uam_result.test_title, [], points_total, {}, feedback_open)
+        self.test_data_name = uam_result.test_title
+        self.uam_result = uam_result
+
+    def run(self):
+        if self.uam_result.status == UAMResult.Status.PASS:
+            return self.passed()
+        elif self.uam_result.status == UAMResult.Status.FAIL:
+            # TODO add test_solution=self.uam_result.trace? (But test trace could be confusing)
+            return self.failed(message=self.uam_result.message)
+        else:
+            return self.error(message=self.uam_result.message)
+
+
 class MarkusUAMTester(MarkusTester):
     """
     A wrapper to run a UAM tester (https://github.com/ProjectAT/uam) within Markus' test framework.
     """
 
-    def __init__(self, specs, tester_class=UAMTester, test_ext=''):
-        super().__init__(specs)
+    def __init__(self, specs, test_class=MarkusUAMTest, tester_class=UAMTester, test_ext=''):
+        super().__init__(specs, test_class)
         path_to_tests = specs.get('path_to_tests', '.')
         test_points = {test_file: specs.matrix[test_file][MarkusTestSpecs.MATRIX_NODATA_KEY]
                        for test_file in specs.test_files}
@@ -29,25 +46,8 @@ class MarkusUAMTester(MarkusTester):
                 results = self.uam_tester.run()
                 for result in results:
                     points_total = self.uam_tester.get_test_points(result, self.test_ext)
-                    test = MarkusUAMTest(result, points_total, feedback_open)
+                    test = self.test_class(self, result, points_total, feedback_open)
                     xml = test.run()
                     print(xml)
         except Exception as e:
             print(MarkusTester.error_all(message=str(e)))
-
-
-class MarkusUAMTest(MarkusTest):
-
-    def __init__(self, uam_result, points_total, feedback_open):
-        super().__init__(uam_result.test_title, [], points_total, None, feedback_open)
-        self.test_data_name = uam_result.test_title
-        self.uam_result = uam_result
-
-    def run(self):
-        if self.uam_result.status == UAMResult.Status.PASS:
-            return self.passed()
-        elif self.uam_result.status == UAMResult.Status.FAIL:
-            # TODO add test_solution=self.uam_result.trace? (But test trace could be confusing)
-            return self.failed(message=self.uam_result.message)
-        else:
-            return self.error(message=self.uam_result.message)
