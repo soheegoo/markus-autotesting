@@ -9,7 +9,7 @@ THISSCRIPT=$(readlink -f ${BASH_SOURCE})
 TESTERDIR=$(dirname ${THISSCRIPT})
 WORKINGDIR=$(readlink -f $1)
 SPECSDIR=$(readlink -f $2)
-SPECS=${TESTERDIR}/specs.json
+SPECS=${SPECSDIR}/specs.json
 ORACLEDB=$(jq -r '.oracle_database' ${SPECS})
 ORACLEUSER=${ORACLEDB}
 TESTDBS=( $(jq -r '.tests[] | .database' ${SPECS}) )
@@ -39,11 +39,13 @@ for i in "${!TESTDBS[@]}"; do
 done
 echo "[SQL] Loading solutions into the oracle database"
 cp -a ${WORKINGDIR}/solution ${SPECSDIR}
-schemas=""
 chmod go-rwx ${QUERYDIR}
-while read queryfile; do
+schemas=""
+queries=( $(jq -r '.matrix | keys[]' ${SPECS}) )
+for queryfile in "${queries[@]}"; do
     queryname=$(basename -s .sql ${queryfile})
-    while read datafile; do
+    datasets=( $(jq -r --arg q ${queryfile} '.matrix | .[$q] | keys | map(select(. != "extra"))[]' ${SPECS}) )
+    for datafile in "${datasets[@]}"; do
         schemaname=$(basename -s .sql ${datafile})
         users=$(IFS=,; echo "${TESTUSERS[*]}")
         if [[ "${schemas}" != *" ${schemaname} "* ]]; then # first time using this dataset, create a schema for it
@@ -61,8 +63,8 @@ while read queryfile; do
         echo "SET search_path TO ${schemaname};" | cat - ${QUERYDIR}/${queryfile} >| /tmp/ate.sql
         echo "GRANT SELECT ON ${schemaname}.${queryname} TO ${users};" >> /tmp/ate.sql
         psql -U ${ORACLEUSER} -d ${ORACLEDB} -h localhost -f /tmp/ate.sql
-    done <<< $(jq -r --arg q ${queryfile} '.matrix | .[$q] | keys | map(select(. != "extra"))[]' ${SPECS})
-done <<< $(jq -r '.matrix | keys[]' ${SPECS})
+    done
+done
 rm /tmp/ate.sql
 echo '[SQL] Updating json specs file'
 sed -i -e "s#/path/to/solution#${SOLUTIONDIR}#g" ${SPECS}
