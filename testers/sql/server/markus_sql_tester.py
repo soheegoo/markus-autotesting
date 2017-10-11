@@ -1,3 +1,4 @@
+import getpass
 import os
 import subprocess
 
@@ -25,16 +26,16 @@ class MarkusSQLTest(MarkusTest):
     def __init__(self, tester, test_file, data_files, points, test_extra, feedback_open):
         super().__init__(tester, test_file, data_files, points, test_extra, feedback_open)
         self.data_file = data_files[0]
-        self.oracle_database = tester.specs['oracle_database']
-        self.test_database = tester.specs['test_database']
-        self.user_name = tester.specs['user_name']
-        self.user_password = tester.specs['user_password']
-        self.path_to_solution = tester.specs['path_to_solution']
-        self.schema_name = tester.specs['schema_name']
+        self.oracle_database = tester.oracle_database
+        self.test_database = tester.test_database
+        self.user_name = tester.user_name
+        self.user_password = tester.user_password
         self.oracle_connection = tester.oracle_connection
         self.oracle_cursor = tester.oracle_cursor
         self.test_connection = tester.test_connection
         self.test_cursor = tester.test_cursor
+        self.path_to_solution = tester.specs['path_to_solution']
+        self.schema_name = tester.specs['schema_name']
 
     @staticmethod
     def select_query(schema_name, table_name, order_by=None):
@@ -216,17 +217,25 @@ class MarkusSQLTester(MarkusTester):
 
     def __init__(self, specs, test_class=MarkusSQLTest):
         super().__init__(specs, test_class)
+        system_user = getpass.getuser()
+        for tester_spec in self.specs['tests']:
+            if tester_spec['user'] == system_user:
+                self.test_database = tester_spec['database']
+                self.user_name = tester_spec['user']
+                self.user_password = tester_spec['password']
+                break
+        self.oracle_database = self.specs['oracle_database']
         self.oracle_connection = None
         self.oracle_cursor = None
         self.test_connection = None
         self.test_cursor = None
 
     def init_db(self):
-        self.oracle_connection = psycopg2.connect(database=self.specs['oracle_database'], user=self.specs['user_name'],
-                                                  password=self.specs['user_password'], host='localhost')
+        self.oracle_connection = psycopg2.connect(database=self.oracle_database, user=self.user_name,
+                                                  password=self.user_password, host='localhost')
         self.oracle_cursor = self.oracle_connection.cursor()
-        self.test_connection = psycopg2.connect(database=self.specs['test_database'], user=self.specs['user_name'],
-                                                password=self.specs['user_password'], host='localhost')
+        self.test_connection = psycopg2.connect(database=self.test_database, user=self.user_name,
+                                                password=self.user_password, host='localhost')
         self.test_cursor = self.test_connection.cursor()
 
     def close_db(self):

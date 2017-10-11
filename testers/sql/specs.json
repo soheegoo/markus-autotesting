@@ -44,9 +44,7 @@
     }
   },
   "oracle_database": "ateoracle",
-  "test_database": "atetest",
-  "user_name": "atetest",
-  "user_password": "YOUR_TEST_PASSWORD",
+  "tests": [{"database": "atetest0", "user": "atetest0", "password": "atetest0_password"}],
   "path_to_solution": "/path/to/solution",
   "feedback_file": null
 }
