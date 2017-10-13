@@ -159,12 +159,15 @@ class MarkusSQLTest(MarkusTest):
                                                       order_by=order_by)
         oracle_command = ['psql', '-U', self.user_name, '-d', self.oracle_database, '-h', 'localhost', '-c',
                           self.oracle_cursor.mogrify(oracle_query, oracle_vars)]
-        test_command = ['psql', '-U', self.user_name, '-d', self.test_database, '-h', 'localhost']
+        test_command = ['psql', '-U', self.user_name, '-d', self.test_database, '-h', 'localhost', '-c']
         if sql_order_file is not None:
-            test_command.extend(['-f', sql_order_file])
+            test_query = 'SET search_path TO %(schema)s;'
+            test_vars = {'schema': psycopg2.extensions.AsIs(self.schema_name.lower())}
+            with open(sql_order_file) as sql_order_open:
+                test_query += sql_order_open.read()
         else:
             test_query, test_vars = self.select_query(schema_name=self.schema_name, table_name=self.test_name)
-            test_command.extend(['-c', self.test_cursor.mogrify(test_query, test_vars)])
+        test_command.extend([self.test_cursor.mogrify(test_query, test_vars)])
         env = os.environ.copy()
         env['PGPASSWORD'] = self.user_password
         oracle_proc = subprocess.run(oracle_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=True,
