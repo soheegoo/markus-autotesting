@@ -37,8 +37,7 @@ class MarkusSQLTest(MarkusTest):
         self.path_to_solution = tester.specs['path_to_solution']
         self.schema_name = tester.specs['schema_name']
 
-    @staticmethod
-    def select_query(schema_name, table_name, order_by=None):
+    def select_query(self, schema_name, table_name, order_by=None):
         query = 'SELECT * FROM %(schema)s.%(table)s'
         query_vars = {'schema': psycopg2.extensions.AsIs(schema_name.lower()),
                       'table': psycopg2.extensions.AsIs(table_name.lower())}
@@ -221,13 +220,13 @@ class MarkusSQLTester(MarkusTester):
     def __init__(self, specs, test_class=MarkusSQLTest):
         super().__init__(specs, test_class)
         system_user = getpass.getuser()
-        for tester_spec in self.specs['tests']:
+        for tester_spec in specs['tests']:
             if tester_spec['user'] == system_user:
                 self.test_database = tester_spec['database']
                 self.user_name = tester_spec['user']
                 self.user_password = tester_spec['password']
                 break
-        self.oracle_database = self.specs['oracle_database']
+        self.oracle_database = specs['oracle_database']
         self.oracle_connection = None
         self.oracle_cursor = None
         self.test_connection = None

@@ -1,36 +1,57 @@
 #!/usr/bin/env python3
 
 import sys
+
 import os
 
-import markus_sql_config as sql_cfg
-import markus_jdbc_config as jdbc_cfg
 from markus_jdbc_tester import MarkusJDBCTester
+from markus_tester import MarkusTestSpecs
 from markusapi import Markus
 
 
 if __name__ == '__main__':
 
-    JAVA_FILES = ['Submission.java']
-    # TODO use JAVA_FILES in the specs?
-    JAVA_SPECS = {'selectMethod': {'all_data1.sql': 1, 'all_data2.sql': 1},
-                  'insertMethod': {'all_data1.sql': 1, 'all_data2.sql': 1}}
-    SQL_SPECS = {'insertMethod': {'all_data1.sql': [('Table1', 1), ('Table2', 1)],
-                                  'all_data2.sql': [('Table1', 1), ('Table2', 1)]}}
-    SCHEMA_NAME = 'ate'
-    tester = MarkusJDBCTester(oracle_database=sql_cfg.ORACLE_DATABASE, test_database=sql_cfg.TEST_DATABASE,
-                              user_name=sql_cfg.USER, user_password=sql_cfg.PASSWORD,
-                              path_to_solution=sql_cfg.PATH_TO_SOLUTION, schema_name=SCHEMA_NAME, java_specs=JAVA_SPECS,
-                              java_files=JAVA_FILES, java_jar=jdbc_cfg.PATH_TO_JDBC_JAR, sql_specs=SQL_SPECS)
-    tester.run()
-    # use markus apis if needed
+    # Markus identifiers
     root_url = sys.argv[1]
     api_key = sys.argv[2]
     assignment_id = sys.argv[3]
     group_id = sys.argv[4]
     repo_name = sys.argv[5]
-    # file_name = 'feedback_jdbc.txt'
-    # if os.path.isfile(file_name):
+    SPECS = MarkusTestSpecs()
+
+    # Students are required to create a solution table in their submission, named as the sql file without the file
+    # extension; e.g. an 'example.sql' file must have a 'CREATE TABLE example [...];' in it.
+    # Students are also required to submit an additional sql file with '_order' suffix for each submission that cares
+    # about ordering, which selects from their solution table and does the ordering; e.g. an 'example.sql' file must
+    # have an additional 'example_order.sql' file with a 'SELECT * FROM example ORDER BY [...];' in it)
+
+    # The points assigned to each test case; points can be assigned in three ways:
+    # 1) to some tests+datasets
+    #    SPECS['points'] = {'test1': {'data1': 11, 'data2': 12}, 'test2': {'data1': 21, 'data2': 22}}
+    # 2) to all datasets of some tests
+    #    SPECS['test_points'] = {'test1': 1, 'test2': 2}
+    # 3) to all tests of some datasets
+    #    SPECS['data_points'] = {'data1': 1, 'data2': 2}
+    # If you don't specify some tests/datasets from the solution, they are assigned a default of 1 point.
+    SPECS['data_points'] = {'data1.sql': 1, 'data2.sql': 2}
+
+    # The schema name
+    SPECS['schema_name'] = 'ate'
+
+    # The feedback file name (defaults to no feedback file if commented out).
+    # SPECS['feedback_file'] = 'feedback_jdbc.txt'
+
+    SPECS['java_files'] = ['Submission.java']
+    # TODO use JAVA_FILES in the specs?
+    JAVA_SPECS = {'selectMethod': {'all_data1.sql': 1, 'all_data2.sql': 1},
+                  'insertMethod': {'all_data1.sql': 1, 'all_data2.sql': 1}}
+    SQL_SPECS = {'insertMethod': {'all_data1.sql': [('Table1', 1), ('Table2', 1)],
+                                  'all_data2.sql': [('Table1', 1), ('Table2', 1)]}}
+    tester = MarkusJDBCTester(java_specs=JAVA_SPECS, java_files=JAVA_FILES, java_jar=jdbc_cfg.PATH_TO_JDBC_JAR, sql_specs=SQL_SPECS)
+    tester = MarkusJDBCTester(specs=SPECS)
+    tester.run()
+    # Use markus apis if needed
+    # if os.path.isfile(SPECS['feedback_file']):
     #     api = Markus(api_key, root_url)
-    #     with open(file_name) as open_file:
-    #         api.upload_feedback_file(assignment_id, group_id, file_name, open_file.read())
+    #     with open(SPECS['feedback_file']) as feedback_open:
+    #         api.upload_feedback_file(assignment_id, group_id, SPECS['feedback_file'], feedback_open.read())
