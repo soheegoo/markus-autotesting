@@ -22,6 +22,8 @@ class MarkusSQLTest(MarkusTest):
         'bad_row_content_no_order': 'Expected to find a row {} in the results',
         'bad_row_content_order': 'Expected row {} in the ordered results to be {} instead of {}'
     }
+    SCHEMA_FILE = 'schema.ddl'
+    DATASET_DIR = 'datasets'
 
     def __init__(self, tester, test_file, data_files, points, test_extra, feedback_open):
         super().__init__(tester, test_file, data_files, points, test_extra, feedback_open)
@@ -62,11 +64,11 @@ class MarkusSQLTest(MarkusTest):
                                  {'schema': psycopg2.extensions.AsIs(self.schema_name)})
         self.test_cursor.execute('SET search_path TO %(schema)s',
                                  {'schema': psycopg2.extensions.AsIs(self.schema_name)})
-        with open(os.path.join(self.path_to_solution, MarkusSQLTester.SCHEMA_FILE)) as schema_open:
+        with open(os.path.join(self.path_to_solution, self.SCHEMA_FILE)) as schema_open:
             schema = schema_open.read()
             self.test_cursor.execute(schema)
         if data_file is not None:
-            with open(os.path.join(self.path_to_solution, MarkusSQLTester.DATASET_DIR, data_file)) as data_open:
+            with open(os.path.join(self.path_to_solution, self.DATASET_DIR, data_file)) as data_open:
                 data = data_open.read()
                 self.test_cursor.execute(data)
         self.test_connection.commit()
@@ -212,10 +214,6 @@ class MarkusSQLTest(MarkusTest):
 
 
 class MarkusSQLTester(MarkusTester):
-
-    SCHEMA_FILE = 'schema.ddl'
-    DATASET_DIR = 'datasets'
-    QUERY_DIR = 'queries'
 
     def __init__(self, specs, test_class=MarkusSQLTest):
         super().__init__(specs, test_class)

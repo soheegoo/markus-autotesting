@@ -102,7 +102,7 @@ class MarkusTestSpecs(collections.MutableMapping):
         return self[MarkusTestSpecs.FEEDBACK_FILE_KEY]
 
     @property
-    def test_files(self):
+    def tests(self):
         return self.matrix.keys()
 
 
@@ -116,7 +116,7 @@ class MarkusTest:
 
     def __init__(self, tester, test_file, data_files, points, test_extra, feedback_open=None):
         self.tester = tester
-        self.test_file = test_file
+        self.test_file = test_file  # TODO Is really a file or a more generic test the base unit here?
         self.test_name = os.path.splitext(test_file)[0]
         self.data_files = data_files
         self.data_name = MarkusTestSpecs.DATA_FILES_SEPARATOR.join(
@@ -126,8 +126,8 @@ class MarkusTest:
         else:
             self.test_data_name = '{} + {}'.format(self.test_name, self.data_name)
         self.points = points  # TODO Use a default or disable if not set?
-        if isinstance(self.points, dict):
-            self.points_total = max(self.points.values())
+        if isinstance(self.points, collections.abc.Mapping):
+            self.points_total = sum(self.points.values())
         else:
             self.points_total = self.points
         if self.points_total <= 0:
@@ -191,7 +191,7 @@ class MarkusTest:
         self.feedback_open.write('========== {}: {} ==========\n\n'.format(self.test_data_name, status.value.upper()))
         if feedback:
             self.feedback_open.write('## Feedback: {}\n\n'.format(feedback))
-        if status != MarkusTest.Status.PASS:
+        if status != self.Status.PASS:
             if oracle_solution:
                 self.feedback_open.write('## Expected Solution:\n\n')
                 self.feedback_open.write(oracle_solution)
@@ -206,9 +206,9 @@ class MarkusTest:
         :param message: An optional message, will be shown as test output.
         :return The formatted passed test.
         """
-        result = self.format(status=MarkusTest.Status.PASS, points_awarded=self.points_total, output=message)
+        result = self.format(status=self.Status.PASS, points_awarded=self.points_total, output=message)
         if self.feedback_open:
-            self.add_feedback(status=MarkusTest.Status.PASS)
+            self.add_feedback(status=self.Status.PASS)
         return result
 
     def partially_passed(self, points_awarded, message, oracle_solution=None, test_solution=None):
@@ -226,9 +226,9 @@ class MarkusTest:
             return self.failed(message, oracle_solution, test_solution)
         if points_awarded >= self.points_total:
             return self.passed(message)
-        result = self.format(status=MarkusTest.Status.PARTIAL, points_awarded=points_awarded, output=message)
+        result = self.format(status=self.Status.PARTIAL, points_awarded=points_awarded, output=message)
         if self.feedback_open:
-            self.add_feedback(status=MarkusTest.Status.PARTIAL, feedback=message, oracle_solution=oracle_solution,
+            self.add_feedback(status=self.Status.PARTIAL, feedback=message, oracle_solution=oracle_solution,
                               test_solution=test_solution)
         return result
 
@@ -240,9 +240,9 @@ class MarkusTest:
         :param test_solution: The optional student solution to be added to the feedback file.
         :return The formatted failed test.
         """
-        result = self.format(status=MarkusTest.Status.FAIL, points_awarded=0, output=message)
+        result = self.format(status=self.Status.FAIL, points_awarded=0, output=message)
         if self.feedback_open:
-            self.add_feedback(status=MarkusTest.Status.FAIL, feedback=message, oracle_solution=oracle_solution,
+            self.add_feedback(status=self.Status.FAIL, feedback=message, oracle_solution=oracle_solution,
                               test_solution=test_solution)
         return result
 
@@ -252,9 +252,9 @@ class MarkusTest:
         :param message: The error message, will be shown as test output.
         :return The formatted erred test.
         """
-        result = self.format(status=MarkusTest.Status.ERROR, points_awarded=0, output=message)
+        result = self.format(status=self.Status.ERROR, points_awarded=0, output=message)
         if self.feedback_open:
-            self.add_feedback(status=MarkusTest.Status.ERROR, feedback=message)
+            self.add_feedback(status=self.Status.ERROR, feedback=message)
         return result
 
     def run(self):
@@ -288,7 +288,7 @@ class MarkusTester:
                 feedback_open = (stack.enter_context(open(self.specs.feedback_file, 'w'))
                                  if self.specs.feedback_file is not None
                                  else None)
-                for test_file in sorted(self.specs.test_files):
+                for test_file in sorted(self.specs.tests):
                     test_extra = self.specs.matrix[test_file].get(MarkusTestSpecs.MATRIX_NONTEST_KEY, {})
                     for data_files in sorted(self.specs.matrix[test_file].keys()):
                         if data_files == MarkusTestSpecs.MATRIX_NONTEST_KEY:

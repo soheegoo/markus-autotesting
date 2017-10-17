@@ -42,12 +42,6 @@ if __name__ == '__main__':
     # SPECS['feedback_file'] = 'feedback_jdbc.txt'
 
     SPECS['java_files'] = ['Submission.java']
-    # TODO use JAVA_FILES in the specs?
-    JAVA_SPECS = {'selectMethod': {'all_data1.sql': 1, 'all_data2.sql': 1},
-                  'insertMethod': {'all_data1.sql': 1, 'all_data2.sql': 1}}
-    SQL_SPECS = {'insertMethod': {'all_data1.sql': [('Table1', 1), ('Table2', 1)],
-                                  'all_data2.sql': [('Table1', 1), ('Table2', 1)]}}
-    tester = MarkusJDBCTester(java_specs=JAVA_SPECS, java_files=JAVA_FILES, java_jar=jdbc_cfg.PATH_TO_JDBC_JAR, sql_specs=SQL_SPECS)
     tester = MarkusJDBCTester(specs=SPECS)
     tester.run()
     # Use markus apis if needed

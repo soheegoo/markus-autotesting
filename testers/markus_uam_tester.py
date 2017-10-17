@@ -30,7 +30,7 @@ class MarkusUAMTester(MarkusTester):
         super().__init__(specs, test_class)
         path_to_tests = specs.get('path_to_tests', '.')
         test_points = {test_file: specs.matrix[test_file][MarkusTestSpecs.MATRIX_NODATA_KEY]
-                       for test_file in specs.test_files}
+                       for test_file in specs.tests}
         global_timeout = specs.get('global_timeout', UAMTester.GLOBAL_TIMEOUT_DEFAULT)
         test_timeout = specs.get('test_timeout', UAMTester.TEST_TIMEOUT_DEFAULT)
         self.uam_tester = tester_class(specs['path_to_uam'], path_to_tests, test_points, global_timeout, test_timeout,

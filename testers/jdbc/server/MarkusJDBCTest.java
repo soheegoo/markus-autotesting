@@ -6,7 +6,7 @@ import java.text.MessageFormat;
 import java.util.HashMap;
 import java.util.Map;
 
-public class MarkusJDBCTester {
+public class MarkusJDBCTest {
 
     private static final Map<String, String> ERROR_MSGS = new HashMap<>();
     static {
@@ -26,7 +26,7 @@ public class MarkusJDBCTester {
     private SubmissionOracle oracle;
     private Submission test;
 
-    public MarkusJDBCTester(String oracleDatabase, String testDatabase, String userName, String userPassword) {
+    public MarkusJDBCTest(String oracleDatabase, String testDatabase, String userName, String userPassword) {
 
         this.oracleDatabase = oracleDatabase;
         this.testDatabase = testDatabase;
@@ -92,7 +92,7 @@ public class MarkusJDBCTester {
 
         String dataName = null;
         String testDataName = "JAVA " + testName;
-        if (!testName.equals(MarkusJDBCTester.CONNECTION_TEST)) {
+        if (!testName.equals(MarkusJDBCTest.CONNECTION_TEST)) {
             dataName = dataFile.split("\\.")[0];
             testDataName += " + " + dataName;
         }
@@ -118,7 +118,7 @@ public class MarkusJDBCTester {
         }
         int pointsAwarded = (testResult.status.equals("pass")) ? pointsTotal : 0; // closeDB() doesn't matter..
         MarkusUtils.TestResult closeResult = this.closeDB();
-        if (testName.equals(MarkusJDBCTester.CONNECTION_TEST) && testResult.status.equals("pass")) {
+        if (testName.equals(MarkusJDBCTest.CONNECTION_TEST) && testResult.status.equals("pass")) {
             testResult = closeResult;
             pointsAwarded = (testResult.status.equals("pass")) ? pointsTotal : 0; // ..unless it's the connection test
         }
@@ -140,8 +140,8 @@ public class MarkusJDBCTester {
         final String DATA_FILE = args[5];
         final int POINTS_TOTAL = Integer.valueOf(args[6]);
 
-        MarkusJDBCTester tester = new MarkusJDBCTester(ORACLE_DATABASE, TEST_DATABASE, USER_NAME, USER_PASSWORD);
-        tester.run(DATA_FILE, TEST_NAME, POINTS_TOTAL);
+        MarkusJDBCTest test = new MarkusJDBCTest(ORACLE_DATABASE, TEST_DATABASE, USER_NAME, USER_PASSWORD);
+        test.run(DATA_FILE, TEST_NAME, POINTS_TOTAL);
     }
 
 }
