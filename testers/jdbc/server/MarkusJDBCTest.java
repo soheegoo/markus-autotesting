@@ -1,12 +1,24 @@
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.lang.reflect.Method;
 import java.sql.PreparedStatement;
 import java.text.MessageFormat;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class MarkusJDBCTest {
+
+    private static class TestResult {
+        String msg;
+        String status;
+        public TestResult(String status, String msg) {
+            this.status = status;
+            this.msg = msg;
+        }
+    }
 
     private static final Map<String, String> ERROR_MSGS = new HashMap<>();
     static {
@@ -23,62 +35,66 @@ public class MarkusJDBCTest {
     private String testDatabase;
     private String userName;
     private String userPassword;
+    private String dataName;
+    private String testName;
     private SubmissionOracle oracle;
     private Submission test;
 
-    public MarkusJDBCTest(String oracleDatabase, String testDatabase, String userName, String userPassword) {
+    public MarkusJDBCTest(String oracleDatabase, String testDatabase, String userName, String userPassword,
+                          String dataName, String testName) {
 
         this.oracleDatabase = oracleDatabase;
         this.testDatabase = testDatabase;
         this.userName = userName;
         this.userPassword = userPassword;
+        this.dataName = dataName;
+        this.testName = testName;
     }
 
-    private MarkusUtils.TestResult initDB(String dataName) {
+    private TestResult initDB() {
 
         try {
             this.oracle = new SubmissionOracle();
             this.test = new Submission();
             final String JDBC_PREAMBLE = "jdbc:postgresql://localhost:5432/";
-            boolean testConnected = this.test.connectDB(JDBC_PREAMBLE + this.testDatabase, this.userName, this.userPassword);
+            boolean testConnected = this.test.connectDB(JDBC_PREAMBLE + this.testDatabase, this.userName,
+                                                        this.userPassword);
             if (!testConnected || this.test.connection == null || !this.test.connection.isValid(0)) {
-                String msg = ERROR_MSGS.get("bad_connection");
-                return new MarkusUtils.TestResult(msg, "fail");
+                return new TestResult("fail", ERROR_MSGS.get("bad_connection"));
             }
             this.oracle.connectDB(JDBC_PREAMBLE + this.oracleDatabase, this.userName, this.userPassword);
-            if (dataName != null) {
-                String oracleSchema = "set search_path to " + dataName.toLowerCase();
+            if (this.dataName != null) {
+                String oracleSchema = "set search_path to " + this.dataName.toLowerCase();
                 PreparedStatement ps = this.oracle.connection.prepareStatement(oracleSchema);
                 ps.execute();
                 ps.close();
             }
-            return new MarkusUtils.TestResult("", "pass");
+            return new TestResult("pass", "");
         }
         catch (Exception e) {
             String msg = MessageFormat.format(ERROR_MSGS.get("ex_connection"), e.getMessage());
-            return new MarkusUtils.TestResult(msg, "fail");
+            return new TestResult("fail", msg);
         }
     }
 
-    private MarkusUtils.TestResult closeDB() {
+    private TestResult closeDB() {
 
         try {
             boolean testDisconnected = this.test.disconnectDB();
             if (!testDisconnected || (this.test.connection != null && !this.test.connection.isClosed())) {
-                String msg = ERROR_MSGS.get("bad_disconnection");
-                try { // try to close manually, but the error should still be bad_disconnection
+                try { // try to close manually
                     if (this.test.connection != null) {
                         this.test.connection.close();
                     }
                 }
                 catch (Exception e) {}
-                return new MarkusUtils.TestResult(msg, "fail");
+                return new TestResult("fail", ERROR_MSGS.get("bad_disconnection"));
             }
-            return new MarkusUtils.TestResult("", "pass");
+            return new TestResult("pass", "");
         }
         catch (Exception e) {
             String msg = MessageFormat.format(ERROR_MSGS.get("ex_disconnection"), e.getMessage());
-            return new MarkusUtils.TestResult(msg, "fail");
+            return new TestResult("fail", msg);
         }
         finally {
             try {
@@ -88,14 +104,7 @@ public class MarkusJDBCTest {
         }
     }
 
-    private void run(String dataFile, String testName, int pointsTotal) {
-
-        String dataName = null;
-        String testDataName = "JAVA " + testName;
-        if (!testName.equals(MarkusJDBCTest.CONNECTION_TEST)) {
-            dataName = dataFile.split("\\.")[0];
-            testDataName += " + " + dataName;
-        }
+    private void run() {
 
         // redirect stdout and stderr
         PrintStream outOrig = System.out, errOrig = System.err;
@@ -106,42 +115,49 @@ public class MarkusJDBCTest {
             public void write(int b) throws IOException {}
         }));
         // run tests
-        MarkusUtils.TestResult testResult = this.initDB(dataName);
+        TestResult testResult = this.initDB();
         if (testResult.status.equals("pass")) {
-            switch (testName) {
-//                case "X":
-//                    testResult = this.testX(dataName);
-//                    break;
-                default:
-                    break;
+            List<Object> inputList = this.oracle.getInputs(this.dataName, this.testName);
+            Class[] inputClasses = inputList.stream()
+                    .map(Object::getClass)
+                    .collect(Collectors.toList())
+                    .toArray(new Class[] {});
+            Object[] inputs = inputList.toArray(new Object[] {});
+            try {
+                Method testMethod = this.test.getClass().getMethod(this.testName, inputClasses);
+                Object testOutput = testMethod.invoke(this.test, inputs);
+                Method oracleMethod = this.oracle.getClass().getMethod(this.testName, inputClasses);
+                Object oracleOutput = oracleMethod.invoke(this.oracle, inputs);
+                //TODO compare outputs
+            } catch (Exception e) {
+                //TODO return failure
             }
         }
-        int pointsAwarded = (testResult.status.equals("pass")) ? pointsTotal : 0; // closeDB() doesn't matter..
-        MarkusUtils.TestResult closeResult = this.closeDB();
-        if (testName.equals(MarkusJDBCTest.CONNECTION_TEST) && testResult.status.equals("pass")) {
+        TestResult closeResult = this.closeDB();
+        if (this.testName.equals(MarkusJDBCTest.CONNECTION_TEST) && testResult.status.equals("pass")) {
             testResult = closeResult;
-            pointsAwarded = (testResult.status.equals("pass")) ? pointsTotal : 0; // ..unless it's the connection test
         }
-        // restore stdout and stderr
+        // restore stdout and stderr, then print results
         System.setOut(outOrig);
         System.setErr(errOrig);
-        // print results
-        MarkusUtils.printTestResult(testDataName, testResult.status, testResult.msg, pointsAwarded, pointsTotal);
-        MarkusUtils.printFileSummary(testDataName, testResult.status, testResult.msg);
+        System.out.println(testResult.status);
+        if (!testResult.status.equals("pass")) {
+            System.err.println(testResult.msg);
+        }
     }
 
     public static void main(String args[]) {
 
-        final String ORACLE_DATABASE = args[0];
-        final String TEST_DATABASE = args[1];
-        final String USER_NAME = args[2];
-        final String USER_PASSWORD = args[3];
-        final String TEST_NAME = args[4];
-        final String DATA_FILE = args[5];
-        final int POINTS_TOTAL = Integer.valueOf(args[6]);
+        String oracleDatabase = args[0];
+        String testDatabase = args[1];
+        String userName = args[2];
+        String userPassword = args[3];
+        String testName = args[4];
+        String dataName = args[5];
 
-        MarkusJDBCTest test = new MarkusJDBCTest(ORACLE_DATABASE, TEST_DATABASE, USER_NAME, USER_PASSWORD);
-        test.run(DATA_FILE, TEST_NAME, POINTS_TOTAL);
+        MarkusJDBCTest test = new MarkusJDBCTest(oracleDatabase, testDatabase, userName, userPassword, dataName,
+                                                 testName);
+        test.run();
     }
 
 }

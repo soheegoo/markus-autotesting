@@ -45,13 +45,9 @@ public class SubmissionOracle {
      */
     public List<Object> getInputs(String dataName, String testName) {
 
-        switch (testName) {
-            case "":
-
-        }
         switch (dataName) {
-            case "all_data1":
-            case "all_data2":
+            case "data1":
+            case "data2":
                 double number = 0;
                 return Arrays.asList(number);
             default:
@@ -59,28 +55,14 @@ public class SubmissionOracle {
         }
     }
 
-    public Object testSelect(String dataName) {
+    public Object selectMethod() {
 
-        switch (dataName) {
-            case "allData1":
-                return Arrays.asList("a");
-            case "allData2":
-                return Arrays.asList("b");
-            default:
-                return null;
-        }
+        return null;
     }
 
-    public Object testInsert(String dataName) {
+    public Object insertMethod() {
 
-        switch (dataName) {
-            case "allData1":
-                return true;
-            case "allData2":
-                return false;
-            default:
-                return null;
-        }
+        return null;
     }
 
 }

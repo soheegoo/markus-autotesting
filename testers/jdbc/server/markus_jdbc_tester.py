@@ -3,7 +3,7 @@ import os
 import subprocess
 
 from markus_sql_tester import MarkusSQLTester, MarkusSQLTest
-from markus_tester import MarkusTester
+from markus_tester import MarkusTester, MarkusTest
 
 
 class MarkusJDBCTest(MarkusSQLTest):
@@ -21,20 +21,11 @@ class MarkusJDBCTest(MarkusSQLTest):
 
     def check_java(self):
         java_command = ['java', '-cp', self.java_classpath, self.__class__.__name__, self.oracle_database,
-                        self.test_database, self.user_name, self.user_password, self.test_name, self.data_file,
-                        str(self.points_total)]
+                        self.test_database, self.user_name, self.user_password, self.test_name, self.data_file]
         java = subprocess.run(java_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True,
                               check=True)
 
         return java
-
-    def get_test_results(self, table_name, sql_file, sql_order_file=None):
-        query, query_vars = self.select_query(schema_name=self.schema_name, table_name=table_name)
-        self.test_cursor.execute(query, query_vars)
-        self.test_connection.commit()
-        test_results = self.test_cursor.fetchall()
-
-        return test_results
 
     def run(self):
 
@@ -46,13 +37,8 @@ class MarkusJDBCTest(MarkusSQLTest):
         try:
             self.set_test_schema(self.data_file)
             java = self.check_java()
-            if java.stdout != 'pass':
+            if java.stdout != MarkusTest.Status.PASS.value:
                 return self.failed(message=java.stderr)
-            # TODO shouldn't just return 'pass'/'fail' + possibly a message, so that I can self.passed/self.failed?
-            # print(java.stdout)
-            # self.feedback_open.write(java.stderr)
-            # if '<status>pass</status>' not in java.stdout:
-            #     java_fail = True  # don't run SQL
         except Exception as e:
             self.oracle_connection.commit()
             self.test_connection.commit()
@@ -73,14 +59,13 @@ class MarkusJDBCTest(MarkusSQLTest):
             if table_name == self.JAVA_POINTS_KEY:
                 continue
             try:
-                test_results = self.get_test_results(table_name=table_name, sql_file=None) #TODO not allowed in sql tester?
-                oracle_results = self.get_oracle_results(schema_name=self.data_name, table_name=table_name)
-                message, status = self.check_results(oracle_results=oracle_results, test_results=test_results,
-                                                     order_on=False)
-                if status == 'pass':
+                test_results = self.get_test_results(table_name)
+                oracle_results = self.get_oracle_results(table_name)
+                status, message = self.check_results(oracle_results, test_results, order_on=False)
+                if status is MarkusTest.Status.PASS:
                     points_awarded += table_points
                 else:
-                    oracle_solution, test_solution = self.get_psql_dump() #TODO need to specify the table name
+                    oracle_solution, test_solution = self.get_psql_dump(table_name)
                     messages.append('(Table {}) {}'.format(table_name, message))
                     oracle_solutions.append(oracle_solution)
                     test_solutions.append(test_solution)
