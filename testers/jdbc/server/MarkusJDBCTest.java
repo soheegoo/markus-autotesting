@@ -2,8 +2,11 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.lang.reflect.Method;
+import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.text.MessageFormat;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +33,7 @@ public class MarkusJDBCTest {
         ERROR_MSGS.put("ex_output", "The test failed with an exception: ''{0}''");
     }
     private static final String CONNECTION_TEST = "Connection Test";
+    private static String JDBC_PREAMBLE = "jdbc:postgresql://localhost:5432/";
 
     private String oracleDatabase;
     private String testDatabase;
@@ -37,8 +41,8 @@ public class MarkusJDBCTest {
     private String userPassword;
     private String dataName;
     private String testName;
-    private SubmissionOracle oracle;
-    private Submission test;
+    private Connection oracleConnection;
+    private Submission testSubmission;
 
     public MarkusJDBCTest(String oracleDatabase, String testDatabase, String userName, String userPassword,
                           String dataName, String testName) {
@@ -51,21 +55,67 @@ public class MarkusJDBCTest {
         this.testName = testName;
     }
 
+    private static List<Object> getInputs(String testName, String dataName) {
+
+        //TODO inputs should be part of the specs
+        //TODO support different inputs per dataName?
+        switch (testName) {
+            case "select":
+                switch (dataName) {
+                    case "data1":
+                    case "data2":
+                        double numberThreshold = 0;
+                        return Arrays.asList(numberThreshold);
+                    default:
+                        return null;
+                }
+            case "insert":
+                switch (dataName) {
+                    case "data1":
+                    case "data2":
+                        String newWord = "xxxx";
+                        return Arrays.asList(newWord);
+                    default:
+                        return null;
+                }
+            default:
+                return null;
+        }
+    }
+
+    private static Object runMethod(Class<?> methodClass, Object methodObject, String testName, String dataName)
+                          throws Exception {
+
+        List<Object> inputList = MarkusJDBCTest.getInputs(testName, dataName);
+        if (inputList == null) {
+            throw new Exception(); //TODO failure message?
+        }
+        Class[] inputClasses = inputList.stream()
+            .map(Object::getClass)
+            .collect(Collectors.toList())
+            .toArray(new Class[] {});
+        Object[] inputs = inputList.toArray(new Object[] {});
+        Method method = methodClass.getMethod(testName, inputClasses);
+
+        return method.invoke(methodObject, inputs);
+    }
+
     private TestResult initDB() {
 
         try {
-            this.oracle = new SubmissionOracle();
-            this.test = new Submission();
-            final String JDBC_PREAMBLE = "jdbc:postgresql://localhost:5432/";
-            boolean testConnected = this.test.connectDB(JDBC_PREAMBLE + this.testDatabase, this.userName,
-                                                        this.userPassword);
-            if (!testConnected || this.test.connection == null || !this.test.connection.isValid(0)) {
+            this.testSubmission = new Submission(); //TODO search and replace with the class name when installing
+            boolean testConnected = this.testSubmission.connectDB(JDBC_PREAMBLE + this.testDatabase, this.userName,
+                                                                  this.userPassword);
+            if (!testConnected || this.testSubmission.connection == null ||
+                                  !this.testSubmission.connection.isValid(0)) {
                 return new TestResult("fail", ERROR_MSGS.get("bad_connection"));
             }
-            this.oracle.connectDB(JDBC_PREAMBLE + this.oracleDatabase, this.userName, this.userPassword);
+            //TODO handle our failure differently from student's?
+            this.oracleConnection = DriverManager.getConnection(JDBC_PREAMBLE + this.oracleDatabase, this.userName,
+                                                                this.userPassword);
             if (this.dataName != null) {
                 String oracleSchema = "set search_path to " + this.dataName.toLowerCase();
-                PreparedStatement ps = this.oracle.connection.prepareStatement(oracleSchema);
+                PreparedStatement ps = this.oracleConnection.prepareStatement(oracleSchema);
                 ps.execute();
                 ps.close();
             }
@@ -80,11 +130,12 @@ public class MarkusJDBCTest {
     private TestResult closeDB() {
 
         try {
-            boolean testDisconnected = this.test.disconnectDB();
-            if (!testDisconnected || (this.test.connection != null && !this.test.connection.isClosed())) {
+            boolean testDisconnected = this.testSubmission.disconnectDB();
+            if (!testDisconnected || (this.testSubmission.connection != null &&
+                                      !this.testSubmission.connection.isClosed())) {
                 try { // try to close manually
-                    if (this.test.connection != null) {
-                        this.test.connection.close();
+                    if (this.testSubmission.connection != null) {
+                        this.testSubmission.connection.close();
                     }
                 }
                 catch (Exception e) {}
@@ -98,7 +149,7 @@ public class MarkusJDBCTest {
         }
         finally {
             try {
-                this.oracle.disconnectDB();
+                this.oracleConnection.close();
             }
             catch (Exception e) {}
         }
@@ -117,19 +168,16 @@ public class MarkusJDBCTest {
         // run tests
         TestResult testResult = this.initDB();
         if (testResult.status.equals("pass")) {
-            List<Object> inputList = this.oracle.getInputs(this.dataName, this.testName);
-            Class[] inputClasses = inputList.stream()
-                    .map(Object::getClass)
-                    .collect(Collectors.toList())
-                    .toArray(new Class[] {});
-            Object[] inputs = inputList.toArray(new Object[] {});
             try {
-                Method testMethod = this.test.getClass().getMethod(this.testName, inputClasses);
-                Object testOutput = testMethod.invoke(this.test, inputs);
-                Method oracleMethod = this.oracle.getClass().getMethod(this.testName, inputClasses);
-                Object oracleOutput = oracleMethod.invoke(this.oracle, inputs);
-                //TODO compare outputs
-            } catch (Exception e) {
+                Object testOutput = MarkusJDBCTest.runMethod(this.testSubmission.getClass(), this.testSubmission,
+                                                             testName, dataName);
+                //TODO read solution table and deserialize the object
+                Object oracleOutput = null;
+                if (oracleOutput.equals(testOutput)) {
+                    //TODO compare outputs
+                }
+            }
+            catch (Exception e) {
                 //TODO return failure
             }
         }
@@ -149,15 +197,35 @@ public class MarkusJDBCTest {
     public static void main(String args[]) {
 
         String oracleDatabase = args[0];
-        String testDatabase = args[1];
-        String userName = args[2];
-        String userPassword = args[3];
-        String testName = args[4];
-        String dataName = args[5];
+        String userName = args[1];
+        String userPassword = args[2];
+        String testName = args[3];
+        String dataName = args[4];
+        String testDatabase = (args.length > 5) ? args[5] : null;
 
-        MarkusJDBCTest test = new MarkusJDBCTest(oracleDatabase, testDatabase, userName, userPassword, dataName,
-                                                 testName);
-        test.run();
+        if (testDatabase == null) { // installation
+            Solution solution = null;
+            try {
+                solution = new Solution();
+                solution.connectDB(JDBC_PREAMBLE + oracleDatabase, userName, userPassword);
+                Object output = MarkusJDBCTest.runMethod(solution.getClass(), solution, testName, dataName);
+                //TODO store serialized output in a table
+                //TODO create table with byte field during installation
+            }
+            catch (Exception e) {
+
+            }
+            finally {
+                if (solution != null) {
+                    solution.disconnectDB();
+                }
+            }
+        }
+        else { // run test
+            MarkusJDBCTest test = new MarkusJDBCTest(oracleDatabase, testDatabase, userName, userPassword, dataName,
+                                                     testName);
+            test.run();
+        }
     }
 
 }

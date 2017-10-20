@@ -21,7 +21,7 @@ class MarkusJDBCTest(MarkusSQLTest):
 
     def check_java(self):
         java_command = ['java', '-cp', self.java_classpath, self.__class__.__name__, self.oracle_database,
-                        self.test_database, self.user_name, self.user_password, self.test_name, self.data_file]
+                        self.user_name, self.user_password, self.test_name, self.data_file, self.test_database]
         java = subprocess.run(java_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True,
                               check=True)
 

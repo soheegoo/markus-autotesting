@@ -1,18 +1,20 @@
+import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 
-public class Submission extends JDBCSubmission {
+public class Submission {
+
+    Connection connection;
 
     Submission() throws ClassNotFoundException {
 
         Class.forName("org.postgresql.Driver");
     }
 
-    @Override
     public boolean connectDB(String URL, String username, String password) {
 
         try {
-            connection = DriverManager.getConnection(URL, username, password);
+            this.connection = DriverManager.getConnection(URL, username, password);
             return true;
         }
         catch (SQLException e) {
@@ -20,11 +22,10 @@ public class Submission extends JDBCSubmission {
         }
     }
 
-    @Override
     public boolean disconnectDB() {
 
         try {
-            connection.close();
+            this.connection.close();
             return true;
         }
         catch (SQLException e) {

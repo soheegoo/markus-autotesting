@@ -3,11 +3,11 @@
     "connection": {
       "nodata": 1
     },
-    "selectMethod": {
+    "select": {
       "data1.sql": 1, "data2.sql": 1
     },
-    "insertMethod": {
-      "data1.sql": {"JAVA": 1, "Table1": 1, "Table2": 1}, "data2.sql": {"JAVA": 1, "Table1": 1, "Table2": 1}
+    "insert": {
+      "data1.sql": {"JAVA": 1, "table1": 1}, "data2.sql": {"JAVA": 1, "table1": 1}
     }
   },
   "oracle_database": "oracle_db",
