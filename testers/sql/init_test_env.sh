@@ -5,8 +5,6 @@ if [ $# -ne 2 ]; then
     exit 1
 fi
 
-THISSCRIPT=$(readlink -f ${BASH_SOURCE})
-TESTERDIR=$(dirname ${THISSCRIPT})
 WORKINGDIR=$(readlink -f $1)
 SPECSDIR=$(readlink -f $2)
 SPECS=${SPECSDIR}/specs.json
