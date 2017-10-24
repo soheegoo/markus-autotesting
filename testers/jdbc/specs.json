@@ -4,10 +4,10 @@
       "nodata": 1
     },
     "select": {
-      "data1.sql": 1, "data2.sql": 1
+      "data1j.sql": 1, "data2j.sql": 1
     },
     "insert": {
-      "data1.sql": {"JAVA": 1, "table1": 1}, "data2.sql": {"JAVA": 1, "table1": 1}
+      "data1j.sql": {"JAVA": 1, "table1": 1}, "data2j.sql": {"JAVA": 1, "table1": 1}
     }
   },
   "path_to_jdbc_jar": "/path/to/jdbc/jar",

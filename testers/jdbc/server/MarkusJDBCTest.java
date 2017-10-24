@@ -1,10 +1,9 @@
-import java.io.IOException;
-import java.io.OutputStream;
-import java.io.PrintStream;
+import java.io.*;
 import java.lang.reflect.Method;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.text.MessageFormat;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -57,13 +56,13 @@ public class MarkusJDBCTest {
 
     private static List<Object> getInputs(String testName, String dataName) {
 
-        //TODO inputs should be part of the specs
+        //TODO getInputs should be part of the specs
         //TODO support different inputs per dataName?
         switch (testName) {
             case "select":
                 switch (dataName) {
-                    case "data1":
-                    case "data2":
+                    case "data1j":
+                    case "data2j":
                         double numberThreshold = 0;
                         return Arrays.asList(numberThreshold);
                     default:
@@ -71,8 +70,8 @@ public class MarkusJDBCTest {
                 }
             case "insert":
                 switch (dataName) {
-                    case "data1":
-                    case "data2":
+                    case "data1j":
+                    case "data2j":
                         String newWord = "xxxx";
                         return Arrays.asList(newWord);
                     default:
@@ -100,6 +99,14 @@ public class MarkusJDBCTest {
         return method.invoke(methodObject, inputs);
     }
 
+    private static void setSchema(Connection connection, String schemaName) throws SQLException {
+
+        String oracleSchema = "SET search_path TO " + schemaName.toLowerCase();
+        PreparedStatement ps = connection.prepareStatement(oracleSchema);
+        ps.execute();
+        ps.close();
+    }
+
     private TestResult initDB() {
 
         try {
@@ -114,10 +121,7 @@ public class MarkusJDBCTest {
             this.oracleConnection = DriverManager.getConnection(JDBC_PREAMBLE + this.oracleDatabase, this.userName,
                                                                 this.userPassword);
             if (this.dataName != null) {
-                String oracleSchema = "set search_path to " + this.dataName.toLowerCase();
-                PreparedStatement ps = this.oracleConnection.prepareStatement(oracleSchema);
-                ps.execute();
-                ps.close();
+                MarkusJDBCTest.setSchema(this.oracleConnection, this.dataName);
             }
             return new TestResult("pass", "");
         }
@@ -169,10 +173,17 @@ public class MarkusJDBCTest {
         TestResult testResult = this.initDB();
         if (testResult.status.equals("pass")) {
             try {
+                //TODO do I need the schema to set it for students?
                 Object testOutput = MarkusJDBCTest.runMethod(this.testSubmission.getClass(), this.testSubmission,
                                                              testName, dataName);
                 //TODO read solution table and deserialize the object
+                byte[] byteOutput = null;
                 Object oracleOutput = null;
+                try (ByteArrayInputStream bis = new ByteArrayInputStream(byteOutput)) {
+                    try (ObjectInputStream ois = new ObjectInputStream(bis)) {
+                        oracleOutput = ois.readObject();
+                    }
+                }
                 if (oracleOutput.equals(testOutput)) {
                     //TODO compare outputs
                 }
@@ -206,14 +217,29 @@ public class MarkusJDBCTest {
         if (testDatabase == null) { // installation
             Solution solution = null;
             try {
+                userPassword = new String(System.console().readPassword(
+                        "[JDBC] Insert password for oracle user '" + userName + "': ")); // avoids logging it
+                System.out.println("[JDBC-Java] Running method '" + testName + "()'");
                 solution = new Solution();
                 solution.connectDB(JDBC_PREAMBLE + oracleDatabase, userName, userPassword);
-                Object output = MarkusJDBCTest.runMethod(solution.getClass(), solution, testName, dataName);
-                //TODO store serialized output in a table
-                //TODO create table with byte field during installation
+                MarkusJDBCTest.setSchema(solution.connection, dataName);
+                Object javaOutput = MarkusJDBCTest.runMethod(solution.getClass(), solution, testName, dataName);
+                System.out.println("[JDBC-Java] Storing output into solution table");
+                byte[] byteOutput;
+                try (ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
+                    try (ObjectOutputStream oos = new ObjectOutputStream(bos)) {
+                        oos.writeObject(javaOutput);
+                    }
+                    byteOutput = bos.toByteArray();
+                }
+                String sql = "INSERT INTO " + testName + "(java_output) VALUES (?)";
+                PreparedStatement statement = solution.connection.prepareStatement(sql);
+                statement.setBytes(1, byteOutput);
+                statement.executeUpdate();
+                statement.close();
             }
             catch (Exception e) {
-
+                System.out.println("[JDBC-Java] Error: " + e.getMessage());
             }
             finally {
                 if (solution != null) {

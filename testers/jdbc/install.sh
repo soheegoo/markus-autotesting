@@ -5,28 +5,29 @@ if [[ $# -lt 1 || $# -gt 4 || $# -eq 2 ]]; then
 	exit 1
 fi
 
+THISSCRIPT=$(readlink -f ${BASH_SOURCE})
+TESTERDIR=$(dirname ${THISSCRIPT})
+SPECS=${TESTERDIR}/specs.json
 JARPATH=$(readlink -f $1)
+
 if [[ $# -eq 1 ]]; then
     echo "[JDBC] Reusing already installed SQL tester"
 else
-    THISSCRIPT=$(readlink -f ${BASH_SOURCE})
-    TESTERDIR=$(dirname ${THISSCRIPT})
-    ORACLEUSER=$1
-    TESTUSER=$2
+    ORACLEUSER=$2
+    TESTUSER=$3
     echo "[JDBC] Installing SQL tester"
     if [[ $# -eq 4 ]]; then
-        NUMUSERS=$3
+        NUMUSERS=$4
         ${TESTERDIR}/../sql/install.sh ${ORACLEUSER} ${TESTUSER} ${NUMUSERS}
     else
         ${TESTERDIR}/../sql/install.sh ${ORACLEUSER} ${TESTUSER}
     fi
 fi
-
 echo "[JDBC] Installing system packages"
 sudo apt-get install python3 openjdk-9-jre
 echo "[JDBC] Updating json specs file"
-ORACLEDB=$(awk "/oracle_database" ${TESTERDIR}/../sql/specs.json)
-sed -i -e "s#oracle_database#c\\${ORACLEDB}" ${TESTERDIR}/specs.json
-TESTS=$(awk "/tests" ${TESTERDIR}/../sql/specs.json)
-sed -i -e "s#tests#c\\${TESTS}" ${TESTERDIR}/specs.json
-sed -i -e "s#/path/to/jdbc/jar#${JARPATH}#g" ${TESTERDIR}/specs.json
+ORACLEDB=$(awk "/oracle_database/" ${TESTERDIR}/../sql/specs.json) # copy sql oracle_database line
+sed -i -e "\#oracle_database#c\\${ORACLEDB}" ${SPECS}
+TESTS=$(awk "/tests/" ${TESTERDIR}/../sql/specs.json) # copy sql tests line
+sed -i -e "\#tests#c\\${TESTS}" ${SPECS}
+sed -i -e "s#/path/to/jdbc/jar#${JARPATH}#g" ${SPECS}
