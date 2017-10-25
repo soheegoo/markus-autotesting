@@ -7,9 +7,13 @@ from uam_tester import UAMResult, UAMTester
 class MarkusUAMTest(MarkusTest):
 
     def __init__(self, tester, uam_result, points_total, feedback_open):
-        super().__init__(tester, uam_result.test_title, [], points_total, {}, feedback_open)
-        self.test_data_name = uam_result.test_title
+        super().__init__(tester, uam_result.test_title, [MarkusTestSpecs.MATRIX_NODATA_KEY], points_total, {},
+                         feedback_open)
         self.uam_result = uam_result
+
+    @property
+    def test_name(self):
+        return self.test_file
 
     def run(self):
         if self.uam_result.status == UAMResult.Status.PASS:

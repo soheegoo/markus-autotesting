@@ -117,14 +117,7 @@ class MarkusTest:
     def __init__(self, tester, test_file, data_files, points, test_extra, feedback_open=None):
         self.tester = tester
         self.test_file = test_file  # TODO Is really a file or a more generic test the base unit here?
-        self.test_name = os.path.splitext(test_file)[0]
         self.data_files = data_files
-        self.data_name = MarkusTestSpecs.DATA_FILES_SEPARATOR.join(
-                             [os.path.splitext(data_file)[0] for data_file in data_files])
-        if self.data_name == '':
-            self.test_data_name = self.test_name
-        else:
-            self.test_data_name = '{} + {}'.format(self.test_name, self.data_name)
         self.points = points  # TODO Use a default or disable if not set?
         if isinstance(self.points, collections.abc.Mapping):
             self.points_total = sum(self.points.values())
@@ -134,6 +127,22 @@ class MarkusTest:
             raise ValueError('The test total points must be > 0')
         self.test_extra = test_extra
         self.feedback_open = feedback_open
+
+    @property
+    def test_name(self):
+        return os.path.splitext(self.test_file)[0]
+
+    @property
+    def data_name(self):
+        return MarkusTestSpecs.DATA_FILES_SEPARATOR.join([os.path.splitext(data_file)[0]
+                                                          for data_file in self.data_files])
+
+    @property
+    def test_data_name(self):
+        if self.data_name == MarkusTestSpecs.MATRIX_NODATA_KEY:
+            return self.test_name
+        else:
+            return '{} + {}'.format(self.test_name, self.data_name)
 
     @staticmethod
     def format_result(test_name, status, points_awarded, output, points_total=None):

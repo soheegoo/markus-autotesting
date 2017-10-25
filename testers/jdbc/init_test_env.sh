@@ -30,7 +30,7 @@ testnames=( $(jq -r '.matrix | keys | map(select(. | contains("CONNECTION") | no
 for testname in "${testnames[@]}"; do
     datasets=( $(jq -r --arg q ${testname} '.matrix | .[$q] | keys | map(select(. != "extra"))[]' ${SPECS}) )
     testnamedb=${testname/./_} # convert . to _
-    testnamedb=${testnamedb,,} # convert classes to lowercase
+    testnamedb=${testnamedb,,} # convert classes and methods to lowercase
     for datafile in "${datasets[@]}"; do
         schemaname=$(basename -s .sql ${datafile})
         if [[ "${schemas}" != *" ${schemaname} "* ]]; then # first time using this dataset, create a schema for it
@@ -53,7 +53,7 @@ for testname in "${testnames[@]}"; do
             GRANT SELECT ON ${schemaname}.${testnamedb} TO ${ALLTESTUSERS};
         " >| /tmp/ate.sql
         psql -U ${ORACLEUSER} -d ${ORACLEDB} -h localhost -f /tmp/ate.sql
-        java -cp ${CLASSDIR}:${JARPATH} MarkusJDBCTest ${ORACLEDB} ${ORACLEUSER} placeholder ${testname} ${schemaname}
+        java -cp ${CLASSDIR}:${JARPATH} MarkusJDBCTest ${ORACLEDB} ${ORACLEUSER} placeholder ${schemaname} ${testname} ${schemaname}
     done
 done
 rm /tmp/ate.sql

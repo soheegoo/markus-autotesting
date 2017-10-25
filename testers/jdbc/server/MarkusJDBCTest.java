@@ -1,19 +1,16 @@
 import java.io.*;
 import java.lang.reflect.Method;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
+import java.sql.*;
 import java.text.MessageFormat;
 import java.util.HashMap;
 import java.util.Map;
 
 public class MarkusJDBCTest {
 
-    private static class TestResult {
-        String msg;
+    private static class TestStatus {
         String status;
-        public TestResult(String status, String msg) {
+        String msg;
+        public TestStatus(String status, String msg) {
             this.status = status;
             this.msg = msg;
         }
@@ -35,6 +32,7 @@ public class MarkusJDBCTest {
     private String testDatabase;
     private String userName;
     private String userPassword;
+    private String schemaName;
     private String dataName;
     private String className;
     private String methodName;
@@ -42,12 +40,13 @@ public class MarkusJDBCTest {
     private JDBCSubmission testSubmission;
 
     public MarkusJDBCTest(String oracleDatabase, String testDatabase, String userName, String userPassword,
-                          String dataName, String className, String methodName) {
+                          String schemaName, String dataName, String className, String methodName) {
 
         this.oracleDatabase = oracleDatabase;
         this.testDatabase = testDatabase;
         this.userName = userName;
         this.userPassword = userPassword;
+        this.schemaName = schemaName;
         this.dataName = dataName;
         this.className = className;
         this.methodName = methodName;
@@ -103,13 +102,13 @@ public class MarkusJDBCTest {
 
     private static void setSchema(Connection connection, String schemaName) throws SQLException {
 
-        String oracleSchema = "SET search_path TO " + schemaName.toLowerCase();
-        PreparedStatement ps = connection.prepareStatement(oracleSchema);
-        ps.execute();
-        ps.close();
+        String sql = "SET search_path TO " + schemaName.toLowerCase();
+        PreparedStatement statement = connection.prepareStatement(sql);
+        statement.execute();
+        statement.close();
     }
 
-    private TestResult initDB() {
+    private TestStatus initDB() {
 
         try {
             this.testSubmission = (JDBCSubmission) Class.forName(this.className).newInstance();
@@ -117,23 +116,19 @@ public class MarkusJDBCTest {
                                                                   this.userPassword);
             if (!testConnected || this.testSubmission.connection == null ||
                                   !this.testSubmission.connection.isValid(0)) {
-                return new TestResult("fail", ERROR_MSGS.get("bad_connection"));
+                return new TestStatus("fail", ERROR_MSGS.get("bad_connection"));
             }
-            //TODO handle our failure differently from student's?
             this.oracleConnection = DriverManager.getConnection(JDBC_PREAMBLE + this.oracleDatabase, this.userName,
                                                                 this.userPassword);
-            if (this.dataName != null) {
-                MarkusJDBCTest.setSchema(this.oracleConnection, this.dataName);
-            }
-            return new TestResult("pass", "");
+            return new TestStatus("pass", "");
         }
         catch (Exception e) {
             String msg = MessageFormat.format(ERROR_MSGS.get("ex_connection"), e.getMessage());
-            return new TestResult("fail", msg);
+            return new TestStatus("fail", msg);
         }
     }
 
-    private TestResult closeDB() {
+    private TestStatus closeDB() {
 
         try {
             boolean testDisconnected = this.testSubmission.disconnectDB();
@@ -145,13 +140,13 @@ public class MarkusJDBCTest {
                     }
                 }
                 catch (Exception e) {}
-                return new TestResult("fail", ERROR_MSGS.get("bad_disconnection"));
+                return new TestStatus("fail", ERROR_MSGS.get("bad_disconnection"));
             }
-            return new TestResult("pass", "");
+            return new TestStatus("pass", "");
         }
         catch (Exception e) {
             String msg = MessageFormat.format(ERROR_MSGS.get("ex_disconnection"), e.getMessage());
-            return new TestResult("fail", msg);
+            return new TestStatus("fail", msg);
         }
         finally {
             try {
@@ -159,6 +154,38 @@ public class MarkusJDBCTest {
             }
             catch (Exception e) {}
         }
+    }
+
+    private Object getOracleResults() throws Exception {
+
+        String sql = MessageFormat.format("SELECT java_output FROM {0}.{1}_{2}", this.dataName,
+                                          this.className.toLowerCase(), this.methodName.toLowerCase());
+        PreparedStatement statement = this.oracleConnection.prepareStatement(sql);
+        ResultSet resultSet = statement.executeQuery();
+        resultSet.next();
+        byte[] byteOutput = resultSet.getBytes(1);
+        statement.close();
+        try (ByteArrayInputStream bis = new ByteArrayInputStream(byteOutput)) {
+            try (ObjectInputStream ois = new ObjectInputStream(bis)) {
+                return ois.readObject();
+            }
+        }
+    }
+
+    private Object getTestResults() throws Exception {
+
+        MarkusJDBCTest.setSchema(this.testSubmission.connection, this.schemaName);
+        return MarkusJDBCTest.runMethod(this.testSubmission.getClass(), this.testSubmission, this.methodName,
+                                        this.dataName);
+    }
+
+    private TestStatus checkResults(Object oracleResults, Object testResults) {
+
+        if (oracleResults.equals(testResults)) {
+            return new TestStatus("pass", "");
+        }
+        String msg = MessageFormat.format(ERROR_MSGS.get("bad_output"), oracleResults, testResults);
+        return new TestStatus("fail", msg);
     }
 
     private void run() {
@@ -172,38 +199,28 @@ public class MarkusJDBCTest {
             public void write(int b) throws IOException {}
         }));
         // run tests
-        TestResult testResult = this.initDB();
-        if (testResult.status.equals("pass")) {
+        TestStatus testStatus = this.initDB();
+        if (!this.methodName.equals(MarkusJDBCTest.CONNECTION_TEST) && testStatus.status.equals("pass")) {
             try {
-                //TODO do I need the schema to set it for students?
-                Object testOutput = MarkusJDBCTest.runMethod(this.testSubmission.getClass(), this.testSubmission,
-                                                             this.methodName, this.dataName);
-                //TODO read solution table and deserialize the object
-                byte[] byteOutput = null;
-                Object oracleOutput = null;
-                try (ByteArrayInputStream bis = new ByteArrayInputStream(byteOutput)) {
-                    try (ObjectInputStream ois = new ObjectInputStream(bis)) {
-                        oracleOutput = ois.readObject();
-                    }
-                }
-                if (oracleOutput.equals(testOutput)) {
-                    //TODO compare outputs
-                }
+                Object testResults = this.getTestResults();
+                Object oracleResults = this.getOracleResults();
+                testStatus = this.checkResults(oracleResults, testResults);
             }
             catch (Exception e) {
-                //TODO return failure
+                String msg = MessageFormat.format(ERROR_MSGS.get("ex_output"), e);
+                testStatus = new TestStatus("fail", msg);
             }
         }
-        TestResult closeResult = this.closeDB();
-        if (this.methodName.equals(MarkusJDBCTest.CONNECTION_TEST) && testResult.status.equals("pass")) {
-            testResult = closeResult;
+        TestStatus closeResult = this.closeDB();
+        if (this.methodName.equals(MarkusJDBCTest.CONNECTION_TEST) && testStatus.status.equals("pass")) {
+            testStatus = closeResult;
         }
         // restore stdout and stderr, then print results
         System.setOut(outOrig);
         System.setErr(errOrig);
-        System.out.println(testResult.status);
-        if (!testResult.status.equals("pass")) {
-            System.err.println(testResult.msg);
+        System.out.println(testStatus.status);
+        if (!testStatus.status.equals("pass")) {
+            System.err.println(testStatus.msg);
         }
     }
 
@@ -228,7 +245,7 @@ public class MarkusJDBCTest {
                 byteOutput = bos.toByteArray();
             }
             String sql = MessageFormat.format("INSERT INTO {0}_{1}(java_output) VALUES (?)", className.toLowerCase(),
-                                              methodName);
+                                              methodName.toLowerCase());
             PreparedStatement statement = solution.connection.prepareStatement(sql);
             statement.setBytes(1, byteOutput);
             statement.executeUpdate();
@@ -250,9 +267,10 @@ public class MarkusJDBCTest {
         String oracleDatabase = args[0];
         String userName = args[1];
         String userPassword = args[2];
-        String testName = args[3];
-        String dataName = args[4];
-        String testDatabase = (args.length > 5) ? args[5] : null;
+        String schemaName = args[3];
+        String testName = args[4];
+        String dataName = args[5];
+        String testDatabase = (args.length > 6) ? args[6] : null;
         String[] testNames = testName.split("\\.");
         String className = testNames[0];
         String methodName = testNames[1];
@@ -261,8 +279,8 @@ public class MarkusJDBCTest {
             MarkusJDBCTest.initTestEnv(oracleDatabase, userName, dataName, className, methodName);
         }
         else { // run test
-            MarkusJDBCTest test = new MarkusJDBCTest(oracleDatabase, testDatabase, userName, userPassword, dataName,
-                                                     className, methodName);
+            MarkusJDBCTest test = new MarkusJDBCTest(oracleDatabase, testDatabase, userName, userPassword, schemaName,
+                                                     dataName, className, methodName);
             test.run();
         }
     }

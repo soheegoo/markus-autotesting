@@ -19,9 +19,14 @@ class MarkusJDBCTest(MarkusSQLTest):
         super().__init__(tester, test_file, data_files, points, test_extra, feedback_open)
         self.java_classpath = tester.java_classpath
 
+    @property
+    def test_name(self):
+        return self.test_file
+
     def check_java(self):
         java_command = ['java', '-cp', self.java_classpath, self.__class__.__name__, self.oracle_database,
-                        self.user_name, self.user_password, self.test_name, self.data_file, self.test_database]
+                        self.user_name, self.user_password, self.schema_name, self.test_name, self.data_name,
+                        self.test_database]
         java = subprocess.run(java_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True,
                               check=True)
 
@@ -29,10 +34,6 @@ class MarkusJDBCTest(MarkusSQLTest):
 
     def run(self):
 
-        # TODO think about the data file for the connection test, whether to use 'nodata' or None (not just here, python/java too)
-        # if self.data_file is None:  # connection test
-        #     self.data_name = None
-        #     self.test_data_name = self.test_name
         # drop and recreate test schema + dataset, then fetch and compare java results
         try:
             self.set_test_schema(self.data_file)
