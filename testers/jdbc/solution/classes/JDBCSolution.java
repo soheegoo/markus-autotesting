@@ -1,9 +1,12 @@
+import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 
-public abstract class Submission extends JDBCSubmission {
+public abstract class JDBCSolution {
 
-    public Submission() throws ClassNotFoundException {
+    public Connection connection;
+
+    public JDBCSolution() throws ClassNotFoundException {
 
         Class.forName("org.postgresql.Driver");
     }

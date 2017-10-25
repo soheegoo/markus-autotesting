@@ -62,4 +62,4 @@ done
 TESTS="${TESTS}],"
 echo "[SQL] Updating json specs file"
 sed -i -e "s#oracle_db#${ORACLEDB}#g" ${TESTERDIR}/specs.json
-sed -i -e "s#tests#c\\${TESTS}" ${TESTERDIR}/specs.json
+sed -i -e "\#tests#c\\${TESTS}" ${TESTERDIR}/specs.json

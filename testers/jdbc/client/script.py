@@ -33,7 +33,7 @@ if __name__ == '__main__':
     # 3) to all tests of some datasets
     #    SPECS['data_points'] = {'data1': 1, 'data2': 2}
     # If you don't specify some tests/datasets from the solution, they are assigned a default of 1 point.
-    SPECS['data_points'] = {'data1.sql': 1, 'data2.sql': 2}
+    SPECS['data_points'] = {'data1j.sql': 1, 'data2j.sql': 2}
 
     # The schema name
     SPECS['schema_name'] = 'ate'
@@ -41,7 +41,6 @@ if __name__ == '__main__':
     # The feedback file name (defaults to no feedback file if commented out).
     # SPECS['feedback_file'] = 'feedback_jdbc.txt'
 
-    SPECS['java_files'] = ['Submission.java']
     tester = MarkusJDBCTester(specs=SPECS)
     tester.run()
     # Use markus apis if needed

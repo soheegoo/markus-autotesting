@@ -16,19 +16,21 @@ ORACLEUSER=${ORACLEDB}
 TESTUSERS=( $(jq -r '.tests[] | .user' ${SPECS}) )
 SOLUTIONDIR=${SPECSDIR}/solution
 DATASETDIR=${SOLUTIONDIR}/datasets
+CLASSDIR=${SOLUTIONDIR}/classes
 SCHEMAFILE=${SOLUTIONDIR}/schema.ddl
 
 echo "[JDBC] Compiling solutions"
 cp -a ${WORKINGDIR}/solution ${SPECSDIR}
-#TODO cp ${TESTERDIR}/server/MarkusJDBCTest.java ${SOLUTIONDIR} when getInputs is in the specs
-javac -cp ${SOLUTIONDIR}:${JARPATH} ${SOLUTIONDIR}/*.java
-chmod go-rwx ${SOLUTIONDIR}/*.java
+#TODO cp ${TESTERDIR}/server/MarkusJDBCTest.java ${CLASSDIR} when getInputs is in the specs
+javac -cp ${CLASSDIR}:${JARPATH} ${CLASSDIR}/*.java
 echo "[JDBC] Loading solutions into the oracle database"
 ALLTESTUSERS=$(IFS=,; echo "${TESTUSERS[*]}")
 schemas=""
-funcnames=( $(jq -r '.matrix | keys | map(select(. != "connection"))[]' ${SPECS}) )
-for funcname in "${funcnames[@]}"; do
-    datasets=( $(jq -r --arg q ${funcname} '.matrix | .[$q] | keys | map(select(. != "extra"))[]' ${SPECS}) )
+testnames=( $(jq -r '.matrix | keys | map(select(. | contains("CONNECTION") | not))[]' ${SPECS}) )
+for testname in "${testnames[@]}"; do
+    datasets=( $(jq -r --arg q ${testname} '.matrix | .[$q] | keys | map(select(. != "extra"))[]' ${SPECS}) )
+    testnamedb=${testname/./_} # convert . to _
+    testnamedb=${testnamedb,,} # convert classes to lowercase
     for datafile in "${datasets[@]}"; do
         schemaname=$(basename -s .sql ${datafile})
         if [[ "${schemas}" != *" ${schemaname} "* ]]; then # first time using this dataset, create a schema for it
@@ -42,18 +44,20 @@ for funcname in "${funcnames[@]}"; do
             psql -U ${ORACLEUSER} -d ${ORACLEDB} -h localhost -f /tmp/ate.sql
             schemas="${schemas} ${schemaname} "
         fi
-        echo "[JDBC] Creating solution table '${funcname}' for dataset '${schemaname}'"
+        echo "[JDBC] Creating solution table '${testnamedb}' for dataset '${schemaname}'"
         echo "
-            CREATE TABLE ${schemaname}.${funcname} (
+            CREATE TABLE ${schemaname}.${testnamedb} (
                 id serial PRIMARY KEY,
                 java_output bytea
             );
-            GRANT SELECT ON ${schemaname}.${funcname} TO ${ALLTESTUSERS};
+            GRANT SELECT ON ${schemaname}.${testnamedb} TO ${ALLTESTUSERS};
         " >| /tmp/ate.sql
         psql -U ${ORACLEUSER} -d ${ORACLEDB} -h localhost -f /tmp/ate.sql
-        java -cp ${SOLUTIONDIR}:${JARPATH} MarkusJDBCTest ${ORACLEDB} ${ORACLEUSER} placeholder ${funcname} ${schemaname}
+        java -cp ${CLASSDIR}:${JARPATH} MarkusJDBCTest ${ORACLEDB} ${ORACLEUSER} placeholder ${testname} ${schemaname}
     done
 done
 rm /tmp/ate.sql
-echo '[JDB] Updating json specs file'
+shopt -s extglob
+rm -f ${CLASSDIR}/!(@(MarkusJDBCTest*.class|JDBCSubmission.class)) # deletes all but those files
+echo "[JDBC] Updating json specs file"
 sed -i -e "s#/path/to/solution#${SOLUTIONDIR}#g" ${SPECS}

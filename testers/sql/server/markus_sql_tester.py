@@ -41,8 +41,8 @@ class MarkusSQLTest(MarkusTest):
 
     def select_query(self, schema_name, table_name, order_by=None):
         query = 'SELECT * FROM %(schema)s.%(table)s'
-        query_vars = {'schema': psycopg2.extensions.AsIs(schema_name.lower()),
-                      'table': psycopg2.extensions.AsIs(table_name.lower())}
+        query_vars = {'schema': psycopg2.extensions.AsIs(schema_name),
+                      'table': psycopg2.extensions.AsIs(table_name)}
         if order_by:
             query += ' ORDER BY %(order)s'
             query_vars['order'] = psycopg2.extensions.AsIs(order_by)
@@ -172,7 +172,7 @@ class MarkusSQLTest(MarkusTest):
         test_command = ['psql', '-U', self.user_name, '-d', self.test_database, '-h', 'localhost', '-c']
         if test_order_file is not None:
             test_query = 'SET search_path TO %(schema)s;'
-            test_vars = {'schema': psycopg2.extensions.AsIs(self.schema_name.lower())}
+            test_vars = {'schema': psycopg2.extensions.AsIs(self.schema_name)}
             with open(test_order_file) as test_order_open:
                 test_query += test_order_open.read()
         else:

@@ -1,12 +1,12 @@
 {
   "matrix": {
-    "connection": {
+    "Correct.CONNECTION": {
       "nodata": 1
     },
-    "select": {
+    "Correct.select": {
       "data1j.sql": 1, "data2j.sql": 1
     },
-    "insert": {
+    "Correct.insert": {
       "data1j.sql": {"JAVA": 1, "table1": 1}, "data2j.sql": {"JAVA": 1, "table1": 1}
     }
   },

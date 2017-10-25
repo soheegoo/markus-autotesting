@@ -5,12 +5,12 @@ import java.util.List;
 
 public class Correct extends Submission {
 
-    Correct() throws ClassNotFoundException {
+    public Correct() throws ClassNotFoundException {
 
         super();
     }
 
-    public List<String> select(double numberThreshold) {
+    public List<String> select(Double numberThreshold) {
 
         try {
             String sql = "SELECT table1.word FROM table1 JOIN table2 ON table1.id = table2.foreign_id WHERE " +

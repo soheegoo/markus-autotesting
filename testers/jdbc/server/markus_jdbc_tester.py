@@ -83,13 +83,17 @@ class MarkusJDBCTest(MarkusSQLTest):
 
 class MarkusJDBCTester(MarkusSQLTester):
 
+    CLASS_DIR = 'classes'
+
     def __init__(self, specs, test_class=MarkusJDBCTest):
         super().__init__(specs, test_class)
-        self.java_files = specs['java_files']
-        self.java_classpath = '.:{}:{}'.format(specs['path_to_solution'], specs['path_to_jdbc_jar'])
+        self.java_files = ['{}.java'.format(class_name) for class_name in set(
+                              [test_name.partition('.')[0] for test_name in self.specs.tests])]
+        self.java_classpath = '.:{}:{}'.format(os.path.join(specs['path_to_solution'], self.CLASS_DIR),
+                                               specs['path_to_jdbc_jar'])
 
     def init_java(self):
-        javac_command = ['javac', '-cp', self.java_classpath, '{}.java'.format(self.__class__.__name__)]
+        javac_command = ['javac', '-cp', self.java_classpath] + self.java_files
         subprocess.run(javac_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True,
                        check=True)
 
