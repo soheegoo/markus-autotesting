@@ -4,7 +4,7 @@ import subprocess
 
 import psycopg2
 
-from markus_tester import MarkusTester, MarkusTest
+from markus_tester import MarkusTester, MarkusTest, MarkusTestSpecs
 
 
 class MarkusSQLTest(MarkusTest):
@@ -57,7 +57,7 @@ class MarkusSQLTest(MarkusTest):
 
         return oracle_results
 
-    def set_test_schema(self, data_file=None):
+    def set_test_schema(self, data_file):
         self.test_cursor.execute('DROP SCHEMA IF EXISTS %(schema)s CASCADE',
                                  {'schema': psycopg2.extensions.AsIs(self.schema_name)})
         self.test_cursor.execute('CREATE SCHEMA %(schema)s',
@@ -67,7 +67,7 @@ class MarkusSQLTest(MarkusTest):
         with open(os.path.join(self.path_to_solution, self.SCHEMA_FILE)) as schema_open:
             schema = schema_open.read()
             self.test_cursor.execute(schema)
-        if data_file is not None:
+        if data_file != MarkusTestSpecs.MATRIX_NODATA_KEY:
             with open(os.path.join(self.path_to_solution, self.DATASET_DIR, data_file)) as data_open:
                 data = data_open.read()
                 self.test_cursor.execute(data)

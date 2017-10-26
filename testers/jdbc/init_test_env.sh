@@ -41,6 +41,7 @@ for testname in "${testnames[@]}"; do
                 GRANT USAGE ON SCHEMA ${schemaname} TO ${ALLTESTUSERS};
                 SET search_path TO ${schemaname};
             " | cat - ${SCHEMAFILE} ${DATASETDIR}/${datafile} >| /tmp/ate.sql
+            echo "GRANT SELECT ON ALL TABLES IN SCHEMA ${schemaname} TO ${ALLTESTUSERS};" >> /tmp/ate.sql
             psql -U ${ORACLEUSER} -d ${ORACLEDB} -h localhost -f /tmp/ate.sql
             schemas="${schemas} ${schemaname} "
         fi

@@ -218,9 +218,9 @@ public class MarkusJDBCTest {
         // restore stdout and stderr, then print results
         System.setOut(outOrig);
         System.setErr(errOrig);
-        System.out.println(testStatus.status);
+        System.out.print(testStatus.status);
         if (!testStatus.status.equals("pass")) {
-            System.err.println(testStatus.msg);
+            System.err.print(testStatus.msg);
         }
     }
 
