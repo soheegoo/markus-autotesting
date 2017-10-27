@@ -8,6 +8,18 @@
     },
     "Correct.insert": {
       "data1j.sql": {"JAVA": 1, "table1": 1}, "data2j.sql": {"JAVA": 1, "table1": 1}
+    },
+    "BadConnection.CONNECTION": {
+      "nodata": 1
+    },
+    "ExceptionConnection.CONNECTION": {
+      "nodata": 1
+    },
+    "BadDisconnection.select": {
+      "data1j.sql": 1
+    },
+    "ExceptionDisconnection.select": {
+      "data1j.sql": 1
     }
   },
   "path_to_jdbc_jar": "/path/to/jdbc/jar",
