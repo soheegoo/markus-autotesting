@@ -5,8 +5,6 @@ if [ $# -ne 2 ]; then
     exit 1
 fi
 
-THISSCRIPT=$(readlink -f ${BASH_SOURCE})
-TESTERDIR=$(dirname ${THISSCRIPT})
 WORKINGDIR=$(readlink -f $1)
 SPECSDIR=$(readlink -f $2)
 SPECS=${SPECSDIR}/specs.json
@@ -21,7 +19,6 @@ SCHEMAFILE=${SOLUTIONDIR}/schema.ddl
 echo "[SQL] Loading solutions into the oracle database"
 ALLTESTUSERS=$(IFS=,; echo "${TESTUSERS[*]}")
 cp -a ${WORKINGDIR}/solution ${SPECSDIR}
-chmod go-rwx ${QUERYDIR}
 schemas=""
 queries=( $(jq -r '.matrix | keys[]' ${SPECS}) )
 for queryfile in "${queries[@]}"; do
@@ -47,5 +44,6 @@ for queryfile in "${queries[@]}"; do
     done
 done
 rm /tmp/ate.sql
+rm -rf ${QUERYDIR}
 echo '[SQL] Updating json specs file'
 sed -i -e "s#/path/to/solution#${SOLUTIONDIR}#g" ${SPECS}

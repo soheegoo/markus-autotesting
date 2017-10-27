@@ -7,9 +7,13 @@ from uam_tester import UAMResult, UAMTester
 class MarkusUAMTest(MarkusTest):
 
     def __init__(self, tester, uam_result, points_total, feedback_open):
-        super().__init__(tester, uam_result.test_title, [], points_total, {}, feedback_open)
-        self.test_data_name = uam_result.test_title
+        super().__init__(tester, uam_result.test_title, [MarkusTestSpecs.MATRIX_NODATA_KEY], points_total, {},
+                         feedback_open)
         self.uam_result = uam_result
+
+    @property
+    def test_name(self):
+        return self.test_file
 
     def run(self):
         if self.uam_result.status == UAMResult.Status.PASS:
@@ -30,7 +34,7 @@ class MarkusUAMTester(MarkusTester):
         super().__init__(specs, test_class)
         path_to_tests = specs.get('path_to_tests', '.')
         test_points = {test_file: specs.matrix[test_file][MarkusTestSpecs.MATRIX_NODATA_KEY]
-                       for test_file in specs.test_files}
+                       for test_file in specs.tests}
         global_timeout = specs.get('global_timeout', UAMTester.GLOBAL_TIMEOUT_DEFAULT)
         test_timeout = specs.get('test_timeout', UAMTester.TEST_TIMEOUT_DEFAULT)
         self.uam_tester = tester_class(specs['path_to_uam'], path_to_tests, test_points, global_timeout, test_timeout,

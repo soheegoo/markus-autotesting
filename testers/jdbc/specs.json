@@ -1,0 +1,18 @@
+{
+  "matrix": {
+    "Correct.CONNECTION": {
+      "nodata": 1
+    },
+    "Correct.select": {
+      "data1j.sql": 1, "data2j.sql": 1
+    },
+    "Correct.insert": {
+      "data1j.sql": {"JAVA": 1, "table1": 1}, "data2j.sql": {"JAVA": 1, "table1": 1}
+    }
+  },
+  "path_to_jdbc_jar": "/path/to/jdbc/jar",
+  "oracle_database": "oracle_db",
+  "tests": [{"database": "test_db", "user": "test_user", "password": "test_password"}],
+  "path_to_solution": "/path/to/solution",
+  "feedback_file": null
+}

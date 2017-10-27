@@ -13,7 +13,7 @@ ORACLEDB=${ORACLEUSER}
 TESTDBS=()
 TESTUSERS=()
 TESTPWDS=()
-if [ $# -eq 3 ]; then
+if [[ $# -eq 3 ]]; then
     NUMUSERS=$3
 	for i in $(seq 0 $((NUMUSERS - 1))); do
 	    TESTDBS[$i]="${TESTUSER}$i"
@@ -54,12 +54,12 @@ for i in "${!TESTDBS[@]}"; do
 		\connect ${TESTDBS[$i]}
 		DROP SCHEMA IF EXISTS public CASCADE;
 	EOF
-    if [ $i -ne 0 ]; then
+    if [[ $i -ne 0 ]]; then
         TESTS="${TESTS},"
     fi
     TESTS="${TESTS}{\"database\": \"${TESTDBS[$i]}\", \"user\": \"${TESTUSERS[$i]}\", \"password\": \"${TESTPWDS[i]}\"}"
 done
 TESTS="${TESTS}],"
-echo '[SQL] Updating json specs file'
+echo "[SQL] Updating json specs file"
 sed -i -e "s#oracle_db#${ORACLEDB}#g" ${TESTERDIR}/specs.json
-sed -i -e "s#^  \"tests\".*\$#${TESTS}#g" ${TESTERDIR}/specs.json
+sed -i -e "\#tests#c\\${TESTS}" ${TESTERDIR}/specs.json
