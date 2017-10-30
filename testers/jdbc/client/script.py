@@ -19,11 +19,7 @@ if __name__ == '__main__':
     repo_name = sys.argv[5]
     SPECS = MarkusTestSpecs()
 
-    # Students are required to create a solution table in their submission, named as the sql file without the file
-    # extension; e.g. an 'example.sql' file must have a 'CREATE TABLE example [...];' in it.
-    # Students are also required to submit an additional sql file with '_order' suffix for each submission that cares
-    # about ordering, which selects from their solution table and does the ordering; e.g. an 'example.sql' file must
-    # have an additional 'example_order.sql' file with a 'SELECT * FROM example ORDER BY [...];' in it)
+    # Students are required to extend JDBCSubmission.java
 
     # The points assigned to each test case; points can be assigned in three ways:
     # 1) to some tests+datasets
@@ -33,7 +29,13 @@ if __name__ == '__main__':
     # 3) to all tests of some datasets
     #    SPECS['data_points'] = {'data1': 1, 'data2': 2}
     # If you don't specify some tests/datasets from the solution, they are assigned a default of 1 point.
-    SPECS['data_points'] = {'data1j.sql': 1, 'data2j.sql': 2}
+    SPECS['points'] = {'Correct.select':         {'data2j.sql': 2},
+                       'BadSelect.select':       {'data2j.sql': 2},
+                       'ExceptionSelect.select': {'data2j.sql': 2},
+                       'Correct.insert':         {'data2j.sql': {'JAVA': 2, 'table1': 2}},
+                       'NoInsert.insert':        {'data2j.sql': {'JAVA': 2, 'table1': 2}},
+                       'BadInsert.insert':       {'data2j.sql': {'JAVA': 2, 'table1': 2}},
+                       'ExceptionInsert.insert': {'data2j.sql': {'JAVA': 2, 'table1': 2}}}
 
     # The schema name
     SPECS['schema_name'] = 'ate'

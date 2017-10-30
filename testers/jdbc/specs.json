@@ -15,11 +15,26 @@
     "ExceptionConnection.CONNECTION": {
       "nodata": 1
     },
-    "BadDisconnection.select": {
-      "data1j.sql": 1
+    "BadDisconnection.CONNECTION": {
+      "nodata": 1
     },
-    "ExceptionDisconnection.select": {
-      "data1j.sql": 1
+    "ExceptionDisconnection.CONNECTION": {
+      "nodata": 1
+    },
+    "BadSelect.select": {
+      "data1j.sql": 1, "data2j.sql": 1
+    },
+    "ExceptionSelect.select": {
+      "data1j.sql": 1, "data2j.sql": 1
+    },
+    "NoInsert.insert": {
+      "data1j.sql": {"JAVA": 1, "table1": 1}, "data2j.sql": {"JAVA": 1, "table1": 1}
+    },
+    "BadInsert.insert": {
+      "data1j.sql": {"JAVA": 1, "table1": 1}, "data2j.sql": {"JAVA": 1, "table1": 1}
+    },
+    "ExceptionInsert.insert": {
+      "data1j.sql": {"JAVA": 1, "table1": 1}, "data2j.sql": {"JAVA": 1, "table1": 1}
     }
   },
   "path_to_jdbc_jar": "/path/to/jdbc/jar",

@@ -57,6 +57,15 @@ public class MarkusJDBCTest {
         //TODO getInputs should be part of the specs
         switch (className) {
         case "Correct":
+        case "BadConnection":
+        case "ExceptionConnection":
+        case "BadDisconnection":
+        case "ExceptionDisconnection":
+        case "BadSelect":
+        case "ExceptionSelect":
+        case "NoInsert":
+        case "BadInsert":
+        case "ExceptionInsert":
             switch (methodName) {
             case "select":
                 switch (dataName) {
@@ -227,12 +236,12 @@ public class MarkusJDBCTest {
     private static void initTestEnv(String oracleDatabase, String userName, String dataName, String className,
                                     String methodName) {
 
-        JDBCSolution solution = null;
+        JDBCSubmission solution = null;
         try {
             String userPassword = new String(System.console().readPassword(
                 MessageFormat.format("Password for user {0}: ", userName))); // avoids logging it
             System.out.println(MessageFormat.format("[JDBC-Java] Running method ''{0}.{1}()''", className, methodName));
-            solution = (JDBCSolution) Class.forName(className).newInstance();
+            solution = (JDBCSubmission) Class.forName(className).newInstance();
             solution.connectDB(JDBC_PREAMBLE + oracleDatabase, userName, userPassword);
             MarkusJDBCTest.setSchema(solution.connection, dataName);
             Object javaOutput = MarkusJDBCTest.runMethod(solution.getClass(), solution, methodName, dataName);

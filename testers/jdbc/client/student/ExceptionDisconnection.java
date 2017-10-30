@@ -1,4 +1,4 @@
-public class ExceptionDisconnection extends Correct {
+public class ExceptionDisconnection extends Submission {
 
     public ExceptionDisconnection() throws ClassNotFoundException {
 

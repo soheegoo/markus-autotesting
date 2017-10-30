@@ -2,11 +2,33 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-public abstract class Solution extends JDBCSolution {
+public abstract class Solution extends JDBCSubmission {
 
     public Solution() throws ClassNotFoundException {
 
-        super();
+        Class.forName("org.postgresql.Driver");
+    }
+
+    public boolean connectDB(String url, String username, String password) {
+
+        try {
+            this.connection = DriverManager.getConnection(url, username, password);
+            return true;
+        }
+        catch (SQLException e) {
+            return false;
+        }
+    }
+
+    public boolean disconnectDB() {
+
+        try {
+            this.connection.close();
+            return true;
+        }
+        catch (SQLException e) {
+            return false;
+        }
     }
 
     public List<String> select(Double numberThreshold) {
