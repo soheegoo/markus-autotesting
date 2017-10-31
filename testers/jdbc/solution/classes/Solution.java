@@ -54,19 +54,9 @@ public abstract class Solution extends JDBCSubmission {
 
     public boolean insert(String newWord) {
 
-        try {
-            String sql = "INSERT INTO table1(id, word) VALUES (?, ?)";
-            PreparedStatement statement = this.connection.prepareStatement(sql);
-            statement.setInt(1, 3);
-            statement.setString(2, newWord);
-            statement.executeUpdate();
-            statement.close();
-
-            return true;
-        }
-        catch (Exception e) {
-            return false;
-        }
+        // only Correct.insert() should insert the correct tuple
+        // in a real assignment with multiple files there should not be competing functions
+        return true;
     }
 
 }

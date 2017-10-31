@@ -20,10 +20,10 @@ public class MarkusJDBCTest {
     private static final Map<String, String> ERROR_MSGS = new HashMap<>();
     static {
         ERROR_MSGS.put("bad_connection", "Failed to create a valid connection to the database");
-        ERROR_MSGS.put("ex_connection", "Connecting to the database raised an exception: ''{0}''");
+        ERROR_MSGS.put("ex_connection", "The connection to the database raised an exception: ''{0}''");
         ERROR_MSGS.put("bad_disconnection", "Failed to close the database connection");
-        ERROR_MSGS.put("ex_disconnection", "Disconnecting from the database raised an exception: ''{0}''");
-        ERROR_MSGS.put("bad_output", "Expected the output to be ''{0}'' instead of ''{1}''");
+        ERROR_MSGS.put("ex_disconnection", "The disconnection from the database raised an exception: ''{0}''");
+        ERROR_MSGS.put("bad_output", "Expected the method output to be ''{0}'' instead of ''{1}''");
         ERROR_MSGS.put("ex_output", "The test raised an exception: ''{0}''");
     }
     private static final String CONNECTION_TEST = "CONNECTION";
