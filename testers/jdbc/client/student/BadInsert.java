@@ -1,8 +1,8 @@
 import java.sql.PreparedStatement;
 
-public class Correct extends Solution {
+public class BadInsert extends Submission {
 
-    public Correct() throws ClassNotFoundException {
+    public BadInsert() throws ClassNotFoundException {
 
         super();
     }
@@ -13,7 +13,7 @@ public class Correct extends Solution {
             String sql = "INSERT INTO table1(id, word) VALUES (?, ?)";
             PreparedStatement statement = this.connection.prepareStatement(sql);
             statement.setInt(1, 3);
-            statement.setString(2, newWord);
+            statement.setString(2, newWord + "X");
             statement.executeUpdate();
             statement.close();
 

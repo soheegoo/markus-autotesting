@@ -35,46 +35,46 @@ class MarkusTestSpecs(collections.MutableMapping):
         SPECS['points'] = {'test1': {'data1': 11, 'data2': 12}, 'test2': {'data1': 21, 'data2': 22}}
         Assigns points to the passed tests and datasets, creating them if they don't exist yet.
         """
-        for test_file, data_files in value.items():
-            if test_file in self.matrix:
+        for test, data_files in value.items():
+            if test in self.matrix:
                 for data_file, points in data_files.items():
-                    self.matrix[test_file][data_file] = points
+                    self.matrix[test][data_file] = points
             else:
-                self.matrix[test_file] = data_files
+                self.matrix[test] = data_files
 
     def _set_test_points(self, _, value):
         """
         SPECS['test_points'] = {'test1': 1, 'test2': 2}
         Assigns points to all datasets of the passed tests, creating the tests if they don't exist yet.
         """
-        for test_file, points in value.items():
-            data_files = self.matrix.setdefault(test_file, {MarkusTestSpecs.MATRIX_NODATA_KEY: {}})
+        for test, points in value.items():
+            data_files = self.matrix.setdefault(test, {MarkusTestSpecs.MATRIX_NODATA_KEY: {}})
             for data_file in data_files:
                 if data_file == MarkusTestSpecs.MATRIX_NONTEST_KEY:
                     continue
-                self.matrix[test_file][data_file] = points
+                self.matrix[test][data_file] = points
 
     def _set_data_points(self, _, value):
         """
         SPECS['data_points'] = {'data1': 1, 'data2': 2}
         Assigns points to all existing tests that use the passed datasets, does nothing for tests that don't use them.
         """
-        for test_file in self.matrix:
+        for test in self.matrix:
             for data_file, points in value.items():
-                if data_file not in self.matrix[test_file]:
+                if data_file not in self.matrix[test]:
                     continue
-                self.matrix[test_file][data_file] = points
+                self.matrix[test][data_file] = points
 
     def _set_all_points(self, _, points):
         """
         SPECS['all_points'] = points
         Assigns points to all existing tests and datasets.
         """
-        for test_file, data_files in self.matrix.items():
+        for test, data_files in self.matrix.items():
             for data_file in data_files:
                 if data_file == MarkusTestSpecs.MATRIX_NONTEST_KEY:
                     continue
-                self.matrix[test_file][data_file] = points
+                self.matrix[test][data_file] = points
 
     def __setitem__(self, key, value):
         switch = {'points': self._set_points, 'test_points': self._set_test_points,

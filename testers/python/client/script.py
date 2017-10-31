@@ -21,7 +21,7 @@ if __name__ == '__main__':
     # The test files to run (uploaded as support files), and the points assigned:
     # points can be assigned per test function, or per test class (every test function in the class will be worth those
     # points); if a test function/class is missing, it is assigned a default of 1 point (use POINTS = {} for all 1s).
-    POINTS = {'test_passes': 1, 'test_fails': 2, 'Test2': 1}
+    POINTS = {'test_passes': 1, 'test_fails': 1, 'Test2': 2}
     SPECS['test_points'] = {'test.py': POINTS}
 
     # The max time to run a single test (defaults to 10 seconds if commented out).

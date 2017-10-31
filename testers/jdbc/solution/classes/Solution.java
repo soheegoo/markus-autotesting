@@ -2,11 +2,33 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-public abstract class Solution extends JDBCSolution {
+public abstract class Solution extends JDBCSubmission {
 
     public Solution() throws ClassNotFoundException {
 
-        super();
+        Class.forName("org.postgresql.Driver");
+    }
+
+    public boolean connectDB(String url, String username, String password) {
+
+        try {
+            this.connection = DriverManager.getConnection(url, username, password);
+            return true;
+        }
+        catch (SQLException e) {
+            return false;
+        }
+    }
+
+    public boolean disconnectDB() {
+
+        try {
+            this.connection.close();
+            return true;
+        }
+        catch (SQLException e) {
+            return false;
+        }
     }
 
     public List<String> select(Double numberThreshold) {
@@ -32,18 +54,9 @@ public abstract class Solution extends JDBCSolution {
 
     public boolean insert(String newWord) {
 
-        try {
-            String sql = "INSERT INTO table1(word) VALUES (?)";
-            PreparedStatement statement = this.connection.prepareStatement(sql);
-            statement.setString(1, newWord);
-            statement.executeUpdate();
-            statement.close();
-
-            return true;
-        }
-        catch (Exception e) {
-            return false;
-        }
+        // only Correct.insert() should insert the correct tuple
+        // in a real assignment with multiple files there should not be competing functions
+        return true;
     }
 
 }
