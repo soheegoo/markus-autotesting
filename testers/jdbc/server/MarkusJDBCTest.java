@@ -1,4 +1,5 @@
 import java.io.*;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.sql.*;
 import java.text.MessageFormat;
@@ -18,12 +19,12 @@ public class MarkusJDBCTest {
 
     private static final Map<String, String> ERROR_MSGS = new HashMap<>();
     static {
-        ERROR_MSGS.put("bad_connection", "connectDB did not create a valid connection to the database");
-        ERROR_MSGS.put("ex_connection", "Connection to the database failed with an exception: ''{0}''");
-        ERROR_MSGS.put("bad_disconnection", "disconnectDB did not close the database connection properly");
-        ERROR_MSGS.put("ex_disconnection", "Disconnection from the database failed with an exception: ''{0}''");
+        ERROR_MSGS.put("bad_connection", "Failed to create a valid connection to the database");
+        ERROR_MSGS.put("ex_connection", "Connecting to the database raised an exception: ''{0}''");
+        ERROR_MSGS.put("bad_disconnection", "Failed to close the database connection");
+        ERROR_MSGS.put("ex_disconnection", "Disconnecting from the database raised an exception: ''{0}''");
         ERROR_MSGS.put("bad_output", "Expected the output to be ''{0}'' instead of ''{1}''");
-        ERROR_MSGS.put("ex_output", "The test failed with an exception: ''{0}''");
+        ERROR_MSGS.put("ex_output", "The test raised an exception: ''{0}''");
     }
     private static final String CONNECTION_TEST = "CONNECTION";
     private static String JDBC_PREAMBLE = "jdbc:postgresql://localhost:5432/";
@@ -132,8 +133,8 @@ public class MarkusJDBCTest {
             return new TestStatus("pass", "");
         }
         catch (Exception e) {
-            String msg = MessageFormat.format(ERROR_MSGS.get("ex_connection"), e.getMessage());
-            return new TestStatus("fail", msg);
+            String msg = MessageFormat.format(ERROR_MSGS.get("ex_connection"), e.toString());
+            return new TestStatus("error", msg);
         }
     }
 
@@ -154,8 +155,8 @@ public class MarkusJDBCTest {
             return new TestStatus("pass", "");
         }
         catch (Exception e) {
-            String msg = MessageFormat.format(ERROR_MSGS.get("ex_disconnection"), e.getMessage());
-            return new TestStatus("fail", msg);
+            String msg = MessageFormat.format(ERROR_MSGS.get("ex_disconnection"), e.toString());
+            return new TestStatus("error", msg);
         }
         finally {
             try {
@@ -216,8 +217,9 @@ public class MarkusJDBCTest {
                 testStatus = this.checkResults(oracleResults, testResults);
             }
             catch (Exception e) {
-                String msg = MessageFormat.format(ERROR_MSGS.get("ex_output"), e);
-                testStatus = new TestStatus("fail", msg);
+                String ex = (e instanceof InvocationTargetException) ? e.getCause().toString() : e.toString();
+                String msg = MessageFormat.format(ERROR_MSGS.get("ex_output"), ex);
+                testStatus = new TestStatus("error", msg);
             }
         }
         TestStatus closeResult = this.closeDB();
@@ -236,6 +238,7 @@ public class MarkusJDBCTest {
     private static void initTestEnv(String oracleDatabase, String userName, String dataName, String className,
                                     String methodName) {
 
+        //TODO insert queries should run only once per dataset
         JDBCSubmission solution = null;
         try {
             String userPassword = new String(System.console().readPassword(

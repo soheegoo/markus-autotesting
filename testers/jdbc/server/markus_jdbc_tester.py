@@ -38,8 +38,10 @@ class MarkusJDBCTest(MarkusSQLTest):
         try:
             self.set_test_schema(self.data_file)
             java = self.check_java()
-            if java.stdout != MarkusTest.Status.PASS.value:
+            if java.stdout == MarkusTest.Status.FAIL.value:
                 return self.failed(message=java.stderr)
+            if java.stdout == MarkusTest.Status.ERROR.value:
+                return self.error(message=java.stderr)
         except Exception as e:
             self.oracle_connection.commit()
             self.test_connection.commit()

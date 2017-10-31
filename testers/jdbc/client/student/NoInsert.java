@@ -7,7 +7,7 @@ public class NoInsert extends Submission {
 
     public boolean insert(String newWord) {
 
-        return true;
+        return false;
     }
 
 }

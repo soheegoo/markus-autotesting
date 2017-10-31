@@ -55,9 +55,10 @@ public abstract class Solution extends JDBCSubmission {
     public boolean insert(String newWord) {
 
         try {
-            String sql = "INSERT INTO table1(word) VALUES (?)";
+            String sql = "INSERT INTO table1(id, word) VALUES (?, ?)";
             PreparedStatement statement = this.connection.prepareStatement(sql);
-            statement.setString(1, newWord);
+            statement.setInt(1, 3);
+            statement.setString(2, newWord);
             statement.executeUpdate();
             statement.close();
 
