@@ -23,6 +23,7 @@ else
         ${TESTERDIR}/../sql/install.sh ${ORACLEUSER} ${TESTUSER}
     fi
 fi
+ln -s ${TESTERDIR}/../sql/server/markus_sql_tester.py ${TESTERDIR}/server/markus_sql_tester.py
 echo "[JDBC] Installing system packages"
 sudo apt-get install python3 openjdk-9-jre jq
 echo "[JDBC] Updating json specs file"
