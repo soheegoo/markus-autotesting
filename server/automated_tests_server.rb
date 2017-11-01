@@ -78,11 +78,10 @@ class AutomatedTestsServer
     File.write("#{results_path}/errors.txt", all_errors)
 
     # cleanup
-    if test_username.nil?
-      FileUtils.rm_rf(tests_path)
-    else
+    unless test_username.nil?
       Open3.capture3("sudo -u #{test_username} -- bash -c \"rm -rf '#{tests_path}'; killall -KILL -u #{test_username}\"")
     end
+    FileUtils.rm_rf(tests_path)
 
     # send results back to markus by api
     api_url = "#{markus_address}/api/assignments/#{assignment_id}/groups/#{group_id}/test_script_results"
