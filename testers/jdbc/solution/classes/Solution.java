@@ -9,6 +9,7 @@ public abstract class Solution extends JDBCSubmission {
         Class.forName("org.postgresql.Driver");
     }
 
+    @Override
     public boolean connectDB(String url, String username, String password) {
 
         try {
@@ -20,6 +21,7 @@ public abstract class Solution extends JDBCSubmission {
         }
     }
 
+    @Override
     public boolean disconnectDB() {
 
         try {
