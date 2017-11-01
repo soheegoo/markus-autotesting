@@ -238,7 +238,6 @@ public class MarkusJDBCTest {
     private static void initTestEnv(String oracleDatabase, String userName, String dataName, String className,
                                     String methodName) {
 
-        //TODO insert queries should run only once per dataset
         JDBCSubmission solution = null;
         try {
             String userPassword = new String(System.console().readPassword(

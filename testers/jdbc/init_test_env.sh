@@ -59,6 +59,6 @@ for testname in "${testnames[@]}"; do
 done
 rm /tmp/ate.sql
 shopt -s extglob
-rm -f ${CLASSDIR}/!(@(MarkusJDBCTest*.class|JDBCSubmission.class)) # deletes all but those files
+rm -f ${CLASSDIR}/!(@(MarkusJDBCTest*.class|JDBCSubmission*.class)) # deletes all but those files
 echo "[JDBC] Updating json specs file"
 sed -i -e "s#/path/to/solution#${SOLUTIONDIR}#g" ${SPECS}
