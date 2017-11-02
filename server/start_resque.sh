@@ -9,7 +9,7 @@ THISSCRIPT=$(readlink -f ${BASH_SOURCE})
 THISSCRIPTDIR=$(dirname ${THISSCRIPT})
 QUEUE=$1
 NUMWORKERS=1
-if [[ $# -eq 3 ]]; then
+if [[ $# -eq 2 ]]; then
     NUMWORKERS=$2
 fi
 
