@@ -32,7 +32,7 @@ for i in $(seq 0 $((NUMWORKERS - 1))); do
     echo "[AUTOTEST] Creating test user '${TESTUSER}${i}'"
     adduser --disabled-login --no-create-home ${TESTUSER}${i}
     mkdir -p ${testdir}
-    chmod ug=rwx,o= ${testdir}
+    chmod ug=rwx,o=,+t ${testdir}
     chown ${TESTUSER}${i}:${SERVERUSER} ${testdir}
     echo "${SERVERUSER} ALL=(${TESTUSER}${i}) NOPASSWD:ALL" | EDITOR="tee -a" visudo
     conf="${conf}{user: '${TESTUSER}${i}', dir: '${testdir}', queue: '${QUEUE}${i}'},"
