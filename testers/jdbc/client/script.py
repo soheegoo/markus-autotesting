@@ -29,13 +29,14 @@ if __name__ == '__main__':
     # 3) to all tests of some datasets
     #    SPECS['data_points'] = {'data1': 1, 'data2': 2}
     # If you don't specify some tests/datasets from the solution, they are assigned a default of 1 point.
-    SPECS['points'] = {'Correct.select':         {'data2j.sql': 2},
-                       'BadSelect.select':       {'data2j.sql': 2},
-                       'ExceptionSelect.select': {'data2j.sql': 2},
-                       'Correct.insert':         {'data2j.sql': {'JAVA': 2, 'table1': 2}},
-                       'NoInsert.insert':        {'data2j.sql': {'JAVA': 2, 'table1': 2}},
-                       'BadInsert.insert':       {'data2j.sql': {'JAVA': 2, 'table1': 2}},
-                       'ExceptionInsert.insert': {'data2j.sql': {'JAVA': 2, 'table1': 2}}}
+    SPECS['points'] = {'CorrectNoOrder.select':   {'data2j.sql': 2},
+                       'CorrectWithOrder.select': {'data2j.sql': 2},
+                       'BadSelect.select':        {'data2j.sql': 2},
+                       'ExceptionSelect.select':  {'data2j.sql': 2},
+                       'CorrectNoOrder.insert':   {'data2j.sql': {'JAVA': 2, 'table1': 2}},
+                       'NoInsert.insert':         {'data2j.sql': {'JAVA': 2, 'table1': 2}},
+                       'BadInsert.insert':        {'data2j.sql': {'JAVA': 2, 'table1': 2}},
+                       'ExceptionInsert.insert':  {'data2j.sql': {'JAVA': 2, 'table1': 2}}}
 
     # The schema name
     SPECS['schema_name'] = 'ate'

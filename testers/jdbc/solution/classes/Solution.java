@@ -37,7 +37,7 @@ public abstract class Solution extends JDBCSubmission {
 
         try {
             String sql = "SELECT table1.word FROM table1 JOIN table2 ON table1.id = table2.foreign_id WHERE " +
-                         "table2.number > ? ORDER BY word";
+                         "table2.number > ?";
             PreparedStatement statement = this.connection.prepareStatement(sql);
             statement.setDouble(1, numberThreshold);
             ResultSet resultSet = statement.executeQuery();
@@ -56,7 +56,7 @@ public abstract class Solution extends JDBCSubmission {
 
     public boolean insert(String newWord) {
 
-        // only Correct.insert() should insert the correct tuple
+        // only CorrectNoOrder.insert() should insert the correct tuple
         // in a real assignment with multiple files there should not be competing functions
         return true;
     }

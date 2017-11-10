@@ -3,18 +3,19 @@ import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.List;
 
-public class BadSelect extends Submission {
+public class CorrectWithOrder extends Solution {
 
-    public BadSelect() throws ClassNotFoundException {
+    public CorrectWithOrder() throws ClassNotFoundException {
 
         super();
     }
 
+    @Override
     public List<String> select(Double numberThreshold) {
 
         try {
-            String sql = "SELECT CONCAT(table1.word, 'X') AS word FROM table1 JOIN table2 " +
-                         "ON table1.id = table2.foreign_id WHERE table2.number > ?";
+            String sql = "SELECT table1.word FROM table1 JOIN table2 ON table1.id = table2.foreign_id WHERE " +
+                    "table2.number > ? ORDER BY word";
             PreparedStatement statement = this.connection.prepareStatement(sql);
             statement.setDouble(1, numberThreshold);
             ResultSet resultSet = statement.executeQuery();

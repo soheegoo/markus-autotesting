@@ -1,8 +1,8 @@
 import java.sql.PreparedStatement;
 
-public class Correct extends Solution {
+public class CorrectNoOrder extends Solution {
 
-    public Correct() throws ClassNotFoundException {
+    public CorrectNoOrder() throws ClassNotFoundException {
 
         super();
     }
