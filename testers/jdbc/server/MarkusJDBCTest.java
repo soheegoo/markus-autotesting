@@ -203,8 +203,20 @@ public class MarkusJDBCTest {
             key = "bad_output_no_order";
             oracleResults2 = new ArrayList<>((List<Object>) oracleResults);
             testResults2 = new ArrayList<>((List<Object>) testResults);
-            Collections.sort((List<? extends Comparable>) oracleResults2);
-            Collections.sort((List<? extends Comparable>) testResults2);
+            Comparator<Comparable> nullSafeComparator = new Comparator<>() {
+                @Override
+                public int compare(Comparable c1, Comparable c2) {
+                    if (c1 == null) {
+                        return (c2 == null) ? 0 : -1;
+                    }
+                    if (c2 == null) {
+                        return 1;
+                    }
+                    return c1.compareTo(c2);
+                }
+            };
+            Collections.sort((List<? extends Comparable>) oracleResults2, nullSafeComparator);
+            Collections.sort((List<? extends Comparable>) testResults2, nullSafeComparator);
         }
         else {
             key = (this.orderOn) ? "bad_output_order" : "bad_output";
