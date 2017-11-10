@@ -23,10 +23,10 @@ class MarkusJDBCTest(MarkusSQLTest):
     def test_name(self):
         return self.test_file
 
-    def check_java(self):
+    def check_java(self, order_on=False):
         java_command = ['java', '-cp', self.java_classpath, self.__class__.__name__, self.oracle_database,
                         self.user_name, self.user_password, self.schema_name, self.test_name, self.data_name,
-                        self.test_database]
+                        str(order_on), self.test_database]
         java = subprocess.run(java_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True,
                               check=True)
 
@@ -37,7 +37,8 @@ class MarkusJDBCTest(MarkusSQLTest):
         # drop and recreate test schema + dataset, then fetch and compare java results
         try:
             self.set_test_schema(self.data_file)
-            java = self.check_java()
+            order_on = self.test_extra.get('order_on', False)
+            java = self.check_java(order_on)
             if java.stdout == MarkusTest.Status.FAIL.value:
                 return self.failed(message=java.stderr)
             if java.stdout == MarkusTest.Status.ERROR.value:

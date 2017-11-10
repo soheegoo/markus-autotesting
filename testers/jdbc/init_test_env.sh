@@ -54,7 +54,7 @@ for testname in "${testnames[@]}"; do
             GRANT SELECT ON ${schemaname}.${testnamedb} TO ${ALLTESTUSERS};
         " >| /tmp/ate.sql
         psql -U ${ORACLEUSER} -d ${ORACLEDB} -h localhost -f /tmp/ate.sql
-        java -cp ${CLASSDIR}:${JARPATH} MarkusJDBCTest ${ORACLEDB} ${ORACLEUSER} placeholder ${schemaname} ${testname} ${schemaname}
+        java -cp ${CLASSDIR}:${JARPATH} MarkusJDBCTest ${ORACLEDB} ${ORACLEUSER} placeholder placeholder ${testname} ${schemaname} false
     done
 done
 rm /tmp/ate.sql

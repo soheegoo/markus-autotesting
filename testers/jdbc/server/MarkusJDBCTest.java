@@ -3,8 +3,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.sql.*;
 import java.text.MessageFormat;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 public class MarkusJDBCTest {
 
@@ -23,7 +22,11 @@ public class MarkusJDBCTest {
         ERROR_MSGS.put("ex_connection", "The connection to the database raised an exception: ''{0}''");
         ERROR_MSGS.put("bad_disconnection", "Failed to close the database connection");
         ERROR_MSGS.put("ex_disconnection", "The disconnection from the database raised an exception: ''{0}''");
-        ERROR_MSGS.put("bad_output", "Expected the method output to be ''{0}'' instead of ''{1}''");
+        ERROR_MSGS.put("bad_output", "Expected the method return value to be ''{0}'' instead of ''{1}''");
+        ERROR_MSGS.put("bad_output_no_order", "Expected the method return value to be ''{0}'' instead of ''{1}'' " +
+                                              "(order does not matter)");
+        ERROR_MSGS.put("bad_output_order", "Expected the method return value to be ''{0}'' instead of ''{1}'' " +
+                                           "(order matters)");
         ERROR_MSGS.put("ex_output", "The test raised an exception: ''{0}''");
     }
     private static final String CONNECTION_TEST = "CONNECTION";
@@ -37,11 +40,12 @@ public class MarkusJDBCTest {
     private String dataName;
     private String className;
     private String methodName;
+    private boolean orderOn;
     private Connection oracleConnection;
     private JDBCSubmission testSubmission;
 
     public MarkusJDBCTest(String oracleDatabase, String testDatabase, String userName, String userPassword,
-                          String schemaName, String dataName, String className, String methodName) {
+                          String schemaName, String dataName, String className, String methodName, boolean orderOn) {
 
         this.oracleDatabase = oracleDatabase;
         this.testDatabase = testDatabase;
@@ -51,13 +55,15 @@ public class MarkusJDBCTest {
         this.dataName = dataName;
         this.className = className;
         this.methodName = methodName;
+        this.orderOn = orderOn;
     }
 
     private static Object[] getInputs(String className, String methodName, String dataName) {
 
         //TODO getInputs should be part of the specs
         switch (className) {
-        case "Correct":
+        case "CorrectNoOrder":
+        case "CorrectWithOrder":
         case "BadConnection":
         case "ExceptionConnection":
         case "BadDisconnection":
@@ -191,11 +197,38 @@ public class MarkusJDBCTest {
 
     private TestStatus checkResults(Object oracleResults, Object testResults) {
 
-        if (oracleResults.equals(testResults)) {
-            return new TestStatus("pass", "");
+        Object oracleResults2, testResults2;
+        String key;
+        if (!this.orderOn && oracleResults instanceof List && testResults instanceof List) {
+            key = "bad_output_no_order";
+            oracleResults2 = new ArrayList<>((List<Object>) oracleResults);
+            testResults2 = new ArrayList<>((List<Object>) testResults);
+            Comparator<Comparable> nullSafeComparator = new Comparator<>() {
+                @Override
+                public int compare(Comparable c1, Comparable c2) {
+                    if (c1 == null) {
+                        return (c2 == null) ? 0 : -1;
+                    }
+                    if (c2 == null) {
+                        return 1;
+                    }
+                    return c1.compareTo(c2);
+                }
+            };
+            Collections.sort((List<? extends Comparable>) oracleResults2, nullSafeComparator);
+            Collections.sort((List<? extends Comparable>) testResults2, nullSafeComparator);
         }
-        String msg = MessageFormat.format(ERROR_MSGS.get("bad_output"), oracleResults, testResults);
-        return new TestStatus("fail", msg);
+        else {
+            key = (this.orderOn) ? "bad_output_order" : "bad_output";
+            oracleResults2 = oracleResults;
+            testResults2 = testResults;
+        }
+        if (!oracleResults2.equals(testResults2)) {
+            String msg = MessageFormat.format(ERROR_MSGS.get(key), oracleResults, testResults);
+            return new TestStatus("fail", msg);
+        }
+
+        return new TestStatus("pass", "");
     }
 
     private void run() {
@@ -281,17 +314,19 @@ public class MarkusJDBCTest {
         String schemaName = args[3];
         String testName = args[4];
         String dataName = args[5];
-        String testDatabase = (args.length > 6) ? args[6] : null;
+        boolean orderOn = Boolean.valueOf(args[6]);
+        String testDatabase = (args.length > 7) ? args[7] : null;
         String[] testNames = testName.split("\\.");
         String className = testNames[0];
         String methodName = testNames[1];
 
         if (testDatabase == null) { // installation
+            //TODO userPassword, schemaName and orderOn are useless here
             MarkusJDBCTest.initTestEnv(oracleDatabase, userName, dataName, className, methodName);
         }
         else { // run test
             MarkusJDBCTest test = new MarkusJDBCTest(oracleDatabase, testDatabase, userName, userPassword, schemaName,
-                                                     dataName, className, methodName);
+                                                     dataName, className, methodName, orderOn);
             test.run();
         }
     }

@@ -3,9 +3,9 @@ import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Correct extends Submission {
+public class CorrectNoOrder extends Submission {
 
-    public Correct() throws ClassNotFoundException {
+    public CorrectNoOrder() throws ClassNotFoundException {
 
         super();
     }
@@ -14,7 +14,7 @@ public class Correct extends Submission {
 
         try {
             String sql = "SELECT table1.word FROM table1 JOIN table2 ON table1.id = table2.foreign_id WHERE " +
-                         "table2.number > ? ORDER BY word";
+                         "table2.number > ?";
             PreparedStatement statement = this.connection.prepareStatement(sql);
             statement.setDouble(1, numberThreshold);
             ResultSet resultSet = statement.executeQuery();

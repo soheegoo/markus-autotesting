@@ -1,13 +1,17 @@
 {
   "matrix": {
-    "Correct.CONNECTION": {
+    "CorrectNoOrder.CONNECTION": {
       "nodata": 1
     },
-    "Correct.select": {
+    "CorrectNoOrder.select": {
       "data1j.sql": 1, "data2j.sql": 1
     },
-    "Correct.insert": {
+    "CorrectNoOrder.insert": {
       "data1j.sql": {"JAVA": 1, "table1": 1}, "data2j.sql": {"JAVA": 1, "table1": 1}
+    },
+    "CorrectWithOrder.select": {
+      "data1j.sql": 1, "data2j.sql": 1,
+      "extra": {"order_on": true}
     },
     "BadConnection.CONNECTION": {
       "nodata": 1
