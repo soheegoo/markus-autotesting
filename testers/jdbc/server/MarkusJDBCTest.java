@@ -203,7 +203,7 @@ public class MarkusJDBCTest {
             key = "bad_output_no_order";
             oracleResults2 = new ArrayList<>((List<Object>) oracleResults);
             testResults2 = new ArrayList<>((List<Object>) testResults);
-            Comparator<Comparable> nullSafeComparator = new Comparator<>() {
+            Comparator<Comparable> nullSafeComparator = new Comparator<Comparable>() {
                 @Override
                 public int compare(Comparable c1, Comparable c2) {
                     if (c1 == null) {
