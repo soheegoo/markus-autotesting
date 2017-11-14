@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-# Deploys the autotesting server (run this as a super user, e.g. sudo install.sh)
-
 if [[ $# -lt 3 || $# -gt 4 ]]; then
     echo "Usage: $0 server_user test_user working_dir [num_workers]"
     exit 1
@@ -23,26 +21,29 @@ RESULTSDIR=${WORKINGDIR}/results
 QUEUE=${TESTUSER}
 
 echo "[AUTOTEST] Installing system packages"
-apt-get install ruby bundler redis-server
+sudo apt-get install ruby redis-server
+sudo gem install bundler
 echo "[AUTOTEST] Creating server user '${SERVERUSER}'"
-adduser --disabled-password ${SERVERUSER}
+sudo adduser --disabled-password ${SERVERUSER}
+sudo mkdir -p ${WORKINGDIR}
+sudo chown ${SERVERUSER}:${SERVERUSER} ${WORKINGDIR}
 conf=""
 for i in $(seq 0 $((NUMWORKERS - 1))); do
     testdir=${WORKINGDIR}/${TESTUSER}${i}
     echo "[AUTOTEST] Creating test user '${TESTUSER}${i}'"
-    adduser --disabled-login --no-create-home ${TESTUSER}${i}
-    mkdir -p ${testdir}
-    chmod ug=rwx,o=,+t ${testdir}
-    chown ${TESTUSER}${i}:${SERVERUSER} ${testdir}
-    echo "${SERVERUSER} ALL=(${TESTUSER}${i}) NOPASSWD:ALL" | EDITOR="tee -a" visudo
+    sudo adduser --disabled-login --no-create-home ${TESTUSER}${i}
+    sudo mkdir ${testdir}
+    sudo chown ${TESTUSER}${i}:${SERVERUSER} ${testdir}
+    sudo chmod ug=rwx,o=,+t ${testdir}
+    echo "${SERVERUSER} ALL=(${TESTUSER}${i}) NOPASSWD:ALL" | EDITOR="tee -a" sudo visudo
     conf="${conf}{user: '${TESTUSER}${i}', dir: '${testdir}', queue: '${QUEUE}${i}'},"
 done
 echo "[AUTOTEST] Creating working directories"
-mkdir -p ${SPECSDIR}
-mkdir -p ${VENVSDIR}
-mkdir -p ${RESULTSDIR}
-chmod u=rwx,go= ${RESULTSDIR}
-chown ${SERVERUSER}:${SERVERUSER} ${SPECSDIR} ${VENVSDIR} ${RESULTSDIR}
+sudo mkdir ${SPECSDIR}
+sudo mkdir ${VENVSDIR}
+sudo mkdir ${RESULTSDIR}
+sudo chown ${SERVERUSER}:${SERVERUSER} ${SPECSDIR} ${VENVSDIR} ${RESULTSDIR}
+sudo chmod u=rwx,go= ${RESULTSDIR}
 echo "[AUTOTEST] Installing gems"
 pushd ${SERVERDIR} > /dev/null
 bundle install --deployment
@@ -61,6 +62,6 @@ echo "
     ATE_SERVER_RESULTS_DIR = '${RESULTSDIR}'
     ATE_SERVER_TESTS = [${conf}]
 " >| markus_conf.rb
-echo "[AUTOTEST] (You must add the Markus web server user's public key to '$(~${SERVERUSER})/.ssh/authorized_keys')"
-echo "[AUTOTEST] (You may want to add '${SERVERDIR}/start_rescue.sh ${QUEUE} ${NUMWORKERS}' to ${SERVERUSER}'s crontab with a @reboot time)"
+echo "[AUTOTEST] (You must add the Markus web server public key to ${SERVERUSER}'s '~/.ssh/authorized_keys')"
+echo "[AUTOTEST] (You may want to add '${SERVERDIR}/start_resque.sh ${QUEUE} ${NUMWORKERS}' to ${SERVERUSER}'s crontab with a @reboot time)"
 echo "[AUTOTEST] (You should install the individual testers you plan to use)"
