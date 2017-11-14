@@ -2,17 +2,26 @@ Automated Testing Engine (ATE)
 ==============================
 
 The Automated Testing Engine (ATE) allows instructors and tas to run tests on students submissions and automatically
-create marks for them. It consists of a client component integrated into MarkUs, and a server component that can be
-deployed together with MarkUs or standalone. Testing jobs are queued and served using a first in first out strategy,
-managed by the gem Resque on the client and server side.
+create marks for them. It also allows students to run a separate set of tests and self-assess their submission.
 
-## 1. Requirements and Installation
+ATE consists of a client component integrated into MarkUs, and a standalone server component. Testing jobs are queued
+using the gem Resque with a first in first out strategy, and served one at a time or concurrently up to a configurable
+limit.
 
-The client requirements are already included in a MarkUs installation. If you are a MarkUs developer, you can skip the
-requirements for the server.
+## 1. Installation
 
-The server requires `ruby`, `redis-server`, `bundler` and the gems listed in the Gemfile. Copy the 'server' directory to
-the server machine, cd into it and run `bundle install --deployment` to install the gems.
+The client requirements are already included in a MarkUs installation.
+
+To install the server, run the top level `install.sh` script with parameters..TODO
+
+To restart the server, run the `start_resque.sh`..TODO
+
+To install a tester, run the `install.sh` script in the respective tester dir. We come with a set of ready-to-use
+testers (python+java (cite uam), sql, jdbc, xquery)..TODO
+
+To create an environment for a course, run the `create_test_env.sh` script..TODO
+
+If you are a MarkUs developer, you can just `bundle install --deployment`..TODO
 
 ## 2. Running ATE
 
@@ -77,7 +86,7 @@ The directory on the test server where to copy test files. Multiple clients can 
 The directory on the test server where to log test results.
 `ATE_SERVER_FILES_USERNAME` must be able to write here.
 ##### ATE_SERVER_TESTS
-TODO document new options + say that same dir and same queue will bring a lot of pain
+TODO document new options + say that same dir or same queue will bring a lot of pain
 ##### ATE_SERVER_TESTS_USERNAME
 The test server username used to run the tests.
 Can be the same as `ATE_SERVER_FILES_USERNAME`, or `ATE_SERVER_FILES_USERNAME` must be able to sudo -u to it.
@@ -101,6 +110,6 @@ test:
     <expected>OPTIONAL (STRING, NOT DISPLAYED YET)</expected>
     <actual>OPTIONAL (STRING, DISPLAYED AS OUTPUT)</actual>
     <marks_earned>REQUIRED (INTEGER)</marks_earned>
-    <status>REQUIRED (ONE OF pass,fail,error)</status>
+    <status>REQUIRED (ONE OF pass,partial,fail,error)</status>
 </test>
 ```
