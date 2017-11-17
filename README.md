@@ -12,9 +12,9 @@ limit.
 
 The client requirements are already included in a MarkUs installation.
 
-To install the server, run the top level `install.sh` script with parameters..TODO
+To install the server, run the top level `install.sh server_user test_user working_dir [num_workers]`..TODO
 
-To restart the server, run the `start_resque.sh`..TODO
+To restart the server, run the `start_resque.sh queue_name [num_workers]`..TODO
 
 To install a tester, run the `install.sh` script in the respective tester dir. We come with a set of ready-to-use
 testers (python+java (cite uam), sql, jdbc, xquery)..TODO
@@ -60,48 +60,63 @@ Examples of architectures:
 
 Check out Resque on GitHub to get an idea of all the possible queue configurations.
 
-## 3. ATE Config Options
+## 3. MarkUs ATE Config Options
 
 ##### AUTOMATED_TESTING_ENGINE_ON
-ATE can only be used when this is set to true.
+Enables ATE.
+
 ##### ATE_EXPERIMENTAL_STUDENT_TESTS_ON
 Allows the instructor to let students run tests periodically.
+
 ##### ATE_EXPERIMENTAL_STUDENT_TESTS_BUFFER_TIME
-TODO
+With student tests enabled, a student can't request a new test if they already have a test in execution, to prevent
+denial of service. If the test script fails unexpectedly and does not return a result, a student would effectively be
+locked out from further testing.  
+This is the amount of time after which a student can request a new test anyway.  
+(Ignored if `ATE_EXPERIMENTAL_STUDENT_TESTS_ON` is 'false'.)
+
 ##### ATE_CLIENT_DIR
-The directory on the client where test scripts are stored and student repos are temporarily exported.
+The directory on the client where the test files are stored.  
 The user running MarkUs must be able to write here.
+
 ##### ATE_FILES_QUEUE_NAME
-The name of the queue on the test client where submission files wait to be copied.
+The name of the Resque client queue where the test files wait to be copied to the server.
+
 ##### ATE_SERVER_HOST
-The test server host. Use 'localhost' for a local server without authentication.
+The server host name.  
+(Use 'localhost' for a local development server where files are copied using the file system.)
+
 ##### ATE_SERVER_FILES_USERNAME
-The test server username used to copy the test files over + to run the Resque server worker.
-SSH Login must be set up for this username to connect without a password from MarkUs.
-Ignored if `ATE_SERVER_HOST` is 'localhost'.
+The server username used to copy the test files over and to run the Resque server workers.  
+SSH passwordless login must be set up for the user running MarkUs to connect with this username on the server.  
+(Ignored if `ATE_SERVER_HOST` is 'localhost'.)
+
 ##### ATE_SERVER_FILES_DIR
-The directory on the test server where to copy test files. Multiple clients can use the same directory.
-`ATE_SERVER_FILES_USERNAME` must be able to write here.
+The directory on the server where test files are copied.  
+Multiple clients can use the same directory, and `ATE_SERVER_FILES_USERNAME` must be able to write here.  
+(If `ATE_SERVER_HOST` is 'localhost', the user running MarkUs must be able to write here.)
+
 ##### ATE_SERVER_RESULTS_DIR
-The directory on the test server where to log test results.
-`ATE_SERVER_FILES_USERNAME` must be able to write here.
+The directory on the server where test results are logged.  
+`ATE_SERVER_FILES_USERNAME` must be able to write here.  
+(If `ATE_SERVER_HOST` is 'localhost', the user running MarkUs must be able to write here.)
+
 ##### ATE_SERVER_TESTS
-TODO document new options + say that same dir or same queue will bring a lot of pain
-##### ATE_SERVER_TESTS_USERNAME
-The test server username used to run the tests.
-Can be the same as `ATE_SERVER_FILES_USERNAME`, or `ATE_SERVER_FILES_USERNAME` must be able to sudo -u to it.
-Ignored if `ATE_SERVER_HOST` is 'localhost'.
-##### ATE_SERVER_TESTS_DIR
-The directory on the test server where to run tests. Only one test at at time is executed to avoid interference.
-Can be the same as `ATE_SERVER_FILES_DIR`.
-`ATE_SERVER_FILES_USERNAME` and `ATE_SERVER_TESTS_USERNAME` must be able to write here.
-##### ATE_TESTS_QUEUE_NAME
-The name of the queue on the test server where tests wait to be executed.
+An array of hashes with the server workers configurations. Each hash is a concurrent worker on the server running the
+tests, and has the following keys:
+* **user**: The server username used to run the tests. `ATE_SERVER_FILES_USERNAME` must be able to sudo -u to it.  
+(Can be the same as `ATE_SERVER_FILES_USERNAME`, or ignored if `ATE_SERVER_HOST` is 'localhost'.)
+TODO INSTALL AND START_RESQUE REQUIRE DIFFERENT USERS FOR TESTS
+* **dir**: The directory on the server where tests run.  
+`ATE_SERVER_FILES_USERNAME` and `user` must be able to write here.  
+(Can be the same as `ATE_SERVER_FILES_DIR`.)
+* **queue**: The name of the Resque server queue where tests wait to be executed.
+
+The `user`, `dir` and `queue` settings must be different among concurrent test workers.
 
 ## 4. Test scripts output format
 
-The test scripts the instructors upload and run on the test server must print the following output on stdout for each
-test:
+The test scripts the instructors upload and run on the server must print the following output on stdout for each test:
 
 ```
 <test>
@@ -113,3 +128,6 @@ test:
     <status>REQUIRED (ONE OF pass,partial,fail,error)</status>
 </test>
 ```
+
+This output is sent back to the client and logged under `ATE_SERVER_RESULTS_DIR` in files named 'output.txt'.  
+Printing on stderr instead is not sent back but still logged under `ATE_SERVER_RESULTS_DIR` in files named 'errors.txt'.
