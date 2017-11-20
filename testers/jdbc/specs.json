@@ -3,6 +3,9 @@
     "CorrectNoOrder.CONNECTION": {
       "nodata": 1
     },
+    "CorrectNoOrder.DISCONNECTION": {
+      "nodata": 1
+    },
     "CorrectNoOrder.select": {
       "data1j.sql": 1, "data2j.sql": 1
     },
@@ -19,10 +22,10 @@
     "ExceptionConnection.CONNECTION": {
       "nodata": 1
     },
-    "BadDisconnection.CONNECTION": {
+    "BadDisconnection.DISCONNECTION": {
       "nodata": 1
     },
-    "ExceptionDisconnection.CONNECTION": {
+    "ExceptionDisconnection.DISCONNECTION": {
       "nodata": 1
     },
     "BadSelect.select": {

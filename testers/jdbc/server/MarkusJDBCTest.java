@@ -30,6 +30,7 @@ public class MarkusJDBCTest {
         ERROR_MSGS.put("ex_output", "The test raised an exception: ''{0}''");
     }
     private static final String CONNECTION_TEST = "CONNECTION";
+    private static final String DISCONNECTION_TEST = "DISCONNECTION";
     private static String JDBC_PREAMBLE = "jdbc:postgresql://localhost:5432/";
 
     private String oracleDatabase;
@@ -243,7 +244,10 @@ public class MarkusJDBCTest {
         }));
         // run tests
         TestStatus testStatus = this.initDB();
-        if (!this.methodName.equals(MarkusJDBCTest.CONNECTION_TEST) && testStatus.status.equals("pass")) {
+        if (!this.methodName.equals(MarkusJDBCTest.CONNECTION_TEST) &&
+            !this.methodName.equals(MarkusJDBCTest.DISCONNECTION_TEST) &&
+            testStatus.status.equals("pass")
+        ) {
             try {
                 Object testResults = this.getTestResults();
                 Object oracleResults = this.getOracleResults();
@@ -256,7 +260,7 @@ public class MarkusJDBCTest {
             }
         }
         TestStatus closeResult = this.closeDB();
-        if (this.methodName.equals(MarkusJDBCTest.CONNECTION_TEST) && testStatus.status.equals("pass")) {
+        if (this.methodName.equals(MarkusJDBCTest.DISCONNECTION_TEST) && testStatus.status.equals("pass")) {
             testStatus = closeResult;
         }
         // restore stdout and stderr, then print results
