@@ -10,10 +10,10 @@ GEM
     rack (2.0.3)
     rack-protection (2.0.0)
       rack
-    rake (12.2.1)
-    redis (3.3.5)
-    redis-namespace (1.5.3)
-      redis (~> 3.0, >= 3.0.4)
+    rake (12.3.0)
+    redis (4.0.1)
+    redis-namespace (1.6.0)
+      redis (>= 3.0.4)
     resque (1.27.4)
       mono_logger (~> 1.0)
       multi_json (~> 1.0)
@@ -38,4 +38,4 @@ DEPENDENCIES
   resque
 
 BUNDLED WITH
-   1.15.4
+   1.16.0
