@@ -124,7 +124,8 @@ The test scripts the instructors upload and run on the server must print the fol
     <input>OPTIONAL (STRING, NOT DISPLAYED YET)</input>
     <expected>OPTIONAL (STRING, NOT DISPLAYED YET)</expected>
     <actual>OPTIONAL (STRING, DISPLAYED AS OUTPUT)</actual>
-    <marks_earned>REQUIRED (INTEGER)</marks_earned>
+    <marks_earned>REQUIRED (INTEGER OR FLOAT)</marks_earned>
+    <marks_total>OPTIONAL (INTEGER OR FLOAT)</marks_total>
     <status>REQUIRED (ONE OF pass,partial,fail,error)</status>
 </test>
 ```

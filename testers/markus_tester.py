@@ -146,27 +146,25 @@ class MarkusTest:
             return '{} + {}'.format(self.test_name, self.data_name)
 
     @staticmethod
-    def format_result(test_name, status, points_awarded, output, points_total=None):
+    def format_result(test_name, status, points_earned, output, points_total=None):
         """
         Formats a test result as expected by Markus.
         :param test_name: The test name
         :param status: A member of MarkusTest.Status.
-        :param points_awarded: The points awarded by the test, must be an integer >= 0 and <= test total points.
+        :param points_earned: The points earned by the test, must be a float >= 0 and <= test total points.
         :param output: The test output.
-        :param points_total: The total points the test could award, must be an integer > 0. Can be None if unknown.
+        :param points_total: The total points the test could award, must be a float >= 0. Can be None if unknown.
         :return The formatted test result.
         """
-        if points_total is not None and points_total <= 0:
-            raise ValueError('The test total points must be > 0')
-        if points_awarded < 0:
-            raise ValueError('The test points awarded must be >= 0')
-        if points_total is not None and points_awarded > points_total:
-            raise ValueError('The test points awarded must be <= test total points')
+        if points_total is not None and points_total < 0:
+            raise ValueError('The test total points must be >= 0')
+        if points_earned < 0:
+            raise ValueError('The test points earned must be >= 0')
+        if points_total is not None and points_earned > points_total:
+            raise ValueError('The test points earned must be <= test total points')
         output_escaped = saxutils.escape(output.replace('\x00', ''), entities={"'": '&apos;'})
         if points_total is None:
-            name = test_name
-        else:
-            name = '[{}/{}] {}'.format(points_awarded, points_total, test_name)
+            points_total = ''
         return '''
 <test>
   <name>{}</name>
@@ -174,18 +172,19 @@ class MarkusTest:
   <expected></expected>
   <actual>{}</actual>
   <marks_earned>{}</marks_earned>
+  <marks_total>{}</marks_total>
   <status>{}</status>
-</test>'''.format(name, output_escaped, points_awarded, status.value)
+</test>'''.format(test_name, output_escaped, points_earned, points_total, status.value)
 
-    def format(self, status, points_awarded, output):
+    def format(self, status, points_earned, output):
         """
         Formats the result of this test as expected by Markus.
         :param status: A member of MarkusTest.Status.
-        :param points_awarded: The points awarded by the test, must be an integer >= 0 and <= test total points.
+        :param points_earned: The points earned by the test, must be a float >= 0 and <= test total points.
         :param output: The test output.
         :return The formatted test result.
         """
-        return MarkusTest.format_result(self.test_data_name, status, points_awarded, output, self.points_total)
+        return MarkusTest.format_result(self.test_data_name, status, points_earned, output, self.points_total)
 
     def add_feedback(self, status, feedback='', oracle_solution=None, test_solution=None):
         """
@@ -212,31 +211,31 @@ class MarkusTest:
 
     def passed(self, message=''):
         """
-        Passes this test with the test total points awarded. If a feedback file is enabled, adds feedback to it.
+        Passes this test earning the test total points. If a feedback file is enabled, adds feedback to it.
         :param message: An optional message, will be shown as test output.
         :return The formatted passed test.
         """
-        result = self.format(status=self.Status.PASS, points_awarded=self.points_total, output=message)
+        result = self.format(status=self.Status.PASS, points_earned=self.points_total, output=message)
         if self.feedback_open:
             self.add_feedback(status=self.Status.PASS)
         return result
 
-    def partially_passed(self, points_awarded, message, oracle_solution=None, test_solution=None):
+    def partially_passed(self, points_earned, message, oracle_solution=None, test_solution=None):
         """
         Partially passes this test with some points awarded. If the points are <= 0 this test is failed with 0 points
-        awarded, if the points are >= test total points this test is passed with the test total points awarded. If a
-        feedback file is enabled, adds feedback to it.
-        :param points_awarded: The points awarded by the test.
+        earned, if the points are >= test total points this test is passed earning the test total points. If a feedback
+        file is enabled, adds feedback to it.
+        :param points_earned: The points earned by the test.
         :param message: The message explaining why the test was not fully passed, will be shown as test output.
         :param oracle_solution: The optional correct solution to be added to the feedback file.
         :param test_solution: The optional student solution to be added to the feedback file.
         :return The formatted partially passed test.
         """
-        if points_awarded <= 0:
+        if points_earned <= 0:
             return self.failed(message, oracle_solution, test_solution)
-        if points_awarded >= self.points_total:
+        if points_earned >= self.points_total:
             return self.passed(message)
-        result = self.format(status=self.Status.PARTIAL, points_awarded=points_awarded, output=message)
+        result = self.format(status=self.Status.PARTIAL, points_earned=points_earned, output=message)
         if self.feedback_open:
             self.add_feedback(status=self.Status.PARTIAL, feedback=message, oracle_solution=oracle_solution,
                               test_solution=test_solution)
@@ -244,13 +243,13 @@ class MarkusTest:
 
     def failed(self, message, oracle_solution=None, test_solution=None):
         """
-        Fails this test with 0 points awarded. If a feedback file is enabled, adds feedback to it.
+        Fails this test with 0 points earned. If a feedback file is enabled, adds feedback to it.
         :param message: The failure message, will be shown as test output.
         :param oracle_solution: The optional correct solution to be added to the feedback file.
         :param test_solution: The optional student solution to be added to the feedback file.
         :return The formatted failed test.
         """
-        result = self.format(status=self.Status.FAIL, points_awarded=0, output=message)
+        result = self.format(status=self.Status.FAIL, points_earned=0, output=message)
         if self.feedback_open:
             self.add_feedback(status=self.Status.FAIL, feedback=message, oracle_solution=oracle_solution,
                               test_solution=test_solution)
@@ -262,7 +261,7 @@ class MarkusTest:
         :param message: The error message, will be shown as test output.
         :return The formatted erred test.
         """
-        result = self.format(status=self.Status.ERROR, points_awarded=0, output=message)
+        result = self.format(status=self.Status.ERROR, points_earned=0, output=message)
         if self.feedback_open:
             self.add_feedback(status=self.Status.ERROR, feedback=message)
         return result
@@ -289,7 +288,7 @@ class MarkusTester:
         :param points_total: The total points the tests could award, must be an integer > 0. Can be None if unknown.
         :return The formatted erred tests.
         """
-        return MarkusTest.format_result(test_name='All tests', status=MarkusTest.Status.ERROR, points_awarded=0,
+        return MarkusTest.format_result(test_name='All tests', status=MarkusTest.Status.ERROR, points_earned=0,
                                         output=message, points_total=points_total)
 
     def upload_svn_feedback(self, markus_root_url, repo_name, assignment_name, svn_file_name, svn_user, svn_password,
