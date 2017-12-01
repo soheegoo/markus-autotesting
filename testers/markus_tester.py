@@ -114,6 +114,7 @@ class MarkusTest:
         PARTIAL = 'partial'
         FAIL = 'fail'
         ERROR = 'error'
+        ERROR_ALL = 'error_all'
 
     def __init__(self, tester, test_file, data_files, points, test_extra, feedback_open=None):
         self.tester = tester
@@ -153,7 +154,7 @@ class MarkusTest:
         :param status: A member of MarkusTest.Status.
         :param points_earned: The points earned by the test, must be a float >= 0 and <= test total points.
         :param output: The test output.
-        :param points_total: The total points the test could award, must be a float >= 0. Can be None if unknown.
+        :param points_total: The total points the test could earn, must be a float >= 0. Can be None if unknown.
         :return The formatted test result.
         """
         if points_total is not None and points_total < 0:
@@ -285,10 +286,10 @@ class MarkusTester:
         """
         Err all tests of this tester with a single message.
         :param message: The error message.
-        :param points_total: The total points the tests could award, must be an integer > 0. Can be None if unknown.
+        :param points_total: The total points the tests could earn, must be a float >= 0. Can be None if unknown.
         :return The formatted erred tests.
         """
-        return MarkusTest.format_result(test_name='All tests', status=MarkusTest.Status.ERROR, points_earned=0,
+        return MarkusTest.format_result(test_name='All tests', status=MarkusTest.Status.ERROR_ALL, points_earned=0,
                                         output=message, points_total=points_total)
 
     def upload_svn_feedback(self, markus_root_url, repo_name, assignment_name, svn_file_name, svn_user, svn_password,

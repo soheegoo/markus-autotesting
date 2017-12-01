@@ -118,4 +118,5 @@ class MarkusJDBCTester(MarkusSQLTester):
                 return
         except Exception as e:
             print(MarkusTester.error_all(message=str(e)))
+            return
         super().run()
