@@ -153,12 +153,14 @@ class Markus:
             content_type = 'multipart/form-data'
         return self.submit_request(params, path, request_type, content_type)
 
-    def upload_test_script_results(self, assignment_id, group_id, results, test_script_names):
-        """ (Markus, int, str, str, list) -> list of str"""
+    def upload_test_script_results(self, assignment_id, group_id, test_script_names, test_output, test_errors=''):
+        """ (Markus, int, int, list, str, str) -> list of str"""
         params = {
-            'file_content': results,
-            'test_scripts': test_script_names
+            'test_scripts': test_script_names,
+            'test_output': test_output
         }
+        if test_errors != '':
+            params['test_errors'] = test_errors
         path = Markus.get_path(assignment_id, group_id) + 'test_script_results'
         return self.submit_request(params, path, 'POST')
 

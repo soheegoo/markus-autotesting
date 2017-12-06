@@ -16,7 +16,7 @@ class AutomatedTestsServer
         # (a production environment would already have the tests dir with the appropriate owners and permissions)
         FileUtils.mkdir_p(tests_path, {mode: 01770}) # rwxrwx--T for the tests dir
       end
-      FileUtils.cp_r("#{files_path}/.", tests_path) # == cp -r '#{files_path}'/* '#{tests_path}'
+      FileUtils.cp_r("#{files_path}/.", tests_path) # includes hidden files
       FileUtils.rm_rf(files_path)
     end
     # give permissions: the test user can create new files but not modify/delete submission files and test scripts
@@ -84,7 +84,10 @@ class AutomatedTestsServer
                              "s#{submission_id}", "run_#{time.to_i}_#{pid}")
     FileUtils.mkdir_p(results_path)
     File.write("#{results_path}/output.txt", all_output)
-    File.write("#{results_path}/errors.txt", all_errors)
+    all_errors.strip!
+    unless all_errors == ''
+      File.write("#{results_path}/errors.txt", all_errors)
+    end
 
     # cleanup
     FileUtils.rm_rf(tests_path)
@@ -105,7 +108,10 @@ class AutomatedTestsServer
                :body => {
                    'requested_by' => user_api_key,
                    'test_scripts' => test_scripts.map {|script| script['script_name']},
-                   'file_content' => all_output}}
+                   'test_output' => all_output}}
+    unless all_errors == ''
+      options[:body]['test_errors'] = all_errors
+    end
     unless submission_id.nil?
       options[:body]['submission_id'] = submission_id
     end
