@@ -48,9 +48,9 @@ create_test_users() {
 
 create_working_dirs() {
     echo "[AUTOTEST] Creating working directories"
-    sudo mkdir ${SPECSDIR}
-    sudo mkdir ${VENVSDIR}
-    sudo mkdir ${RESULTSDIR}
+    sudo mkdir -p ${SPECSDIR}
+    sudo mkdir -p ${VENVSDIR}
+    sudo mkdir -p ${RESULTSDIR}
     sudo chown ${SERVERUSER}:${SERVERUSER} ${SPECSDIR} ${VENVSDIR} ${RESULTSDIR}
     sudo chmod u=rwx,go= ${RESULTSDIR}
 }
@@ -62,12 +62,16 @@ install_gems() {
     popd > /dev/null
 }
 
+run_resque() {
+    sudo -u ${SERVERUSER} -- ${SERVERDIR}/start_resque.sh ${QUEUE} ${NUMWORKERS}
+}
+
 create_markus_conf() {
     echo "[AUTOTEST] Creating Markus web server config snippet in 'markus_conf.rb'"
     echo "
         AUTOMATED_TESTING_ENGINE_ON = true
-        ATE_EXPERIMENTAL_STUDENT_TESTS_ON = false
-        ATE_EXPERIMENTAL_STUDENT_TESTS_BUFFER_TIME = 2.hours
+        ATE_STUDENT_TESTS_ON = false
+        ATE_STUDENT_TESTS_BUFFER_TIME = 1.hour
         ATE_CLIENT_DIR = 'TODO_web_server_dir'
         ATE_FILES_QUEUE_NAME = 'TODO_web_server_queue'
         ATE_SERVER_HOST = '$(hostname).$(dnsdomainname)'
@@ -114,6 +118,6 @@ create_server_user
 create_test_users
 create_working_dirs
 install_gems
-sudo -u ${SERVERUSER} -- ${SERVERDIR}/start_resque.sh ${QUEUE} ${NUMWORKERS}
+run_resque
 create_markus_conf
 suggest_next_steps
