@@ -23,7 +23,7 @@ class AutomatedTestsServer
     # (to fully work, the tests dir must be rwxrwx--T test_username:ATE_SERVER_FILES_USERNAME)
     # submission files + test scripts: u and g are the server user (who copied the files), o is the test user
     FileUtils.chmod_R('u+w,go-w,ugo-x+rX', tests_path, {force: true}) # rwxr-xr-x for dirs, rw-r--r-- for files
-    FileUtils.chmod('ugo+x', test_scripts.map {|script| File.join(tests_path, script['script_name'])}) # rwxr-xr-x for test scripts
+    FileUtils.chmod('ugo+x', test_scripts.map {|script| File.join(tests_path, script['file_name'])}) # rwxr-xr-x for test scripts
 
     # run tests
     all_output = '<testrun>'
@@ -31,7 +31,7 @@ class AutomatedTestsServer
     pid = nil
     test_scripts.each do |script|
       run_command = "cd '#{tests_path}'; "\
-                    "./'#{script['script_name']}' #{markus_address} #{user_api_key} #{assignment_id} #{group_id} "\
+                    "./'#{script['file_name']}' #{markus_address} #{user_api_key} #{assignment_id} #{group_id} "\
                                                  "#{group_repo_name}"
       unless test_username.nil?
         run_command = "sudo -u #{test_username} -- bash -c \"#{run_command}\""
@@ -70,7 +70,7 @@ class AutomatedTestsServer
       run_time = (Time.now - start_time) * 1000.0 # milliseconds
       all_output += "
 <test_script>
-  <script_name>#{script['script_name']}</script_name>
+  <file_name>#{script['file_name']}</file_name>
   <time>#{run_time.to_i}</time>
   #{output}
 </test_script>"
@@ -107,7 +107,7 @@ class AutomatedTestsServer
                    'Accept' => 'application/json'},
                :body => {
                    'requested_by' => user_api_key,
-                   'test_scripts' => test_scripts.map {|script| script['script_name']},
+                   'test_scripts' => test_scripts.map {|script| script['file_name']},
                    'test_output' => all_output}}
     unless all_errors == ''
       options[:body]['test_errors'] = all_errors
