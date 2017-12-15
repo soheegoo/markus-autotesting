@@ -1,15 +1,19 @@
 #!/usr/bin/env bash
 
 kill_workers() {
-    echo "[RESQUE] Killing existing Resque workers"
-    kill -QUIT `pgrep -f resque`
+    local workers=$(pgrep -f resque)
+
+    if [[ ! -z ${workers} ]]; then
+        echo "[RESQUE] Killing existing Resque workers"
+        kill -QUIT ${workers}
+    fi
 }
 
 run_worker() {
     local queue=$1
 
-    TERM_CHILD=1 BACKGROUND=yes QUEUES=${queue} bundle exec rake resque:work
-    echo "[RESQUE] Resque worker listening on queue '${queue}'"
+    TERM_CHILD=1 BACKGROUND=yes QUEUES=${queue} bundle exec rake resque:work &&
+        echo "[RESQUE] Resque worker listening on queue '${queue}'"
 }
 
 run_workers() {
