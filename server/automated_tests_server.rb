@@ -4,27 +4,35 @@ require 'open3'
 class AutomatedTestsServer
 
   # the user running this Resque worker should be:
-  # a) the user running MarkUs if ATE_SERVER_HOST == 'localhost'
-  # b) ATE_SERVER_FILES_USERNAME otherwise
+  # a) the user running MarkUs if ATE_SERVER_FILES_USERNAME == 'localhost' (development)
+  # b) a real separate user ATE_SERVER_FILES_USERNAME otherwise (production)
   def self.perform(markus_address, user_api_key, server_api_key, test_username, test_scripts, files_path, tests_path,
                    results_path, assignment_id, group_id, group_repo_name, submission_id)
 
     # move files to the test location (if needed)
     if files_path != tests_path
-      FileUtils.mkdir_p(tests_path, {mode: 0777}) # create tests dir if not already existing..
-      FileUtils.cp_r("#{files_path}/.", tests_path) # == cp -r '#{files_path}'/* '#{tests_path}'
+      unless Dir.exists?(tests_path)
+        # this should only happen in development
+        # (a production environment would already have the tests dir with the appropriate owners and permissions)
+        FileUtils.mkdir_p(tests_path, {mode: 01770}) # rwxrwx--T for the tests dir
+      end
+      FileUtils.cp_r("#{files_path}/.", tests_path) # includes hidden files
       FileUtils.rm_rf(files_path)
     end
-    # give test_username all permissions but executability on the student files, and executability on test scripts
-    FileUtils.chmod_R('ugo+rwX', tests_path, {force: true})
-    FileUtils.chmod('ugo+x', test_scripts.map {|script| File.join(tests_path, script['script_name'])})
+    # give permissions: the test user can create new files but not modify/delete submission files and test scripts
+    # (to fully work, the tests dir must be rwxrwx--T test_username:ATE_SERVER_FILES_USERNAME)
+    # submission files + test scripts: u and g are the server user (who copied the files), o is the test user
+    FileUtils.chmod_R('u+w,go-w,ugo-x+rX', tests_path, {force: true}) # rwxr-xr-x for dirs, rw-r--r-- for files
+    FileUtils.chmod('ugo+x', test_scripts.map {|script| File.join(tests_path, script['file_name'])}) # rwxr-xr-x for test scripts
 
     # run tests
     all_output = '<testrun>'
     all_errors = ''
     pid = nil
     test_scripts.each do |script|
-      run_command = "cd '#{tests_path}'; ./'#{script['script_name']}' #{markus_address} #{user_api_key} #{assignment_id} #{group_id} #{group_repo_name}"
+      run_command = "cd '#{tests_path}'; "\
+                    "./'#{script['file_name']}' #{markus_address} #{user_api_key} #{assignment_id} #{group_id} "\
+                                                 "#{group_repo_name}"
       unless test_username.nil?
         run_command = "sudo -u #{test_username} -- bash -c \"#{run_command}\""
       end
@@ -62,7 +70,7 @@ class AutomatedTestsServer
       run_time = (Time.now - start_time) * 1000.0 # milliseconds
       all_output += "
 <test_script>
-  <script_name>#{script['script_name']}</script_name>
+  <file_name>#{script['file_name']}</file_name>
   <time>#{run_time.to_i}</time>
   #{output}
 </test_script>"
@@ -76,13 +84,19 @@ class AutomatedTestsServer
                              "s#{submission_id}", "run_#{time.to_i}_#{pid}")
     FileUtils.mkdir_p(results_path)
     File.write("#{results_path}/output.txt", all_output)
-    File.write("#{results_path}/errors.txt", all_errors)
+    all_errors.strip!
+    unless all_errors == ''
+      File.write("#{results_path}/errors.txt", all_errors)
+    end
 
     # cleanup
-    if test_username.nil?
-      FileUtils.rm_rf(tests_path)
-    else
-      Open3.capture3("sudo -u #{test_username} -- bash -c \"rm -rf '#{tests_path}'; killall -KILL -u #{test_username}\"")
+    FileUtils.rm_rf(tests_path)
+    unless test_username.nil?
+      # kill spawned processes and remove files created by the test user
+      clean_command = "killall -KILL -u #{test_username}; "\
+                      "chmod -Rf ugo+rwX '#{tests_path}'; "\
+                      "rm -rf '#{tests_path}'"
+      Open3.capture3("sudo -u #{test_username} -- bash -c \"#{clean_command}\"")
     end
 
     # send results back to markus by api
@@ -93,8 +107,11 @@ class AutomatedTestsServer
                    'Accept' => 'application/json'},
                :body => {
                    'requested_by' => user_api_key,
-                   'test_scripts' => test_scripts.map {|script| script['script_name']},
-                   'file_content' => all_output}}
+                   'test_scripts' => test_scripts.map {|script| script['file_name']},
+                   'test_output' => all_output}}
+    unless all_errors == ''
+      options[:body]['test_errors'] = all_errors
+    end
     unless submission_id.nil?
       options[:body]['submission_id'] = submission_id
     end

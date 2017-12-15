@@ -52,7 +52,7 @@ class MarkusJDBCTest(MarkusSQLTest):
                 msg = str(e)
             return self.error(message=msg)
         if isinstance(self.points, collections.abc.Mapping):
-            points_awarded = self.points[self.JAVA_POINTS_KEY]
+            points_earned = self.points[self.JAVA_POINTS_KEY]
         else:
             return self.passed()
         # fetch and compare sql table results
@@ -67,7 +67,7 @@ class MarkusJDBCTest(MarkusSQLTest):
                 oracle_results = self.get_oracle_results(table_name)
                 status, message = self.check_results(oracle_results, test_results, order_on=False)
                 if status is MarkusTest.Status.PASS:
-                    points_awarded += table_points
+                    points_earned += table_points
                 else:
                     oracle_solution, test_solution = self.get_psql_dump(table_name)
                     messages.append('(Table {}) {}'.format(table_name, message))
@@ -77,10 +77,10 @@ class MarkusJDBCTest(MarkusSQLTest):
                 self.oracle_connection.commit()
                 self.test_connection.commit()
                 messages.append('(Table {}) {}'.format(table_name, str(e)))
-        if points_awarded == self.points_total:
+        if points_earned == self.points_total:
             return self.passed()
         else:
-            return self.partially_passed(points_awarded, message=', '.join(messages),
+            return self.partially_passed(points_earned, message=', '.join(messages),
                                          oracle_solution='\n'.join(oracle_solutions),
                                          test_solution='\n'.join(test_solutions))
 
@@ -118,4 +118,5 @@ class MarkusJDBCTester(MarkusSQLTester):
                 return
         except Exception as e:
             print(MarkusTester.error_all(message=str(e)))
+            return
         super().run()
