@@ -20,9 +20,11 @@ class AutomatedTestsServer
       FileUtils.rm_rf(files_path)
     end
     # give permissions: the test user can create new files but not modify/delete submission files and test scripts
-    # (to fully work, the tests dir must be rwxrwx--T test_username:ATE_SERVER_FILES_USERNAME)
+    # (to fully work, the tests dir must be rwxrwx--T ATE_SERVER_FILES_USERNAME:test_username)
     # submission files + test scripts: u and g are the server user (who copied the files), o is the test user
-    FileUtils.chmod_R('u+w,go-w,ugo-x+rX', tests_path, {force: true}) # rwxr-xr-x for dirs, rw-r--r-- for files
+    files_and_dirs = Dir.glob(File.join(tests_path, '*'), File::FNM_DOTMATCH) -
+                     [File.join(tests_path, '.'), File.join(tests_path, '..')]
+    FileUtils.chmod_R('u+w,go-w,ugo-x+rX', files_and_dirs, {force: true}) # rwxr-xr-x for dirs, rw-r--r-- for files
     FileUtils.chmod('ugo+x', test_scripts.map {|script| File.join(tests_path, script['file_name'])}) # rwxr-xr-x for test scripts
 
     # run tests
@@ -89,15 +91,13 @@ class AutomatedTestsServer
       File.write("#{results_path}/errors.txt", all_errors)
     end
 
-    # cleanup
-    FileUtils.rm_rf(tests_path)
+    # cleanup: kill spawned processes and delete all files (including nested files created by the test user)
     unless test_username.nil?
-      # kill spawned processes and remove files created by the test user
       clean_command = "killall -KILL -u #{test_username}; "\
-                      "chmod -Rf ugo+rwX '#{tests_path}'; "\
-                      "rm -rf '#{tests_path}'"
+                      "chmod -Rf ugo+rwX '#{tests_path}'"
       Open3.capture3("sudo -u #{test_username} -- bash -c \"#{clean_command}\"")
     end
+    FileUtils.rm_rf(tests_path)
 
     # send results back to markus by api
     api_url = "#{markus_address}/api/assignments/#{assignment_id}/groups/#{group_id}/test_script_results"

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 kill_workers() {
-    local workers=$(pgrep -f resque)
+    local workers=$(pgrep -f "resque.*${QUEUE}")
 
     if [[ ! -z ${workers} ]]; then
         echo "[RESQUE] Killing existing Resque workers"

@@ -8,7 +8,7 @@ install_packages() {
 
 create_server_user() {
     echo
-    if id ${SERVERUSER} > /dev/null 2>&1; then
+    if id ${SERVERUSER} &> /dev/null; then
         echo "[AUTOTEST] Reusing existing server user '${SERVERUSER}'"
     else
         echo "[AUTOTEST] Creating server user '${SERVERUSER}'"
@@ -23,14 +23,14 @@ create_test_user() {
     local queue=$2
     local testdir=${WORKINGDIR}/${testuser}
 
-    if id ${testuser} > /dev/null 2>&1; then
+    if id ${testuser} &> /dev/null; then
         echo "[AUTOTEST] Reusing existing test user '${testuser}'"
     else
         echo "[AUTOTEST] Creating test user '${testuser}'"
         sudo adduser --disabled-login --no-create-home ${testuser}
     fi
     sudo mkdir ${testdir}
-    sudo chown ${testuser}:${SERVERUSER} ${testdir}
+    sudo chown ${SERVERUSER}:${testuser} ${testdir}
     sudo chmod ug=rwx,o=,+t ${testdir}
     echo "${SERVERUSER} ALL=(${testuser}) NOPASSWD:ALL" | EDITOR="tee -a" sudo visudo
     CONF="${CONF}{user: '${testuser}', dir: '${testdir}', queue: '${queue}'},"
