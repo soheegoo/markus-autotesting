@@ -40,7 +40,7 @@ create_venv() {
         pip install -r ${TESTERDIR}/requirements.txt
     fi
     echo "${TESTERDIR}/server" > ${VENVDIR}/lib/python${PYVERSION}/site-packages/markus_${TESTERNAME}.pth
-    echo "${TESTERDIR}" > ${VENVDIR}/lib/python${PYVERSION}/site-packages/markus.pth
+    echo "${THISSCRIPTDIR}" > ${VENVDIR}/lib/python${PYVERSION}/site-packages/markus.pth
 }
 
 suggest_next_steps() {
