@@ -1,10 +1,10 @@
-Automated Testing Engine (ATE)
+Autotesting with Markus
 ==============================
 
-The Automated Testing Engine (ATE) allows instructors and tas to run tests on students submissions and automatically
-create marks for them. It also allows students to run a separate set of tests and self-assess their submission.
+Autotesting allows instructors and tas to run tests on students submissions and automatically create marks for them. It
+also allows students to run a separate set of tests and self-assess their submission.
 
-ATE consists of a client component integrated into MarkUs, and a standalone server component. Testing jobs are queued
+Autotesting consists of a client component integrated into MarkUs, and a standalone server component. Jobs are queued
 using the gem Resque with a first in first out strategy, and served one at a time or concurrently up to a configurable
 limit.
 
@@ -23,7 +23,7 @@ To create an environment for a course, run the `create_test_env.sh` script..TODO
 
 If you are a MarkUs developer, you can just `bundle install --deployment`..TODO
 
-## 2. Running ATE
+## 2. Running
 
 Examples of architectures:
 
@@ -38,16 +38,16 @@ Examples of architectures:
    One Resque client worker and one dedicated Resque server worker, either on the same machine or on separate machines.
 
    client:  
-   `ATE_FILES_QUEUE_NAME=name_in_config_options`  
-   `RAILS_ENV=production TERM_CHILD=1 BACKGROUND=yes QUEUES=${ATE_FILES_QUEUE_NAME} bundle exec rake environment
+   `AUTOTEST_RUN_QUEUE=name_in_config_options`  
+   `RAILS_ENV=production TERM_CHILD=1 BACKGROUND=yes QUEUES=${AUTOTEST_RUN_QUEUE} bundle exec rake environment
    resque:work`  
    (The other Resque queues that MarkUs uses for background processing can be added to this command, namely
    `JOB_CREATE_INDIVIDUAL_GROUPS_QUEUE_NAME`, `JOB_COLLECT_SUBMISSIONS_QUEUE_NAME`,
    `JOB_UNCOLLECT_SUBMISSIONS_QUEUE_NAME`)
 
    server:  
-   `ATE_TESTS_QUEUE_NAME=name_in_config_options`  
-   `TERM_CHILD=1 BACKGROUND=yes QUEUES=${ATE_TESTS_QUEUE_NAME} bundle exec rake resque:work`
+   `AUTOTEST_SERVER_TESTS.queue=name_in_config_options`  
+   `TERM_CHILD=1 BACKGROUND=yes QUEUES=${AUTOTEST_SERVER_TESTS.queue} bundle exec rake resque:work`
 
 3) MarkUs production with shared test server
 
@@ -60,56 +60,56 @@ Examples of architectures:
 
 Check out Resque on GitHub to get an idea of all the possible queue configurations.
 
-## 3. MarkUs ATE Config Options
+## 3. MarkUs Config Options
 
-##### AUTOMATED_TESTING_ENGINE_ON
-Enables ATE.
+##### AUTOTEST_ON
+Enables Autotesting.
 
-##### ATE_EXPERIMENTAL_STUDENT_TESTS_ON
+##### AUTOTEST_STUDENT_TESTS_ON
 Allows the instructor to let students run tests periodically.
 
-##### ATE_EXPERIMENTAL_STUDENT_TESTS_BUFFER_TIME
+##### AUTOTEST_STUDENT_TESTS_BUFFER_TIME
 With student tests enabled, a student can't request a new test if they already have a test in execution, to prevent
 denial of service. If the test script fails unexpectedly and does not return a result, a student would effectively be
 locked out from further testing.  
 This is the amount of time after which a student can request a new test anyway.  
-(Ignored if `ATE_EXPERIMENTAL_STUDENT_TESTS_ON` is 'false'.)
+(Ignored if `AUTOTEST_STUDENT_TESTS_ON` is 'false'.)
 
-##### ATE_CLIENT_DIR
+##### AUTOTEST_CLIENT_DIR
 The directory on the client where the test files are stored.  
 The user running MarkUs must be able to write here.
 
-##### ATE_FILES_QUEUE_NAME
+##### AUTOTEST_RUN_QUEUE
 The name of the Resque client queue where the test files wait to be copied to the server.
 
-##### ATE_SERVER_HOST
+##### AUTOTEST_SERVER_HOST
 The server host name.  
 (Use 'localhost' for a local development server where files are copied using the file system.)
 
-##### ATE_SERVER_FILES_USERNAME
+##### AUTOTEST_SERVER_FILES_USERNAME
 The server username used to copy the test files over and to run the Resque server workers.  
 SSH passwordless login must be set up for the user running MarkUs to connect with this username on the server.  
-(Ignored if `ATE_SERVER_HOST` is 'localhost'.)
+(Ignored if `AUTOTEST_SERVER_HOST` is 'localhost'.)
 
-##### ATE_SERVER_FILES_DIR
+##### AUTOTEST_SERVER_FILES_DIR
 The directory on the server where test files are copied.  
-Multiple clients can use the same directory, and `ATE_SERVER_FILES_USERNAME` must be able to write here.  
-(If `ATE_SERVER_HOST` is 'localhost', the user running MarkUs must be able to write here.)
+Multiple clients can use the same directory, and `AUTOTEST_SERVER_FILES_USERNAME` must be able to write here.  
+(If `AUTOTEST_SERVER_HOST` is 'localhost', the user running MarkUs must be able to write here.)
 
-##### ATE_SERVER_RESULTS_DIR
+##### AUTOTEST_SERVER_RESULTS_DIR
 The directory on the server where test results are logged.  
-`ATE_SERVER_FILES_USERNAME` must be able to write here.  
-(If `ATE_SERVER_HOST` is 'localhost', the user running MarkUs must be able to write here.)
+`AUTOTEST_SERVER_FILES_USERNAME` must be able to write here.  
+(If `AUTOTEST_SERVER_HOST` is 'localhost', the user running MarkUs must be able to write here.)
 
-##### ATE_SERVER_TESTS
+##### AUTOTEST_SERVER_TESTS
 An array of hashes with the server workers configurations. Each hash is a concurrent worker on the server running the
 tests, and has the following keys:
-* **user**: The server username used to run the tests. `ATE_SERVER_FILES_USERNAME` must be able to sudo -u to it.  
-(Can be the same as `ATE_SERVER_FILES_USERNAME`, or ignored if `ATE_SERVER_HOST` is 'localhost'.)
+* **user**: The server username used to run the tests. `AUTOTEST_SERVER_FILES_USERNAME` must be able to sudo -u to it.  
+(Can be the same as `AUTOTEST_SERVER_FILES_USERNAME`, or ignored if `AUTOTEST_SERVER_HOST` is 'localhost'.)
 TODO INSTALL AND START_RESQUE REQUIRE DIFFERENT USERS FOR TESTS
 * **dir**: The directory on the server where tests run.  
-`ATE_SERVER_FILES_USERNAME` and `user` must be able to write here.  
-(Can be the same as `ATE_SERVER_FILES_DIR`.)
+`AUTOTEST_SERVER_FILES_USERNAME` and `user` must be able to write here.  
+(Can be the same as `AUTOTEST_SERVER_FILES_DIR`.)
 * **queue**: The name of the Resque server queue where tests wait to be executed.
 
 The `user`, `dir` and `queue` settings must be different among concurrent test workers.
@@ -130,5 +130,5 @@ The test scripts the instructors upload and run on the server must print the fol
 </test>
 ```
 
-This output is sent back to the client and logged under `ATE_SERVER_RESULTS_DIR` in files named 'output.txt'.  
-Printing on stderr instead is not sent back but still logged under `ATE_SERVER_RESULTS_DIR` in files named 'errors.txt'.
+This output is sent back to the client and logged under `AUTOTEST_SERVER_RESULTS_DIR` in files named 'output.txt'.  
+Printing on stderr is also sent back and logged under `AUTOTEST_SERVER_RESULTS_DIR` in files named 'errors.txt'.
