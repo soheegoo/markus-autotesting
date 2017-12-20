@@ -7,7 +7,6 @@ install_packages() {
 }
 
 create_server_user() {
-    echo
     if id ${SERVERUSER} &> /dev/null; then
         echo "[AUTOTEST] Reusing existing server user '${SERVERUSER}'"
     else
@@ -69,16 +68,16 @@ run_resque() {
 create_markus_conf() {
     echo "[AUTOTEST] Creating Markus web server config snippet in 'markus_conf.rb'"
     echo "
-        AUTOMATED_TESTING_ENGINE_ON = true
-        ATE_STUDENT_TESTS_ON = false
-        ATE_STUDENT_TESTS_BUFFER_TIME = 1.hour
-        ATE_CLIENT_DIR = 'TODO_web_server_dir'
-        ATE_FILES_QUEUE_NAME = 'TODO_web_server_queue'
-        ATE_SERVER_HOST = '$(hostname).$(dnsdomainname)'
-        ATE_SERVER_FILES_USERNAME = '${SERVERUSER}'
-        ATE_SERVER_FILES_DIR = '${WORKINGDIR}'
-        ATE_SERVER_RESULTS_DIR = '${RESULTSDIR}'
-        ATE_SERVER_TESTS = [${CONF}]
+        AUTOTEST_ON = true
+        AUTOTEST_STUDENT_TESTS_ON = false
+        AUTOTEST_STUDENT_TESTS_BUFFER_TIME = 1.hour
+        AUTOTEST_CLIENT_DIR = 'TODO_web_server_dir'
+        AUTOTEST_RUN_QUEUE = 'TODO_web_server_queue'
+        AUTOTEST_SERVER_HOST = '$(hostname).$(dnsdomainname)'
+        AUTOTEST_SERVER_FILES_USERNAME = '${SERVERUSER}'
+        AUTOTEST_SERVER_FILES_DIR = '${WORKINGDIR}'
+        AUTOTEST_SERVER_RESULTS_DIR = '${RESULTSDIR}'
+        AUTOTEST_SERVER_TESTS = [${CONF}]
     " >| markus_conf.rb
 }
 
