@@ -93,8 +93,8 @@ class AutomatedTestsServer
 
     # cleanup: kill spawned processes and delete all files (including nested files created by the test user)
     unless test_username.nil?
-      clean_command = "killall -KILL -u #{test_username}; "\
-                      "chmod -Rf ugo+rwX '#{tests_path}'"
+      clean_command = "chmod -Rf ugo+rwX '#{tests_path}'; "\
+                      "killall -KILL -u #{test_username}"
       Open3.capture3("sudo -u #{test_username} -- bash -c \"#{clean_command}\"")
     end
     FileUtils.rm_rf(tests_path)
