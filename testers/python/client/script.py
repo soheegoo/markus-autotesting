@@ -26,9 +26,9 @@ if __name__ == '__main__':
 
     # The max time to run a single test (defaults to 10 seconds if commented out).
     # SPECS['test_timeout'] = 10
-
-    # The max time to run all tests (defaults to 30 seconds if commented out).
-    # SPECS['global_timeout'] = 30
+    # This timeout may not work in particular cases (e.g. when using the hypothesis package, or with multi-threading),
+    # or you may want to have a specific timeout per test function; in those cases, you can decorate your test function:
+    # @timeout_decorator.timeout(10, use_signals=False)
 
     # The feedback file name (defaults to no feedback file if commented out).
     # SPECS['feedback_file'] = 'feedback_python.txt'

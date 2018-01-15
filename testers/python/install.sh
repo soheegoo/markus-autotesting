@@ -13,7 +13,7 @@ UAMLINK=${TESTERDIR}/uam-git
 echo "[PYTHON] Installing system packages"
 sudo apt-get install python3
 echo "[PYTHON] Downloading latest version of UAM"
-if pushd ${UAMDIR} > /dev/null; then
+if pushd ${UAMDIR} &> /dev/null; then
 	git pull
 	popd > /dev/null
 else
