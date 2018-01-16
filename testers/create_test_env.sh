@@ -15,7 +15,7 @@ install_packages() {
 create_specs() {
     echo "[ENV] Creating specs directory '${SPECSDIR}'"
     rm -rf ${SPECSDIR} # clean up existing specs if any
-    mkdir ${SPECSDIR}
+    mkdir -p ${SPECSDIR}
     if [[ -e ${WORKINGDIR}/specs.json ]]; then
         cp ${WORKINGDIR}/specs.json ${SPECSDIR}
     else
