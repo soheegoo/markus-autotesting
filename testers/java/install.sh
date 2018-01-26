@@ -14,7 +14,7 @@ JAMDIR=${UAMLINK}/jam
 echo "[JAVA] Installing system packages"
 sudo apt-get install python3 openjdk-8-jre
 echo "[JAVA] Downloading latest version of UAM"
-if pushd ${UAMDIR} > /dev/null; then
+if pushd ${UAMDIR} &> /dev/null; then
 	git pull
 	popd > /dev/null
 else

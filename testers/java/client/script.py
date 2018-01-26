@@ -26,9 +26,6 @@ if __name__ == '__main__':
     SPECS['test_points'] = {'Test1.java': POINTS1}
     SPECS['test_points'] = {'Test2.java': POINTS2}
 
-    # The max time to run all tests (defaults to 30 seconds if commented out).
-    # SPECS['global_timeout'] = 30
-
     # The feedback file name (defaults to no feedback file if commented out).
     # SPECS['feedback_file'] = 'feedback_java.txt'
 
