@@ -1,6 +1,5 @@
 {
-  "path_to_uam": "/path/to/uam",
-  "path_to_tests": "/path/to/tests",
-  "global_timeout": 3600,
+  "path_to_tester": "/path/to/tester",
+  "path_to_junit5_jar": "/path/to/junit5/jar",
   "feedback_file": null
 }

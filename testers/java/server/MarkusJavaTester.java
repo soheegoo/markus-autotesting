@@ -1,13 +1,14 @@
+import org.junit.platform.engine.TestExecutionResult;
 import org.junit.platform.engine.discovery.ClassNameFilter;
 import org.junit.platform.engine.discovery.DiscoverySelectors;
+import org.junit.platform.engine.support.descriptor.MethodSource;
 import org.junit.platform.launcher.Launcher;
 import org.junit.platform.launcher.LauncherDiscoveryRequest;
 import org.junit.platform.launcher.TestExecutionListener;
+import org.junit.platform.launcher.TestIdentifier;
 import org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder;
 import org.junit.platform.launcher.core.LauncherFactory;
-import org.junit.platform.launcher.listeners.SummaryGeneratingListener;
 
-import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashSet;
@@ -24,10 +25,20 @@ public class MarkusJavaTester {
             .filters(ClassNameFilter.includeClassNamePatterns("Test.*"))
             .build();
         Launcher launcher = LauncherFactory.create();
-        SummaryGeneratingListener listener = new SummaryGeneratingListener();
-        launcher.registerTestExecutionListeners(listener);
+        launcher.registerTestExecutionListeners(new TestExecutionListener() {
+            @Override
+            public void executionFinished(TestIdentifier testIdentifier, TestExecutionResult testExecutionResult) {
+                if (testIdentifier.isContainer()) {
+                    return;
+                }
+                System.out.println(
+                    ((MethodSource) testIdentifier.getSource().get()).getClassName() + "." +
+                    testIdentifier.getDisplayName() + ": " +
+                    testExecutionResult.getStatus());
+                testExecutionResult.getThrowable().ifPresent(t -> System.out.println(t.getMessage()));
+            }
+        });
         launcher.execute(request);
-        listener.getSummary().printTo(new PrintWriter(System.out));
     }
 
 }
