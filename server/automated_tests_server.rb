@@ -46,8 +46,8 @@ class AutomatedTestsServer
         stdin.close
         # mimic capture3 to read safely and capture each line as it comes so that
         # these threads don't hang or raise an error if we have to kill them early
-        stdout_thread = Thread.new { stdout.each { |line| output << "#{line}\n" } }
-        stderr_thread = Thread.new { stderr.each { |line| errors << "#{line}\n" } }
+        stdout_thread = Thread.new { stdout.each { |line| output << line } }
+        stderr_thread = Thread.new { stderr.each { |line| errors << line } }
         if !thread.join(script['timeout']) # still running, let's kill the process group
           if test_username.nil?
             Process.kill('KILL', -pid)
