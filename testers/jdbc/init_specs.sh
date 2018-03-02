@@ -20,7 +20,7 @@ CLASSDIR=${SOLUTIONDIR}/classes
 SCHEMAFILE=${SOLUTIONDIR}/schema.ddl
 
 echo "[JDBC] Compiling solutions"
-cp -a ${WORKINGDIR}/solution ${SPECSDIR}
+mv ${WORKINGDIR}/solution ${SPECSDIR}
 #TODO cp ${TESTERDIR}/server/MarkusJDBCTest.java ${CLASSDIR} when getInputs is in the specs
 javac -cp ${CLASSDIR}:${JARPATH} ${CLASSDIR}/*.java
 echo "[JDBC] Loading solutions into the oracle database"
