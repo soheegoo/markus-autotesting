@@ -12,7 +12,7 @@
 # more information. WARNING: This script is still considered
 # experimental.
 #
-# (c) by the authors, 2008 - 2017.
+# (c) by the authors, 2008 - 2018.
 #
 
 import http.client
@@ -24,6 +24,8 @@ from urllib.parse import urlparse, urlencode
 
 class Markus:
     """A class for interfacing with the MarkUs API."""
+
+    API_PATH = '/api'  # The root api path.
 
     def __init__(self, api_key, url):
         """ (str, str, str) -> Markus
@@ -49,7 +51,7 @@ class Markus:
         """
         params = None
         response = self.submit_request(params, '/api/users.json', 'GET')
-        return Markus.decode_response(response)
+        return Markus.decode_json_response(response)
 
     def new_user(self, user_name, user_type, first_name,
                  last_name, section_name=None, grace_credits=None):
@@ -79,7 +81,7 @@ class Markus:
         """
         params = None
         response = self.submit_request(params, '/api/assignments.json', 'GET')
-        return Markus.decode_response(response)
+        return Markus.decode_json_response(response)
 
     def get_groups(self, assignment_id):
         """ (Markus, int) -> list of dict
@@ -88,7 +90,7 @@ class Markus:
         params = None
         path = Markus.get_path(assignment_id) + '.json'
         response = self.submit_request(params, path, 'GET')
-        return Markus.decode_response(response)
+        return Markus.decode_json_response(response)
 
     def get_groups_by_name(self, assignment_id):
         """ (Markus, int) -> dict of str:int
@@ -97,25 +99,44 @@ class Markus:
         params = None
         path = Markus.get_path(assignment_id) + '/group_ids_by_name.json'
         response = self.submit_request(params, path, 'GET')
-        return Markus.decode_response(response)
+        return Markus.decode_json_response(response)
 
     def get_group(self, assignment_id, group_id):
         """ (Markus, int, int) -> dict
         Return the group info associated with the given id and assignment.
         """
         params = None
-        path = Markus.get_path(assignment_id, group_id)[:-1] + '.json'
+        path = Markus.get_path(assignment_id, group_id) + '.json'
         response = self.submit_request(params, path, 'GET')
-        return Markus.decode_response(response)
+        return Markus.decode_json_response(response)
 
     def get_feedback_files(self, assignment_id, group_id):
         """ (Markus, int, int) -> list of dict
-        Get the feedback file info associated with the assignment and group.
+        Get the feedback files info associated with the assignment and group.
         """
         params = {}
-        path = Markus.get_path(assignment_id, group_id) + 'feedback_files.json'
+        path = Markus.get_path(assignment_id, group_id) + '/feedback_files.json'
         response = self.submit_request(params, path, 'GET')
-        return Markus.decode_response(response)
+        return Markus.decode_json_response(response)
+
+    def get_feedback_file(self, assignment_id, group_id, feedback_file_id):
+        """ (Markus, int, int, int) -> str
+        Get the feedback file associated with the given id, assignment and group.
+        WARNING: This will fail for non-text feedback files
+        """
+        params = {}
+        path = f'{Markus.get_path(assignment_id, group_id)}/feedback_files/{feedback_file_id}.json'
+        response = self.submit_request(params, path, 'GET')
+        return Markus.decode_text_response(response)
+
+    def get_marks_spreadsheet(self, spreadsheet_id):
+        """ (Markus, int) -> str
+        Get the marks spreadsheet associated with the given id.
+        """
+        params = {}
+        path = f'{Markus.API_PATH}/grade_entry_forms/{spreadsheet_id}.json'
+        response = self.submit_request(params, path, 'GET')
+        return Markus.decode_text_response(response)
 
     def upload_feedback_file(self, assignment_id, group_id, title, contents, overwrite=True):
         """ (Markus, int, str, str, str or bytes, bool) -> list of str
@@ -132,7 +153,7 @@ class Markus:
         if overwrite:
             feedback_files = self.get_feedback_files(assignment_id, group_id)
             feedback_file_id = next((ff['id'] for ff in feedback_files if ff['filename'] == title), None)
-        path = Markus.get_path(assignment_id, group_id) + 'feedback_files'
+        path = Markus.get_path(assignment_id, group_id) + '/feedback_files'
         request_type = 'POST'
         if feedback_file_id:
             path = '{}/{}'.format(path, feedback_file_id)
@@ -161,7 +182,7 @@ class Markus:
         }
         if test_errors != '':
             params['test_errors'] = test_errors
-        path = Markus.get_path(assignment_id, group_id) + 'test_script_results'
+        path = Markus.get_path(assignment_id, group_id) + '/test_script_results'
         return self.submit_request(params, path, 'POST')
 
     def upload_annotations(self, assignment_id, group_id, annotations, force_complete=False):
@@ -182,7 +203,7 @@ class Markus:
             'annotations': annotations,
             'force_complete': force_complete
         }
-        path = Markus.get_path(assignment_id, group_id) + 'add_annotations'
+        path = Markus.get_path(assignment_id, group_id) + '/add_annotations'
         return self.submit_request(params, path, 'POST', 'application/json')
 
     def update_marks_single_group(self, criteria_mark_map, assignment_id, group_id):
@@ -202,7 +223,7 @@ class Markus:
         group_id          -- the id of the group whose marks we are updating
         """
         params = criteria_mark_map
-        path = Markus.get_path(assignment_id, group_id) + 'update_marks'
+        path = Markus.get_path(assignment_id, group_id) + '/update_marks'
         return self.submit_request(params, path, 'PUT')
 
     def update_marking_state(self, assignment_id, group_id, new_marking_state):
@@ -210,7 +231,7 @@ class Markus:
         params = {
             'marking_state': new_marking_state
         }
-        path = Markus.get_path(assignment_id, group_id) + 'update_marking_state'
+        path = Markus.get_path(assignment_id, group_id) + '/update_marking_state'
         return self.submit_request(params, path, 'PUT')
 
     def submit_request(self, params, path, request_type, content_type='application/x-www-form-urlencoded'):
@@ -267,15 +288,21 @@ class Markus:
             sys.exit(1)
 
     # Helpers
+
     @staticmethod
     def get_path(assignment_id, group_id=None):
         """Return a path to an assignment's groups, or a single group."""
-        path = '/api/assignments/' + str(assignment_id) + '/groups'
+        path = f'{Markus.API_PATH}/assignments/{assignment_id}/groups'
         if group_id is not None:
-            path += '/' + str(group_id) + '/'
+            path += f'/{group_id}'
         return path
 
     @staticmethod
-    def decode_response(resp):
+    def decode_text_response(resp):
+        """Converts response from submit_request into a utf-8 string."""
+        return resp[2].decode('utf-8')
+
+    @staticmethod
+    def decode_json_response(resp):
         """Converts response from submit_request into python dict."""
-        return json.loads(resp[2].decode('utf-8'))
+        return json.loads(Markus.decode_text_response(resp))
