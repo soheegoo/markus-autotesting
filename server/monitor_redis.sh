@@ -5,6 +5,8 @@ SECONDS=$(expr $HOURS \* 3600)
 THISHOST=$(hostname)
 EMAIL="techsupport@teach.cs.toronto.edu"
 AUTOTSTDIR="/data"
+THISSCRIPT=$(readlink -f ${BASH_SOURCE})
+THISSCRIPTDIR=$(dirname ${THISSCRIPT})
 NUMWORKERS=8
 
 
@@ -27,7 +29,7 @@ if [[ "$HANGING" ]]; then
 	sleep 10 # just in case
 
 	# restart workers
-	/data/markus/software/markus-autotesting-1.6.1/server/start_resque.sh autotst $NUMWORKERS
+	THISSCRIPTDIR/start_resque.sh autotst $NUMWORKERS
 
 	# send warning email
     mail -s "hanging resque workers on $THISHOST" "$EMAIL" <<- EOM
