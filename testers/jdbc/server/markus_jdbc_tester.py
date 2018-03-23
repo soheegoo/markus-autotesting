@@ -107,16 +107,16 @@ class MarkusJDBCTester(MarkusSQLTester):
             for java_file in self.java_files:
                 if not os.path.isfile(java_file):
                     msg = MarkusJDBCTest.ERROR_MSGS['no_submission'].format(java_file)
-                    print(MarkusTester.error_all(message=msg))
+                    print(MarkusTester.error_all(message=msg), flush=True)
                     return
             # check that the submission compiles
             try:
                 self.init_java()
             except subprocess.CalledProcessError as e:
                 msg = MarkusJDBCTest.ERROR_MSGS['bad_javac'].format(e.stdout)
-                print(MarkusTester.error_all(message=msg))
+                print(MarkusTester.error_all(message=msg), flush=True)
                 return
         except Exception as e:
-            print(MarkusTester.error_all(message=str(e)))
+            print(MarkusTester.error_all(message=str(e)), flush=True)
             return
         super().run()

@@ -20,7 +20,7 @@ class MarkusJAMTester(MarkusUAMTester):
         try:
             java_files = glob.glob('*.java')
             if not java_files:
-                print(MarkusTester.error_all(message=self.ERROR_MGSG['no_submission']))
+                print(MarkusTester.error_all(message=self.ERROR_MGSG['no_submission']), flush=True)
                 return
             try:
                 javac_cmd = ['javac']
@@ -29,8 +29,8 @@ class MarkusJAMTester(MarkusUAMTester):
                                check=True)
             except subprocess.CalledProcessError as e:
                 msg = self.ERROR_MGSG['bad_javac'].format(e.stdout)
-                print(MarkusTester.error_all(message=msg))
+                print(MarkusTester.error_all(message=msg), flush=True)
                 return
         except Exception as e:
-            print(MarkusTester.error_all(message=str(e)))
+            print(MarkusTester.error_all(message=str(e)), flush=True)
         super().run()

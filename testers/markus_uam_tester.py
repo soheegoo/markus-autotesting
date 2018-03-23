@@ -52,6 +52,6 @@ class MarkusUAMTester(MarkusTester):
                     points_total = self.uam_tester.get_test_points(result, self.test_ext)
                     test = self.test_class(self, result, points_total, feedback_open)
                     xml = test.run()
-                    print(xml)
+                    print(xml, flush=True)
         except Exception as e:
-            print(MarkusTester.error_all(message=str(e)))
+            print(MarkusTester.error_all(message=str(e)), flush=True)
