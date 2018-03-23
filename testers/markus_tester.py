@@ -172,7 +172,8 @@ class MarkusTest:
   <marks_earned>{}</marks_earned>
   <marks_total>{}</marks_total>
   <status>{}</status>
-</test>'''.format(test_name, output_escaped, points_earned, points_total, status.value)
+</test>
+'''.format(test_name, output_escaped, points_earned, points_total, status.value)
 
     def format(self, status, output, points_earned):
         """
