@@ -361,6 +361,6 @@ class MarkusTester:
                             data_files = [data_files]
                         test = self.test_class(self, test_file, data_files, points, test_extra, feedback_open)
                         xml = test.run()
-                        print(xml)
+                        print(xml, flush=True)
         except Exception as e:
-            print(MarkusTester.error_all(message=str(e)))
+            print(MarkusTester.error_all(message=str(e)), flush=True)
