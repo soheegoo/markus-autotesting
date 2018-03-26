@@ -29,7 +29,7 @@ if [[ "$HANGING" ]]; then
 	sleep 10 # just in case
 
 	# restart workers
-	THISSCRIPTDIR/start_resque.sh autotst $NUMWORKERS
+	"$THISSCRIPTDIR/"start_resque.sh autotst $NUMWORKERS
 
 	# send warning email
     mail -s "hanging resque workers on $THISHOST" "$EMAIL" <<- EOM
