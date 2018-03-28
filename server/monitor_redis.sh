@@ -1,7 +1,7 @@
 #!/bin/bash
 
 HOURS=3
-SECONDS=$(expr $HOURS \* 3600)
+HOURSINSECONDS=$(expr $HOURS \* 3600)
 THISHOST=$(hostname)
 EMAIL="techsupport@teach.cs.toronto.edu"
 AUTOTSTDIR="/data"
@@ -11,7 +11,7 @@ NUMWORKERS=8
 
 
 # find pid of resque jobs that are hanging ( "Processing" for longer that 10 hours )
-HANGING=$(ps -o pid,etimes --no-header -p $(pgrep -f "resque.+Processing") 2> /dev/null | awk -v s=$SECONDS '{ if ($2 > $s) print $1 }')
+HANGING=$(ps -o pid,etimes --no-header -p $(pgrep -f "resque.+Processing") 2> /dev/null | awk -v s=$HOURSINSECONDS '{ if ($2 > s) print $1 }')
 
 if [[ "$HANGING" ]]; then
 	# make temporary dir to store info about current state until it can be reviewed
