@@ -1,5 +1,8 @@
 package edu.toronto.cs.teach;
 
+import com.google.gson.Gson;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.junit.platform.engine.TestExecutionResult;
 import org.junit.platform.engine.discovery.ClassNameFilter;
 import org.junit.platform.engine.discovery.DiscoverySelectors;
@@ -16,19 +19,26 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
 public class MarkusJavaTester {
 
-    private String[] testClasses;
+    private class TestResult {
+        private @NotNull String name;
+        private @NotNull TestExecutionResult.Status status;
+        private @Nullable String message;
+    }
 
-    public MarkusJavaTester(String[] testFiles) {
+    private @NotNull String[] testClasses;
+    private @NotNull List<TestResult> results;
+
+    public MarkusJavaTester(@NotNull String[] testFiles) {
 
         this.testClasses = new String[testFiles.length];
         for (int i = 0; i < testFiles.length; i++) {
             testClasses[i] = testFiles[i].split("\\.")[0];
         }
+        this.results = new ArrayList<>();
     }
 
     private void run() {
@@ -52,20 +62,27 @@ public class MarkusJavaTester {
         launcher.registerTestExecutionListeners(new TestExecutionListener() {
             @Override
             public void executionFinished(TestIdentifier testIdentifier, TestExecutionResult testExecutionResult) {
+                // record a single test result
                 if (testIdentifier.isContainer()) {
                     return;
                 }
-                System.out.println(
-                    ((MethodSource) testIdentifier.getSource().get()).getClassName() + "." +
-                    testIdentifier.getDisplayName() + ": " +
-                    testExecutionResult.getStatus());
-                testExecutionResult.getThrowable().ifPresent(t -> System.out.println(t.getMessage()));
+                TestResult result = new TestResult();
+                result.name = testIdentifier.getDisplayName();
+                testIdentifier.getSource().ifPresent(s -> {
+                    if (s instanceof MethodSource) {
+                        result.name = ((MethodSource) s).getClassName() + "." + result.name;
+                    }
+                });
+                result.status = testExecutionResult.getStatus();
+                testExecutionResult.getThrowable().ifPresent(t -> result.message = t.getMessage());
+                results.add(result);
             }
         });
         launcher.execute(request);
         // restore stdout and stderr, then print results
         System.setOut(outOrig);
         System.setErr(errOrig);
+        System.out.print(new Gson().toJson(this.results));
     }
 
     public static void main(String[] args) {
