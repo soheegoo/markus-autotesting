@@ -35,7 +35,8 @@ class MarkusJavaTester(MarkusTester):
                        check=True)
 
     def go(self):
-        java_command = ['java', '-cp', self.java_classpath, self.__class__.__name__]
+        java_command = ['java', '-cp', self.java_classpath, self.__class__.__name__] + \
+                       [test_file for test_file in self.specs.tests]
         java = subprocess.run(java_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True,
                               check=True)
         return java
@@ -48,24 +49,24 @@ class MarkusJavaTester(MarkusTester):
                 self.compile()
             except subprocess.CalledProcessError as e:
                 msg = MarkusJavaTest.ERRORS['bad_javac'].format(e.stdout)
-                print(MarkusTester.error_all(message=msg))
+                print(MarkusTester.error_all(message=msg), flush=True)
                 return
             # run the tests with junit5
             try:
                 results = self.go()
             except subprocess.CalledProcessError as e:
                 msg = MarkusJavaTest.ERRORS['bad_java'].format(e.stdout + e.stderr)
-                print(MarkusTester.error_all(message=msg))
+                print(MarkusTester.error_all(message=msg), flush=True)
                 return
             with contextlib.ExitStack() as stack:
                 feedback_open = (stack.enter_context(open(self.specs.feedback_file, 'w'))
                                  if self.specs.feedback_file is not None
                                  else None)
-                for result in results:
+                for result in results.stdout:
                     points_total = 0  # TODO Get from specs
                     test = self.test_class(self, result, points_total, feedback_open)  # TODO Adjust constructor
                     xml = test.run()
-                    print(xml)
+                    print(xml, flush=True)
         except Exception as e:
-            print(MarkusTester.error_all(message=str(e)))
+            print(MarkusTester.error_all(message=str(e)), flush=True)
             return
