@@ -1,5 +1,4 @@
 {
-  "path_to_tester": "/path/to/tester",
-  "path_to_junit5_jar": "/path/to/junit5/jar",
+  "path_to_tester_jars": "/path/to/tester/jars",
   "feedback_file": null
 }

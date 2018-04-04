@@ -6,11 +6,11 @@ public class Test2 {
 
     Submission submission = new Submission();
 
-    @Test//(timeout=10000)
+    //@Test//(timeout=10000)
     //@Description(description="This test should timeout")
-    public void testLoops() {
-        submission.loop();
-    }
+    //public void testLoops() {
+    //    submission.loop();
+    //}
 
     @Test//(timeout=10000)
     //@Description(description="This test should fail and print xml")
