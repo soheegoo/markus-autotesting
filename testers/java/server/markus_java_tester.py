@@ -23,13 +23,18 @@ class MarkusJavaTest(MarkusTest):
         test_file = f'{self.class_name}.java'
         all_points = tester.specs.matrix[test_file][MarkusTestSpecs.MATRIX_NODATA_KEY]
         points = all_points.get(self.method_name, all_points.get(self.class_name, 1))
+        self.description = result['description']
         self.status = MarkusJavaTest.JUnitStatus[result['status']]
         self.message = result.get('message', None)
         super().__init__(tester, test_file, [MarkusTestSpecs.MATRIX_NODATA_KEY], points, {}, feedback_open)
 
     @property
     def test_name(self):
-        return f'{self.class_name}.{self.method_name}'
+        name = f'{self.class_name}.{self.method_name}'
+        if self.description:
+            name += f' ({self.description})'
+
+        return name
 
     def run(self):
         if self.status == MarkusJavaTest.JUnitStatus.SUCCESSFUL:
@@ -73,6 +78,7 @@ class MarkusJavaTester(MarkusTester):
                 return
             # run the tests with junit
             try:
+                # TODO Think about the timeout issue, if it's better a deprecated stop() or a popen here that flushes and triggers the global timeout
                 results = self.run_junit()
                 if results.stderr:
                     print(MarkusTester.error_all(message=results.stderr), flush=True)

@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.junit.platform.engine.TestExecutionResult;
+import org.junit.platform.engine.TestSource;
 import org.junit.platform.engine.discovery.ClassNameFilter;
 import org.junit.platform.engine.discovery.DiscoverySelectors;
 import org.junit.platform.engine.support.descriptor.MethodSource;
@@ -26,6 +27,7 @@ public class MarkusJavaTester {
     private class TestResult {
         private @NotNull String name;
         private @NotNull TestExecutionResult.Status status;
+        private @Nullable String description;
         private @Nullable String message;
     }
 
@@ -66,13 +68,15 @@ public class MarkusJavaTester {
                 if (testIdentifier.isContainer()) {
                     return;
                 }
+                TestSource source = testIdentifier.getSource().orElse(null);
+                if (source == null || !(source instanceof MethodSource)) {
+                    return;
+                }
                 TestResult result = new TestResult();
-                result.name = testIdentifier.getDisplayName();
-                testIdentifier.getSource().ifPresent(s -> {
-                    if (s instanceof MethodSource) {
-                        result.name = ((MethodSource) s).getClassName() + "." + result.name;
-                    }
-                });
+                result.name = ((MethodSource) source).getClassName() + "." + ((MethodSource) source).getMethodName();
+                if (!testIdentifier.getDisplayName().equals(result.name)) { // @DisplayName annotation
+                    result.description = testIdentifier.getDisplayName();
+                }
                 result.status = testExecutionResult.getStatus();
                 testExecutionResult.getThrowable().ifPresent(t -> result.message = t.getMessage());
                 results.add(result);
