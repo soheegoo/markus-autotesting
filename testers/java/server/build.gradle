@@ -1,12 +1,10 @@
-group 'edu.toronto.cs.teach'
-version '1.6.1'
-
 apply plugin: 'java'
 apply plugin: 'application'
 
-mainClassName = 'edu.toronto.cs.teach.MarkusJavaTester'
-
+group = 'edu.toronto.cs.teach'
+version = '1.6.1'
 sourceCompatibility = 1.8
+mainClassName = 'edu.toronto.cs.teach.MarkusJavaTester'
 
 repositories {
     mavenCentral()
