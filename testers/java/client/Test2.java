@@ -14,7 +14,16 @@ public class Test2 {
     @DisplayName("This test should timeout")
     public void testLoops() {
         assertTimeoutPreemptively(Duration.ofSeconds(10), () -> {
-            submission.loop();
+            Thread t = new Thread(() -> {
+                submission.loop();
+            });
+            t.start();
+            try {
+                t.join();
+            }
+            catch (InterruptedException e) {
+                t.stop();
+            }
         });
     }
 

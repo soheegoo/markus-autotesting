@@ -78,7 +78,6 @@ class MarkusJavaTester(MarkusTester):
                 return
             # run the tests with junit
             try:
-                # TODO Think about the timeout issue, if it's better a deprecated stop() or a popen here that flushes and triggers the global timeout
                 results = self.run_junit()
                 if results.stderr:
                     print(MarkusTester.error_all(message=results.stderr), flush=True)
