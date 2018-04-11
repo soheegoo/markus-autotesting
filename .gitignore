@@ -1,6 +1,12 @@
+# all
 .idea
 __pycache__
+
+# uam
 testers/uam-git/
-testers/java/uam-git
 testers/python/uam-git
-testers/java/**/*.class
+
+#java
+testers/java/server/.gradle
+testers/java/server/build
+

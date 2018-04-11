@@ -3,7 +3,7 @@
 import os
 import sys
 
-from markus_jam_tester import MarkusJAMTester
+from markus_java_tester import MarkusJavaTester
 from markus_tester import MarkusTestSpecs
 from markusapi import Markus
 
@@ -29,7 +29,7 @@ if __name__ == '__main__':
     # The feedback file name (defaults to no feedback file if commented out).
     # SPECS['feedback_file'] = 'feedback_java.txt'
 
-    tester = MarkusJAMTester(specs=SPECS)
+    tester = MarkusJavaTester(specs=SPECS)
     tester.run()
     # Use markus apis if needed
     # if os.path.isfile(SPECS['feedback_file']):
