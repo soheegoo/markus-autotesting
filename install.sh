@@ -147,6 +147,7 @@ if [[ $? -ne 0 ]]; then
     exit 1
 fi
 eval set -- "${PARSED}"
+
 # vars
 THISSCRIPT=$(readlink -f ${BASH_SOURCE})
 THISSCRIPTDIR=$(dirname ${THISSCRIPT})
