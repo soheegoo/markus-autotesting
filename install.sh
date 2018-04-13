@@ -118,22 +118,6 @@ suggest_next_steps() {
     echo "[AUTOTEST] (You should install the individual testers you plan to use)"
 }
 
-# There are subtleties about THISUSER (X), SERVERUSER (S) and TESTERUSER (T).
-# 1) S and T unspecified:
-#      X is used for S and T, tester dir and queue have a default name, NUMWORKERS ignored
-#      MarkUs conf: local copy of student files + student code execution as X
-# 2) S specified, T unspecified:
-#      S is used for S and T, tester dir and queue have a default name, NUMWORKERS ignored
-#      MarkUs conf: authenticated scp copy of student files + student code execution as S
-# 3) S unspecified, T specified:
-#      X is used for S, T is used, tester dir and queue are named T, NUMWORKERS = n changes T to T0..Tn-1
-#      MarkUs conf: local copy of student files + student code execution as sudo -u T (from X)
-# 4) S and T specified and equals:
-#      same as #2;
-# 5) S and T specified and different:
-#      S and T are used, tester dir and queue are named T, NUMWORKERS = n changes T to T0..Tn-1
-#      MarkUs conf: authenticated scp copy of student files + student code execution as sudo -u T (from S)
-# NOTE: X can be == S|T, but it is different than leaving S|T unspecified
 print_usage() {
     echo "Usage: $0 working_dir [-s|--server <server_user>] [-t|--tester <tester_user>] [-w|--workers <num_workers>] [-h|--help]"
 }
