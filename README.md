@@ -4,24 +4,34 @@ Autotesting with Markus
 Autotesting allows instructors and tas to run tests on students submissions and automatically create marks for them. It
 also allows students to run a separate set of tests and self-assess their submission.
 
-Autotesting consists of a client component integrated into MarkUs, and a standalone server component. Jobs are queued
-using the gem Resque with a first in first out strategy, and served one at a time or concurrently up to a configurable
-limit.
+Autotesting consists of a client component integrated into MarkUs, and a standalone server component. Jobs are enqueued
+using the gem Resque with a first in first out strategy, and served one at a time or concurrently.
 
-## 1. Installation
+## Install and run
+
+### Client
 
 The client requirements are already included in a MarkUs installation.
 
-To install the server, run the top level `install.sh server_user test_user working_dir [num_workers]`..TODO
+### Server
 
-To restart the server, run the `start_resque.sh queue_name [num_workers]`..TODO
+To install the server, run the `install.sh` script from the top level directory.
+You must pass a directory that will be used as the working directory.
+You may pass the names of a user to run the server, a user to run the tests, and the number of concurrent requests
+accepted. See Appendix A for more details.
+
+The server will be installed and started, and a sample configuration for MarkUs will be generated as `markus_conf.rb`.
+
+To stop and start the server, use the `stop_resque.sh` and `start_resque.sh` scripts under the `server` directory.
+
+If you are a MarkUs developer, install the server using `install.sh /path_to_markus/data/dev/autotest/server`.
+
+### Testers
 
 To install a tester, run the `install.sh` script in the respective tester dir. We come with a set of ready-to-use
-testers (python+java (cite uam), sql, jdbc, xquery)..TODO
+testers: python (https://github.com/ProjectAT/uam), java, sql, jdbc, xquery.
 
-To create an environment for a course, run the `create_test_env.sh` script..TODO
-
-If you are a MarkUs developer, you can just `bundle install --deployment`..TODO
+To create an environment for a course, run the `create_test_env.sh` script.
 
 ## 2. Running
 
@@ -60,61 +70,93 @@ Examples of architectures:
 
 Check out Resque on GitHub to get an idea of all the possible queue configurations.
 
-## 3. MarkUs Config Options
+## Appendix A: Installation options
+
+Let **X** be the user running `install.sh`, **S** the user passed with the *--server* option, **T** the user passed with
+the *--tester* option.
+
+1) **S** and **T** unspecified:
+
+   **X** is used as **S** and **T**, the tester directory and queue have a default name, the *--workers* option is
+   ignored: local file system copy of student files, student code executed as user **X**;
+
+2) **S** specified, **T** unspecified:
+
+   **S** is used as **S** and **T**, the tester directory and queue have a default name, the *--workers* option is
+   ignored: authenticated scp copy of student files, student code executed as user **S**;
+
+3) **S** unspecified, **T** specified:
+
+   **X** is used as **S**, **T** is used, the tester directory and queue are named **T**, the *--workers n* option
+   adds concurrency by making n **T** users, directories and queues (named **T0**..**Tn-1**): local file system copy of
+   student files, student code executed as user(s) **T** (**X** does `sudo -u T`);
+
+4) **S** and **T** specified and equal:
+
+   same as 2;
+
+5) **S** and **T** specified and different:
+
+   **S** and **T** are used, the tester directory and queue are named **T**, the *--workers n* option adds concurrency
+   by making n **T** users, directories and queues (named **T0**..**Tn-1**): authenticated scp copy of student files,
+   student code executed as user(s) **T** (**S** does `sudo -u T`).
+
+NOTE: **X** can be == **S** and/or **T**, but it is different than leaving **S** and/or **T** unspecified.
+
+## Appendix B: MarkUs configuration options
 
 ##### AUTOTEST_ON
-Enables Autotesting.
+Enables autotesting.
 
 ##### AUTOTEST_STUDENT_TESTS_ON
-Allows the instructor to let students run tests periodically.
+Allows the instructor to let students run tests on their own.
 
 ##### AUTOTEST_STUDENT_TESTS_BUFFER_TIME
 With student tests enabled, a student can't request a new test if they already have a test in execution, to prevent
 denial of service. If the test script fails unexpectedly and does not return a result, a student would effectively be
-locked out from further testing.  
-This is the amount of time after which a student can request a new test anyway.  
-(Ignored if `AUTOTEST_STUDENT_TESTS_ON` is 'false'.)
+locked out from further testing.
+This is the amount of time after which a student can request a new test anyway.
+
+(Ignored if **AUTOTEST_STUDENT_TESTS_ON** is *false*)
 
 ##### AUTOTEST_CLIENT_DIR
-The directory on the client where the test files are stored.  
+The directory where the test files for assignments are stored.  
 The user running MarkUs must be able to write here.
 
 ##### AUTOTEST_RUN_QUEUE
-The name of the Resque client queue where the test files wait to be copied to the server.
+The name of the Resque queue where the test files wait to be copied to the server.
 
 ##### AUTOTEST_SERVER_HOST
-The server host name.  
-(Use 'localhost' for a local development server where files are copied using the file system.)
+The server host name.
+
+(Use *localhost* if the server runs on the same machine)
 
 ##### AUTOTEST_SERVER_FILES_USERNAME
-The server username used to copy the test files over and to run the Resque server workers.  
-SSH passwordless login must be set up for the user running MarkUs to connect with this username on the server.  
-(Ignored if `AUTOTEST_SERVER_HOST` is 'localhost'.)
+The server user to copy the test and student files over.
+SSH passwordless login must be set up for the user running MarkUs to connect with this user on the server.
+Multiple MarkUses can use the same user.
+
+(Can be *nil*, forcing **AUTOTEST_SERVER_HOST** to be *localhost* and local file system copy to be used)
 
 ##### AUTOTEST_SERVER_FILES_DIR
-The directory on the server where test files are copied.  
-Multiple clients can use the same directory, and `AUTOTEST_SERVER_FILES_USERNAME` must be able to write here.  
-(If `AUTOTEST_SERVER_HOST` is 'localhost', the user running MarkUs must be able to write here.)
+The directory on the server where test and student files are copied.
+Multiple MarkUses can use the same directory.
 
 ##### AUTOTEST_SERVER_RESULTS_DIR
-The directory on the server where test results are logged.  
-`AUTOTEST_SERVER_FILES_USERNAME` must be able to write here.  
-(If `AUTOTEST_SERVER_HOST` is 'localhost', the user running MarkUs must be able to write here.)
+The directory on the server where test results are logged.
+Multiple MarkUses can use the same directory.
 
 ##### AUTOTEST_SERVER_TESTS
-An array of hashes with the server workers configurations. Each hash is a concurrent worker on the server running the
+An array of hashes with the server testers configurations. Each hash is a concurrent tester on the server running the
 tests, and has the following keys:
-* **user**: The server username used to run the tests. `AUTOTEST_SERVER_FILES_USERNAME` must be able to sudo -u to it.  
-(Can be the same as `AUTOTEST_SERVER_FILES_USERNAME`, or ignored if `AUTOTEST_SERVER_HOST` is 'localhost'.)
-TODO INSTALL AND START_RESQUE REQUIRE DIFFERENT USERS FOR TESTS
-* **dir**: The directory on the server where tests run.  
-`AUTOTEST_SERVER_FILES_USERNAME` and `user` must be able to write here.  
-(Can be the same as `AUTOTEST_SERVER_FILES_DIR`.)
+* **user**: The server user to run the tests.
+  (Can be *nil* if there is no dedicated user)
+* **dir**: The directory on the server where tests run.
 * **queue**: The name of the Resque server queue where tests wait to be executed.
 
-The `user`, `dir` and `queue` settings must be different among concurrent test workers.
+These settings must be different among concurrent testers, or they will interfere with each other.
 
-## 4. Test scripts output format
+## Appendix C: Test scripts output format
 
 The test scripts the instructors upload and run on the server must print the following output on stdout for each test:
 
@@ -130,5 +172,5 @@ The test scripts the instructors upload and run on the server must print the fol
 </test>
 ```
 
-This output is sent back to the client and logged under `AUTOTEST_SERVER_RESULTS_DIR` in files named 'output.txt'.  
-Printing on stderr is also sent back and logged under `AUTOTEST_SERVER_RESULTS_DIR` in files named 'errors.txt'.
+Stdout is sent back to MarkUs and logged under **AUTOTEST_SERVER_RESULTS_DIR** in files named `output.txt`.
+Stderr is also sent back and logged under **AUTOTEST_SERVER_RESULTS_DIR** in files named `errors.txt`.
