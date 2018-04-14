@@ -2,46 +2,63 @@
 
 install_packages() {
     echo "[AUTOTEST] Installing system packages"
-    sudo apt-get install ruby redis-server
-    sudo gem install bundler
+    sudo apt-get install ruby redis-server bundler
 }
 
 create_server_user() {
-    if id ${SERVERUSER} &> /dev/null; then
-        echo "[AUTOTEST] Reusing existing server user '${SERVERUSER}'"
+    if [[ -z ${SERVERUSER} ]]; then
+        echo "[AUTOTEST] No dedicated server user, using '${THISUSER}'"
+        mkdir -p ${WORKINGDIR}
     else
-        echo "[AUTOTEST] Creating server user '${SERVERUSER}'"
-        sudo adduser --disabled-password ${SERVERUSER}
+        if id ${SERVERUSER} &> /dev/null; then
+            echo "[AUTOTEST] Using existing server user '${SERVERUSER}'"
+        else
+            echo "[AUTOTEST] Creating server user '${SERVERUSER}'"
+            sudo adduser --disabled-password ${SERVERUSER}
+        fi
+        sudo mkdir -p ${WORKINGDIR}
+        sudo chown ${SERVERUSER}:${SERVERUSER} ${WORKINGDIR}
     fi
-    sudo mkdir -p ${WORKINGDIR}
-    sudo chown ${SERVERUSER}:${SERVERUSER} ${WORKINGDIR}
 }
 
-create_test_user() {
-    local testuser=$1
-    local queue=$2
-    local testdir=${WORKINGDIR}/${testuser}
+create_default_tester_dir() {
+    local testerdir=${WORKINGDIR}/${QUEUE}
 
-    if id ${testuser} &> /dev/null; then
-        echo "[AUTOTEST] Reusing existing test user '${testuser}'"
-    else
-        echo "[AUTOTEST] Creating test user '${testuser}'"
-        sudo adduser --disabled-login --no-create-home ${testuser}
-    fi
-    sudo mkdir ${testdir}
-    sudo chown ${SERVERUSER}:${testuser} ${testdir}
-    sudo chmod ug=rwx,o=,+t ${testdir}
-    echo "${SERVERUSER} ALL=(${testuser}) NOPASSWD:ALL" | EDITOR="tee -a" sudo visudo
-    CONF="${CONF}{user: '${testuser}', dir: '${testdir}', queue: '${queue}'},"
+    echo "[AUTOTEST] No dedicated tester user, using '${SERVERUSER2}'"
+    sudo mkdir -p ${testerdir}
+    sudo chown ${SERVERUSER2}:${SERVERUSER2} ${testerdir}
+    sudo chmod ug=rwx,o=,+t ${testerdir}
+    CONF="${CONF}{user: nil, dir: '${testerdir}', queue: '${QUEUE}'},"
 }
 
-create_test_users() {
-    if [[ -z ${NUMWORKERS} ]]; then
-        create_test_user ${TESTUSER} ${QUEUE}
+create_tester_user() {
+    local testeruser=$1
+    local testerdir=${WORKINGDIR}/${testeruser}
+
+    if id ${testeruser} &> /dev/null; then
+        echo "[AUTOTEST] Reusing existing tester user '${testeruser}'"
     else
-        for i in $(seq 0 $((NUMWORKERS - 1))); do
-            create_test_user ${TESTUSER}${i} ${QUEUE}${i}
-        done
+        echo "[AUTOTEST] Creating tester user '${testeruser}'"
+        sudo adduser --disabled-login --no-create-home ${testeruser}
+    fi
+    sudo mkdir -p ${testerdir}
+    sudo chown ${SERVERUSER2}:${testeruser} ${testerdir}
+    sudo chmod ug=rwx,o=,+t ${testerdir}
+    echo "${SERVERUSER2} ALL=(${testeruser}) NOPASSWD:ALL" | sudo EDITOR="tee -a" visudo
+    CONF="${CONF}{user: '${testeruser}', dir: '${testerdir}', queue: '${testeruser}'},"
+}
+
+create_tester_users() {
+    if [[ -z ${TESTERUSER} ]]; then
+        create_default_tester_dir
+    else
+        if [[ -z ${NUMWORKERS} ]]; then
+            create_tester_user ${TESTERUSER}
+        else
+            for i in $(seq 0 $((NUMWORKERS - 1))); do
+                create_tester_user ${TESTERUSER}${i}
+            done
+        fi
     fi
 }
 
@@ -50,8 +67,8 @@ create_working_dirs() {
     sudo mkdir -p ${SPECSDIR}
     sudo mkdir -p ${VENVSDIR}
     sudo mkdir -p ${RESULTSDIR}
-    sudo chown ${SERVERUSER}:${SERVERUSER} ${SPECSDIR} ${VENVSDIR} ${RESULTSDIR}
     sudo chmod u=rwx,go= ${RESULTSDIR}
+    sudo chown ${SERVERUSER2}:${SERVERUSER2} ${SPECSDIR} ${VENVSDIR} ${RESULTSDIR}
 }
 
 install_gems() {
@@ -62,10 +79,22 @@ install_gems() {
 }
 
 run_resque() {
-    sudo -u ${SERVERUSER} -- ${SERVERDIR}/start_resque.sh ${QUEUE} ${NUMWORKERS}
+    local cmd="${SERVERDIR}/start_resque.sh ${QUEUE} ${NUMWORKERS}"
+    if [[ -n ${SERVERUSER} ]]; then
+        cmd="sudo -u ${SERVERUSER} -- ${cmd}"
+    fi
+
+    ${cmd}
 }
 
 create_markus_conf() {
+    local serverconf=""
+    if [[ -n ${SERVERUSER} ]]; then
+        serverconf="'${SERVERUSER}'"
+    else
+        serverconf="nil"
+    fi
+
     echo "[AUTOTEST] Creating Markus web server config snippet in 'markus_conf.rb'"
     echo "
         AUTOTEST_ON = true
@@ -74,7 +103,7 @@ create_markus_conf() {
         AUTOTEST_CLIENT_DIR = 'TODO_web_server_dir'
         AUTOTEST_RUN_QUEUE = 'TODO_web_server_queue'
         AUTOTEST_SERVER_HOST = '$(hostname).$(dnsdomainname)'
-        AUTOTEST_SERVER_FILES_USERNAME = '${SERVERUSER}'
+        AUTOTEST_SERVER_FILES_USERNAME = ${serverconf}
         AUTOTEST_SERVER_FILES_DIR = '${WORKINGDIR}'
         AUTOTEST_SERVER_RESULTS_DIR = '${RESULTSDIR}'
         AUTOTEST_SERVER_TESTS = [${CONF}]
@@ -82,39 +111,87 @@ create_markus_conf() {
 }
 
 suggest_next_steps() {
-    echo "[AUTOTEST] (You must add the Markus web server public key to ${SERVERUSER}'s '~/.ssh/authorized_keys')"
-    echo "[AUTOTEST] (You may want to add '${SERVERDIR}/start_resque.sh ${QUEUE} ${NUMWORKERS}' to ${SERVERUSER}'s crontab with a @reboot time)"
+    if [[ -n ${SERVERUSER} ]]; then
+        echo "[AUTOTEST] (You must add MarkUs web server's public key to ${SERVERUSER}'s '~/.ssh/authorized_keys')"
+    fi
+    echo "[AUTOTEST] (You may want to add '${SERVERDIR}/start_resque.sh ${QUEUE} ${NUMWORKERS}' to ${SERVERUSER2}'s crontab with a @reboot time)"
     echo "[AUTOTEST] (You should install the individual testers you plan to use)"
 }
 
+print_usage() {
+    echo "Usage: $0 working_dir [-s|--server <server_user>] [-t|--tester <tester_user>] [-w|--workers <num_workers>] [-h|--help]"
+}
+
 # script starts here
-if [[ $# -lt 3 || $# -gt 4 ]]; then
-    echo "Usage: $0 server_user test_user working_dir [num_workers]"
+SHORT=s:t:w:h
+LONG=server:,tester:,workers:,help
+PARSED=$(getopt -o ${SHORT} -l ${LONG} -n "$0" -- "$@")
+if [[ $? -ne 0 ]]; then
+    print_usage
     exit 1
 fi
+eval set -- "${PARSED}"
 
 # vars
 THISSCRIPT=$(readlink -f ${BASH_SOURCE})
 THISSCRIPTDIR=$(dirname ${THISSCRIPT})
-SERVERUSER=$1
-TESTUSER=$2
-WORKINGDIR=$(readlink -f $3)
-if [[ $# -eq 4 ]]; then
-    NUMWORKERS=$4
+THISUSER=$(whoami)
+NUMWORKERS=""
+SERVERUSER=""
+TESTERUSER=""
+QUEUE=tester # default queue, otherwise QUEUE == TESTERUSER
+while true; do
+    case "$1" in
+        -s | --server )
+            SERVERUSER=$2
+            shift 2
+            ;;
+        -t | --tester )
+            if [[ $2 != ${SERVERUSER} ]]; then
+                TESTERUSER=$2
+                QUEUE=${TESTERUSER}
+            fi
+            shift 2
+            ;;
+        -w | --workers )
+            if [[ -n ${TESTERUSER} ]]; then
+                NUMWORKERS=$2 # option valid only together with -t|--tester
+            fi
+            shift 2
+            ;;
+        -h | --help )
+            print_usage
+            exit
+            ;;
+        -- )
+            shift
+            break
+            ;;
+        * )
+            print_usage
+            exit 1
+    esac
+done
+if [[ $# -ne 1 ]]; then
+    print_usage
+    exit 1
+fi
+WORKINGDIR=$(readlink -f $1)
+if [[ -n ${SERVERUSER} ]]; then
+    SERVERUSER2=${SERVERUSER}
 else
-    NUMWORKERS=""
+    SERVERUSER2=${THISUSER}
 fi
 SERVERDIR=${THISSCRIPTDIR}/server
 SPECSDIR=${WORKINGDIR}/specs
 VENVSDIR=${WORKINGDIR}/venvs
 RESULTSDIR=${WORKINGDIR}/results
-QUEUE=${TESTUSER}
 CONF=""
 
 # main
 install_packages
 create_server_user
-create_test_users
+create_tester_users
 create_working_dirs
 install_gems
 run_resque

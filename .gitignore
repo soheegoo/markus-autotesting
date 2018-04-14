@@ -4,3 +4,6 @@ testers/uam-git/
 testers/java/uam-git
 testers/python/uam-git
 testers/java/**/*.class
+server/.bundle
+server/vendor
+
