@@ -1,74 +1,46 @@
 Autotesting with Markus
 ==============================
 
-Autotesting allows instructors and tas to run tests on students submissions and automatically create marks for them. It
-also allows students to run a separate set of tests and self-assess their submission.
+Autotesting allows instructors to run tests on students submissions and automatically create marks for them.
+It also allows students to run a separate set of tests and self-assess their submissions.
 
-Autotesting consists of a client component integrated into MarkUs, and a standalone server component. Jobs are enqueued
-using the gem Resque with a first in first out strategy, and served one at a time or concurrently.
+Autotesting consists of a client component integrated into MarkUs, and a standalone server component.
+Jobs are enqueued using the gem Resque with a first in first out strategy, and served one at a time or concurrently.
 
 ## Install and run
 
 ### Client
 
-The client requirements are already included in a MarkUs installation.
+The autotesting client requirements are already included in a MarkUs installation.
 
 ### Server
 
-To install the server, run the `install.sh` script from the top level directory.
-You must pass a directory that will be used as the working directory.
-You may pass the names of a user to run the server, a user to run the tests, and the number of concurrent requests
-accepted. See Appendix A for more details.
+To install the autotesting server, run the `install.sh` script from the top level directory.
+You must pass a directory, which will be used as the working directory.
+You may also pass the names of a user to run the server, a user to run the testers, and the number of concurrent
+requests accepted (see [Appendix A](#appendix-a:-installation-options) for the details).
 
-The server will be installed and started, and a sample configuration for MarkUs will be generated as `markus_conf.rb`.
+The server will be installed and started, and a sample configuration for MarkUs will be generated as `markus_conf.rb`
+(see [Appendix B](#appendix-b:-markus-configuration-options) for the details).
 
 To stop and start the server, use the `stop_resque.sh` and `start_resque.sh` scripts under the `server` directory.
 
-If you are a MarkUs developer, install the server using `install.sh /path_to_markus/data/dev/autotest/server`.
+If you are a MarkUs developer, install the server with `install.sh /path_to_markus/data/dev/autotest/server`.
 
 ### Testers
 
-To install a tester, run the `install.sh` script in the respective tester dir. We come with a set of ready-to-use
-testers: python (https://github.com/ProjectAT/uam), java, sql, jdbc, xquery.
+Instructors can create and submit arbitrary scripts through MarkUs to run tests. The scripts must start with a shebang
+line, and output results according to the specifications (see [Appendix C](#appendix-c:-test-scripts-output-format) for
+the details).
 
-To create an environment for a course, run the `create_test_env.sh` script.
+Alternatively, we come with a set of ready-to-use testers for: python (https://github.com/ProjectAT/uam), java, sql,
+jdbc, xquery. To install one of these testers, run the `install.sh` script in the respective tester directory.
 
-## 2. Running
-
-Examples of architectures:
-
-1) MarkUs development
-
-   One Resque worker to serve client and server (this setup can be used in production too, but it is not recommended).
-
-   `TERM_CHILD=1 QUEUES=* bundle exec rake environment resque:work`
-
-2) MarkUs production with dedicated test server
-
-   One Resque client worker and one dedicated Resque server worker, either on the same machine or on separate machines.
-
-   client:  
-   `AUTOTEST_RUN_QUEUE=name_in_config_options`  
-   `RAILS_ENV=production TERM_CHILD=1 BACKGROUND=yes QUEUES=${AUTOTEST_RUN_QUEUE} bundle exec rake environment
-   resque:work`  
-   (The other Resque queues that MarkUs uses for background processing can be added to this command, namely
-   `JOB_CREATE_INDIVIDUAL_GROUPS_QUEUE_NAME`, `JOB_COLLECT_SUBMISSIONS_QUEUE_NAME`,
-   `JOB_UNCOLLECT_SUBMISSIONS_QUEUE_NAME`)
-
-   server:  
-   `AUTOTEST_SERVER_TESTS.queue=name_in_config_options`  
-   `TERM_CHILD=1 BACKGROUND=yes QUEUES=${AUTOTEST_SERVER_TESTS.queue} bundle exec rake resque:work`
-
-3) MarkUs production with shared test server
-
-   N Resque client workers and one shared Resque server worker, either on the same machine or on separate machines.
-
-   The commands are exactly the same as #2, with one caveat: each client runs a client command, where the queue names
-   are different.
-
-4) TODO add concurrency example
-
-Check out Resque on GitHub to get an idea of all the possible queue configurations.
+If you use one of our testers, you should create a dedicated environment for each course (or even each assignment if you
+want to). To do so, run the `create_test_env.sh` script under the `testers` directory, passing (in order) the working
+directory of the autotesting server, the tester name (python|java|sql|jdbc|xquery), the python version you are using
+(our testers are written in python, the environment needs to know which version you have available), the course name,
+and the optional assignment name.
 
 ## Appendix A: Installation options
 
@@ -149,16 +121,16 @@ Multiple MarkUses can use the same directory.
 ##### AUTOTEST_SERVER_TESTS
 An array of hashes with the server testers configurations. Each hash is a concurrent tester on the server running the
 tests, and has the following keys:
-* **user**: The server user to run the tests.
-  (Can be *nil* if there is no dedicated user)
-* **dir**: The directory on the server where tests run.
+* **user**: The server user to run the tests
+  (Can be *nil* if there is no dedicated user);
+* **dir**: The directory on the server where tests run;
 * **queue**: The name of the Resque server queue where tests wait to be executed.
 
 These settings must be different among concurrent testers, or they will interfere with each other.
 
 ## Appendix C: Test scripts output format
 
-The test scripts the instructors upload and run on the server must print the following output on stdout for each test:
+The test scripts the instructors upload and run on the server must print the following on stdout for each test:
 
 ```
 <test>
@@ -173,4 +145,4 @@ The test scripts the instructors upload and run on the server must print the fol
 ```
 
 Stdout is sent back to MarkUs and logged under **AUTOTEST_SERVER_RESULTS_DIR** in files named `output.txt`.
-Stderr is also sent back and logged under **AUTOTEST_SERVER_RESULTS_DIR** in files named `errors.txt`.
+Stderr is sent back too and logged under **AUTOTEST_SERVER_RESULTS_DIR** in files named `errors.txt`.
