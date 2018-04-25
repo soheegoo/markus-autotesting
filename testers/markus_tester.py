@@ -343,6 +343,20 @@ class MarkusTester:
                           repo_path]
         subprocess.run(svn_ci_command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
+    def before_test_run(self, test):
+        """
+        Callback method invoked after initializing each test, but before running them.
+        :param test: The test about to be executed.
+        """
+        pass
+
+    def after_test_run(self, test):
+        """
+        Callback method invoked after running each test.
+        :param test: The test just executed.
+        """
+        pass
+
     def run(self):
         try:
             with contextlib.ExitStack() as stack:
@@ -360,7 +374,9 @@ class MarkusTester:
                         else:
                             data_files = [data_files]
                         test = self.test_class(self, test_file, data_files, points, test_extra, feedback_open)
+                        self.before_test_run(test)
                         xml = test.run()
+                        self.after_test_run(test)
                         print(xml, flush=True)
         except Exception as e:
             print(MarkusTester.error_all(message=str(e)), flush=True)

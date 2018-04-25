@@ -4,7 +4,6 @@ import os
 import sys
 
 from markus_pam_tester import MarkusPAMTester
-from markus_pyta_tester import MarkusPyTATester
 from markus_tester import MarkusTestSpecs
 from markusapi import Markus
 
@@ -43,13 +42,6 @@ if __name__ == '__main__':
     # SPECS['feedback_file'] = 'feedback_python.txt'
 
     tester = MarkusPAMTester(specs=SPECS)
-    tester.run()
-
-    #TODO separate into own script, with another markus api invocation
-    SPECS['test_points'] = {'submission.py': 10}
-    SPECS['feedback_file'] = 'feedback_pyta.txt'
-    SPECS['pyta_config'] = {}
-    tester = MarkusPyTATester(specs=SPECS)
     tester.run()
 
     """

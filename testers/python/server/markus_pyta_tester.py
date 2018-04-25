@@ -21,20 +21,38 @@ class MarkusPyTAReporter(PositionReporter):
 class MarkusPyTATest(MarkusTest):
 
     ERROR_MSGS = {
-        'reported': "{} errors"
+        'reported': "{} error(s)"
     }
 
+    def __init__(self, tester, test_file, data_files, points, test_extra, feedback_open=None):
+        super().__init__(tester, test_file, data_files, points, test_extra, feedback_open)
+        self.annotations = []
+
+    @property
+    def test_name(self):
+        return f'PyTA {super().test_name}'
+
+    def add_annotations(self, reporter):
+        for result in reporter._output['results']:
+            if 'filename' not in result:
+                continue
+            for msg_group in result.get('msg_styles', []) + result.get('msg_errors', []):
+                for msg in msg_group['occurrences']:
+                    self.annotations.append({
+                        'annotation_category_name': None,
+                        'filename': result['filename'],
+                        'content': msg['text'],
+                        'line_start': msg['lineno'],
+                        'line_end': msg['end_lineno'],
+                        'column_start': msg['col_offset'],
+                        'column_end': msg['end_col_offset']
+                    })
+
     def run(self):
-        config = {'pyta-output-file': self.tester.specs.feedback_file,
-                  'pyta-reporter': 'MarkusPyTAReporter'}
-        sys.stdout = self.feedback_open
-        sys.stderr = open(os.devnull, 'w')
-        reporter = python_ta.check_all(self.test_file, config=config)
-        sys.stderr.close()
-        sys.stderr = sys.__stderr__
-        sys.stdout = sys.__stdout__
+        reporter = python_ta.check_all(self.test_file, config=self.tester.pyta_config)
+        self.add_annotations(reporter)
         num_messages = len(reporter._error_messages + reporter._style_messages)
-        points_earned = max(0, self.points_total - num_messages)  # deduct 1 mark per message occurrence (not type)
+        points_earned = max(0, self.points_total - num_messages)  # deduct 1 point per message occurrence (not type)
         message = self.ERROR_MSGS['reported'].format(num_messages) if num_messages > 0 else ''
         return self.done(points_earned, message)
 
@@ -43,7 +61,22 @@ class MarkusPyTATester(MarkusTester):
 
     def __init__(self, specs, test_class=MarkusPyTATest):
         super().__init__(specs, test_class)
-        self.pyta_config = specs['pyta_config']
+        self.pyta_config = specs.get('pyta_config', {})
         self.pyta_config.update({'pyta-output-file': self.specs.feedback_file,
                                  'pyta-reporter': 'MarkusPyTAReporter'})
+        self.devnull = open(os.devnull, 'w')
+        self.annotations = []
         VALIDATORS[MarkusPyTAReporter.__name__] = MarkusPyTAReporter
+
+    def before_test_run(self, test):
+        sys.stdout = test.feedback_open
+        sys.stderr = self.devnull
+
+    def after_test_run(self, test):
+        self.annotations.extend(test.annotations)
+        sys.stderr = sys.__stderr__
+        sys.stdout = sys.__stdout__
+
+    def run(self):
+        super().run()
+        self.devnull.close()
