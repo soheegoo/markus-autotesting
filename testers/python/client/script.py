@@ -37,7 +37,7 @@ if __name__ == '__main__':
     # SPECS['test_timeout'] = 10
 
     """
-    The feedback file name (defaults to no feedback file if commented out).
+    The feedback file name; defaults to no feedback file if commented out.
     """
     # SPECS['feedback_file'] = 'feedback_python.txt'
 

@@ -21,8 +21,8 @@ if __name__ == '__main__':
     SPECS = MarkusTestSpecs()
 
     """
-    The student files to analyze with PyTA, and the points assigned; 1 point will be deducted per message occurrence, up
-    to a minimum of 0.
+    The student files to analyze with PyTA, and the points assigned; 1 point will be deducted per message occurrence, to
+    a minimum of 0.
     """
     SPECS['test_points'] = {'submission.py': 10}
 
@@ -33,7 +33,7 @@ if __name__ == '__main__':
     SPECS['pyta_config'] = {}
 
     """
-    The feedback file name (defaults to no feedback file if commented out).
+    The feedback file name; defaults to no feedback file if commented out.
     """
     # SPECS['feedback_file'] = 'feedback_pyta.txt'
 
@@ -44,7 +44,8 @@ if __name__ == '__main__':
     Use MarkUs apis if needed.
     """
     # api = Markus(api_key, root_url)
-    # api.upload_annotations(assignment_id, group_id, tester.annotations)
+    # if tester.annotations:
+    #     api.upload_annotations(assignment_id, group_id, tester.annotations)
     # if os.path.isfile(SPECS['feedback_file']):
     #     with open(SPECS['feedback_file']) as feedback_open:
     #         api.upload_feedback_file(assignment_id, group_id, SPECS['feedback_file'], feedback_open.read())
