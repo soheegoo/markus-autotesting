@@ -261,6 +261,6 @@ class MarkusSQLTester(MarkusTester):
             self.init_db()
             super().run()
         except Exception as e:
-            print(MarkusTester.error_all(message=str(e)))
+            print(MarkusTester.error_all(message=str(e)), flush=True)
         finally:
             self.close_db()

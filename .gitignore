@@ -1,9 +1,15 @@
+# all
 .idea
 __pycache__
-testers/uam-git/
-testers/java/uam-git
-testers/python/uam-git
-testers/java/**/*.class
+
+# server
 server/.bundle
 server/vendor
 
+# uam
+testers/uam-git/
+testers/python/uam-git
+
+#java
+testers/java/server/.gradle
+testers/java/server/build

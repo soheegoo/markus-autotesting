@@ -5,47 +5,30 @@ install_packages() {
     sudo apt-get install python3 openjdk-8-jre
 }
 
-download_uam() {
-    echo "[JAVA] Downloading latest version of UAM"
-    if pushd ${UAMDIR} &> /dev/null; then
-        git pull
-        popd > /dev/null
-    else
-        git clone https://github.com/ProjectAT/uam.git ${UAMDIR}
-    fi
-    if [[ ! -e ${UAMLINK} ]]; then
-        ln -s ${UAMDIR} ${UAMLINK}
-    fi
-}
-
-compile_jam() {
-    local jamdir=${UAMLINK}/jam
-
-    echo "[JAVA] Compiling JAM"
-    pushd ${jamdir} > /dev/null
-    ./compile_jam.sh
+compile_tester() {
+    echo "[JAVA] Compiling tester"
+    pushd ${JAVADIR} > /dev/null
+    ./gradlew installDist --no-daemon
     popd > /dev/null
 }
 
 update_specs() {
     echo "[JAVA] Updating json specs file"
-    sed -i -e "s#/path/to/uam#${UAMLINK}#g" ${TESTERDIR}/specs.json
+    sed -i -e "s#/path/to/tester/jars#${JAVADIR}/build/install/MarkusJavaTester/lib#g" ${TESTERDIR}/specs.json
 }
 
 # script starts here
-if [ $# -ne 1 ]; then
-	echo "Usage: $0 uam_dir"
+if [ $# -ne 0 ]; then
+	echo "Usage: $0"
 	exit 1
 fi
 
 # vars
 THISSCRIPT=$(readlink -f ${BASH_SOURCE})
 TESTERDIR=$(dirname ${THISSCRIPT})
-UAMDIR=$(readlink -f $1)
-UAMLINK=${TESTERDIR}/uam-git
+JAVADIR=${TESTERDIR}/server
 
 # main
 install_packages
-download_uam
-compile_jam
+compile_tester
 update_specs
