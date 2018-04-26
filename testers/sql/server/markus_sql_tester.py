@@ -25,19 +25,19 @@ class MarkusSQLTest(MarkusTest):
     SCHEMA_FILE = 'schema.ddl'
     DATASET_DIR = 'datasets'
 
-    def __init__(self, tester, test_file, data_files, points, test_extra, feedback_open):
-        super().__init__(tester, test_file, data_files, points, test_extra, feedback_open)
+    def __init__(self, test_file, data_files, points, test_extra, feedback_open, **kwargs):
+        super().__init__(test_file, data_files, points, test_extra, feedback_open)
         self.data_file = data_files[0]
-        self.oracle_database = tester.oracle_database
-        self.test_database = tester.test_database
-        self.user_name = tester.user_name
-        self.user_password = tester.user_password
-        self.oracle_connection = tester.oracle_connection
-        self.oracle_cursor = tester.oracle_cursor
-        self.test_connection = tester.test_connection
-        self.test_cursor = tester.test_cursor
-        self.path_to_solution = tester.specs['path_to_solution']
-        self.schema_name = tester.specs['schema_name']
+        self.oracle_database = kwargs['oracle_database']
+        self.test_database = kwargs['test_database']
+        self.user_name = kwargs['user_name']
+        self.user_password = kwargs['user_password']
+        self.oracle_connection = kwargs['oracle_connection']
+        self.oracle_cursor = kwargs['oracle_cursor']
+        self.test_connection = kwargs['test_connection']
+        self.test_cursor = kwargs['test_cursor']
+        self.path_to_solution = kwargs['path_to_solution']
+        self.schema_name = kwargs['schema_name']
 
     def select_query(self, schema_name, table_name, order_by=None):
         query = 'SELECT * FROM %(schema)s.%(table)s'
@@ -238,7 +238,7 @@ class MarkusSQLTester(MarkusTester):
         self.test_connection = None
         self.test_cursor = None
 
-    def init_db(self):
+    def before_tester_run(self):
         self.oracle_connection = psycopg2.connect(database=self.oracle_database, user=self.user_name,
                                                   password=self.user_password, host='localhost')
         self.oracle_cursor = self.oracle_connection.cursor()
@@ -246,7 +246,14 @@ class MarkusSQLTester(MarkusTester):
                                                 password=self.user_password, host='localhost')
         self.test_cursor = self.test_connection.cursor()
 
-    def close_db(self):
+    def get_custom_test_arguments(self):
+        return {'oracle_database': self.oracle_database, 'test_database': self.test_database,
+                'user_name': self.user_name, 'user_password': self.user_password,
+                'oracle_connection': self.oracle_connection, 'oracle_cursor': self.oracle_cursor,
+                'test_connection': self.test_connection, 'test_cursor': self.test_cursor,
+                'path_to_solution': self.specs['path_to_solution'], 'schema_name': self.specs['schema_name']}
+
+    def after_tester_run(self):
         if self.test_cursor:
             self.test_cursor.close()
         if self.test_connection:
@@ -255,12 +262,3 @@ class MarkusSQLTester(MarkusTester):
             self.oracle_cursor.close()
         if self.oracle_connection:
             self.oracle_connection.close()
-
-    def run(self):
-        try:
-            self.init_db()
-            super().run()
-        except Exception as e:
-            print(MarkusTester.error_all(message=str(e)), flush=True)
-        finally:
-            self.close_db()

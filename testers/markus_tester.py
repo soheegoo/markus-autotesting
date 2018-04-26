@@ -116,8 +116,7 @@ class MarkusTest:
         ERROR = 'error'
         ERROR_ALL = 'error_all'
 
-    def __init__(self, tester, test_file, data_files, points, test_extra, feedback_open=None):
-        self.tester = tester
+    def __init__(self, test_file, data_files, points, test_extra, feedback_open=None, **kwargs):
         self.test_file = test_file  # TODO Is really a file or a more generic test the base unit here?
         self.data_files = data_files
         self.points = points  # TODO Use a default or disable if not set?
@@ -343,26 +342,54 @@ class MarkusTester:
                           repo_path]
         subprocess.run(svn_ci_command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-    def before_test_run(self, test):
+    def before_tester_run(self):
         """
-        Callback method invoked after initializing each test, but before running them.
-        :param test: The test about to be executed.
+        Callback invoked before running this tester.
+        Use this for tester initialization steps that can fail, rather than using __init__.
         """
         pass
 
+    def before_test_run(self, test):
+        """
+        Callback invoked before running a test.
+        Use this for test initialization steps that can fail, rather than using test_class.__init__().
+        :param test: The test after initialization.
+        """
+        pass
+
+    def get_custom_test_arguments(self):
+        """
+        Gets a dict of custom arguments to be passed to the test constructor.
+        :return: The dict of custom arguments.
+        """
+        return {}
+
     def after_test_run(self, test):
         """
-        Callback method invoked after running each test.
-        :param test: The test just executed.
+        Callback invoked after successfully running a test.
+        Use this to access test data in the tester. Don't use this for test cleanup steps, use test_class.run() instead.
+        :param test: The test after execution.
+        """
+        pass
+
+    def after_tester_run(self):
+        """
+        Callback invoked after running this tester, including in case of exceptions.
+        Use this for tester cleanup steps that should always be executed, regardless of errors.
         """
         pass
 
     def run(self):
+        """
+        Runs this tester.
+        """
         try:
+            self.before_tester_run()
             with contextlib.ExitStack() as stack:
                 feedback_open = (stack.enter_context(open(self.specs.feedback_file, 'w'))
                                  if self.specs.feedback_file is not None
                                  else None)
+                test_custom = self.get_custom_test_arguments()
                 for test_file in sorted(self.specs.tests):
                     test_extra = self.specs.matrix[test_file].get(MarkusTestSpecs.MATRIX_NONTEST_KEY, {})
                     for data_files in sorted(self.specs.matrix[test_file].keys()):
@@ -373,10 +400,18 @@ class MarkusTester:
                             data_files = data_files.split(MarkusTestSpecs.DATA_FILES_SEPARATOR)
                         else:
                             data_files = [data_files]
-                        test = self.test_class(self, test_file, data_files, points, test_extra, feedback_open)
-                        self.before_test_run(test)
-                        xml = test.run()
-                        self.after_test_run(test)
-                        print(xml, flush=True)
+                        test = self.test_class(test_file, data_files, points, test_extra, feedback_open, **test_custom)
+                        try:
+                            # if a test __init__ fails it should really stop the whole tester, we don't have enough
+                            # info to continue safely, e.g. the total points (which skews the student mark)
+                            self.before_test_run(test)
+                            xml = test.run()
+                            self.after_test_run(test)
+                        except Exception as e:
+                            xml = test.error(message=str(e))
+                        finally:
+                            print(xml, flush=True)
         except Exception as e:
             print(MarkusTester.error_all(message=str(e)), flush=True)
+        finally:
+            self.after_tester_run()

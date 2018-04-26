@@ -15,9 +15,9 @@ class MarkusJDBCTest(MarkusSQLTest):
     ERROR_MSGS.update(MarkusSQLTest.ERROR_MSGS)
     JAVA_POINTS_KEY = 'JAVA'
 
-    def __init__(self, tester, test_file, data_files, points, test_extra, feedback_open):
-        super().__init__(tester, test_file, data_files, points, test_extra, feedback_open)
-        self.java_classpath = tester.java_classpath
+    def __init__(self, test_file, data_files, points, test_extra, feedback_open, **kwargs):
+        super().__init__(test_file, data_files, points, test_extra, feedback_open)
+        self.java_classpath = kwargs['java_classpath']
 
     @property
     def test_name(self):
@@ -100,6 +100,11 @@ class MarkusJDBCTester(MarkusSQLTester):
         javac_command = ['javac', '-cp', self.java_classpath] + self.java_files
         subprocess.run(javac_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True,
                        check=True)
+
+    def get_custom_test_arguments(self):
+        args = super().get_custom_test_arguments()
+        args.update({'java_classpath': self.java_classpath})
+        return args
 
     def run(self):
         try:

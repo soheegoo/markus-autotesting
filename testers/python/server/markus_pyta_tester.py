@@ -28,8 +28,10 @@ class MarkusPyTATest(MarkusTest):
         'reported': "{} error(s)"
     }
 
-    def __init__(self, tester, test_file, data_files, points, test_extra, feedback_open=None):
-        super().__init__(tester, test_file, data_files, points, test_extra, feedback_open)
+    def __init__(self, test_file, data_files, points, test_extra, feedback_open=None, **kwargs):
+        super().__init__(test_file, data_files, points, test_extra, feedback_open)
+        self.pyta_config = kwargs['pyta_config']
+        self.devnull = kwargs['devnull']
         self.annotations = []
 
     @property
@@ -53,14 +55,23 @@ class MarkusPyTATest(MarkusTest):
                     })
 
     def run(self):
-        # run PyTA and collect annotations
-        reporter = python_ta.check_all(self.test_file, config=self.tester.pyta_config)
-        self.add_annotations(reporter)
-        # deduct 1 point per message occurrence (not type)
-        num_messages = len(self.annotations)
-        points_earned = max(0, self.points_total - num_messages)
-        message = self.ERROR_MSGS['reported'].format(num_messages) if num_messages > 0 else ''
-        return self.done(points_earned, message)
+        try:
+            # run PyTA and collect annotations
+            sys.stdout = self.feedback_open if self.feedback_open is not None else self.devnull
+            sys.stderr = self.devnull
+            reporter = python_ta.check_all(self.test_file, config=self.pyta_config)
+            self.add_annotations(reporter)
+            # deduct 1 point per message occurrence (not type)
+            num_messages = len(self.annotations)
+            points_earned = max(0, self.points_total - num_messages)
+            message = self.ERROR_MSGS['reported'].format(num_messages) if num_messages > 0 else ''
+            return self.done(points_earned, message)
+        except Exception as e:
+            self.annotations = []
+            return self.error(message=str(e))
+        finally:
+            sys.stderr = sys.__stderr__
+            sys.stdout = sys.__stdout__
 
 
 class MarkusPyTATester(MarkusTester):
@@ -75,15 +86,12 @@ class MarkusPyTATester(MarkusTester):
         self.devnull = open(os.devnull, 'w')
         VALIDATORS[MarkusPyTAReporter.__name__] = MarkusPyTAReporter
 
-    def before_test_run(self, test):
-        sys.stdout = test.feedback_open if self.specs.feedback_file is not None else self.devnull
-        sys.stderr = self.devnull
+    def get_custom_test_arguments(self):
+        return {'devnull': self.devnull, 'pyta_config': self.pyta_config}
 
     def after_test_run(self, test):
         self.annotations.extend(test.annotations)
-        sys.stderr = sys.__stderr__
-        sys.stdout = sys.__stdout__
 
-    def run(self):
-        super().run()
-        self.devnull.close()
+    def after_tester_run(self):
+        if self.devnull:
+            self.devnull.close()
