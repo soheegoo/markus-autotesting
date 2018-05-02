@@ -6,8 +6,9 @@ from uam_tester import UAMResult, UAMTester
 
 class MarkusUAMTest(MarkusTest):
 
-    def __init__(self, uam_result, points_total, feedback_open, **kwargs):
-        super().__init__(uam_result.test_title, [MarkusTestSpecs.MATRIX_NODATA_KEY], points_total, {}, feedback_open)
+    def __init__(self, tester, uam_result, points_total, feedback_open=None):
+        super().__init__(tester, uam_result.test_title, [MarkusTestSpecs.MATRIX_NODATA_KEY], points_total, {},
+                         feedback_open)
         self.uam_result = uam_result
 
     @property
@@ -49,7 +50,7 @@ class MarkusUAMTester(MarkusTester):
                 results = self.uam_tester.run()
                 for result in results:
                     points_total = self.uam_tester.get_test_points(result, self.test_ext)
-                    test = self.test_class(result, points_total, feedback_open)
+                    test = self.test_class(self, result, points_total, feedback_open)
                     xml = test.run()
                     print(xml, flush=True)
         except Exception as e:

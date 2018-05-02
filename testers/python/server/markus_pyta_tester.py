@@ -28,10 +28,8 @@ class MarkusPyTATest(MarkusTest):
         'reported': "{} error(s)"
     }
 
-    def __init__(self, test_file, data_files, points, test_extra, feedback_open=None, **kwargs):
-        super().__init__(test_file, data_files, points, test_extra, feedback_open)
-        self.pyta_config = kwargs['pyta_config']
-        self.devnull = kwargs['devnull']
+    def __init__(self, tester, test_file, data_files, points, test_extra, feedback_open=None):
+        super().__init__(tester, test_file, data_files, points, test_extra, feedback_open)
         self.annotations = []
 
     @property
@@ -57,9 +55,9 @@ class MarkusPyTATest(MarkusTest):
     def run(self):
         try:
             # run PyTA and collect annotations
-            sys.stdout = self.feedback_open if self.feedback_open is not None else self.devnull
-            sys.stderr = self.devnull
-            reporter = python_ta.check_all(self.test_file, config=self.pyta_config)
+            sys.stdout = self.feedback_open if self.feedback_open is not None else self.tester.devnull
+            sys.stderr = self.tester.devnull
+            reporter = python_ta.check_all(self.test_file, config=self.tester.pyta_config)
             self.add_annotations(reporter)
             # deduct 1 point per message occurrence (not type)
             num_messages = len(self.annotations)
@@ -86,10 +84,7 @@ class MarkusPyTATester(MarkusTester):
         self.devnull = open(os.devnull, 'w')
         VALIDATORS[MarkusPyTAReporter.__name__] = MarkusPyTAReporter
 
-    def get_custom_test_arguments(self):
-        return {'devnull': self.devnull, 'pyta_config': self.pyta_config}
-
-    def after_test_run(self, test):
+    def after_successful_test_run(self, test):
         self.annotations.extend(test.annotations)
 
     def after_tester_run(self):

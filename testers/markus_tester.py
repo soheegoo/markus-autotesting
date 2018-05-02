@@ -116,7 +116,8 @@ class MarkusTest:
         ERROR = 'error'
         ERROR_ALL = 'error_all'
 
-    def __init__(self, test_file, data_files, points, test_extra, feedback_open=None, **kwargs):
+    def __init__(self, tester, test_file, data_files, points, test_extra, feedback_open=None):
+        self.tester = tester
         self.test_file = test_file  # TODO Is really a file or a more generic test the base unit here?
         self.data_files = data_files
         self.points = points  # TODO Use a default or disable if not set?
@@ -357,14 +358,7 @@ class MarkusTester:
         """
         pass
 
-    def get_custom_test_arguments(self):
-        """
-        Gets a dict of custom arguments to be passed to the test constructor.
-        :return: The dict of custom arguments.
-        """
-        return {}
-
-    def after_test_run(self, test):
+    def after_successful_test_run(self, test):
         """
         Callback invoked after successfully running a test.
         Use this to access test data in the tester. Don't use this for test cleanup steps, use test_class.run() instead.
@@ -389,7 +383,6 @@ class MarkusTester:
                 feedback_open = (stack.enter_context(open(self.specs.feedback_file, 'w'))
                                  if self.specs.feedback_file is not None
                                  else None)
-                test_custom = self.get_custom_test_arguments()
                 for test_file in sorted(self.specs.tests):
                     test_extra = self.specs.matrix[test_file].get(MarkusTestSpecs.MATRIX_NONTEST_KEY, {})
                     for data_files in sorted(self.specs.matrix[test_file].keys()):
@@ -400,13 +393,13 @@ class MarkusTester:
                             data_files = data_files.split(MarkusTestSpecs.DATA_FILES_SEPARATOR)
                         else:
                             data_files = [data_files]
-                        test = self.test_class(test_file, data_files, points, test_extra, feedback_open, **test_custom)
+                        test = self.test_class(self, test_file, data_files, points, test_extra, feedback_open)
                         try:
                             # if a test __init__ fails it should really stop the whole tester, we don't have enough
                             # info to continue safely, e.g. the total points (which skews the student mark)
                             self.before_test_run(test)
                             xml = test.run()
-                            self.after_test_run(test)
+                            self.after_successful_test_run(test)
                         except Exception as e:
                             xml = test.error(message=str(e))
                         finally:
