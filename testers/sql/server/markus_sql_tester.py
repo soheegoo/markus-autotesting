@@ -25,19 +25,9 @@ class MarkusSQLTest(MarkusTest):
     SCHEMA_FILE = 'schema.ddl'
     DATASET_DIR = 'datasets'
 
-    def __init__(self, tester, test_file, data_files, points, test_extra, feedback_open):
+    def __init__(self, tester, test_file, data_files, points, test_extra, feedback_open=None):
         super().__init__(tester, test_file, data_files, points, test_extra, feedback_open)
         self.data_file = data_files[0]
-        self.oracle_database = tester.oracle_database
-        self.test_database = tester.test_database
-        self.user_name = tester.user_name
-        self.user_password = tester.user_password
-        self.oracle_connection = tester.oracle_connection
-        self.oracle_cursor = tester.oracle_cursor
-        self.test_connection = tester.test_connection
-        self.test_cursor = tester.test_cursor
-        self.path_to_solution = tester.specs['path_to_solution']
-        self.schema_name = tester.specs['schema_name']
 
     def select_query(self, schema_name, table_name, order_by=None):
         query = 'SELECT * FROM %(schema)s.%(table)s'
@@ -51,49 +41,49 @@ class MarkusSQLTest(MarkusTest):
 
     def get_oracle_results(self, table_name, order_by=None):
         query, query_vars = self.select_query(schema_name=self.data_name, table_name=table_name, order_by=order_by)
-        self.oracle_cursor.execute(query, query_vars)
-        self.oracle_connection.commit()
-        oracle_results = self.oracle_cursor.fetchall()
+        self.tester.oracle_cursor.execute(query, query_vars)
+        self.tester.oracle_connection.commit()
+        oracle_results = self.tester.oracle_cursor.fetchall()
 
         return oracle_results
 
     def set_test_schema(self, data_file):
-        self.test_cursor.execute('DROP SCHEMA IF EXISTS %(schema)s CASCADE',
-                                 {'schema': psycopg2.extensions.AsIs(self.schema_name)})
-        self.test_cursor.execute('CREATE SCHEMA %(schema)s',
-                                 {'schema': psycopg2.extensions.AsIs(self.schema_name)})
-        self.test_cursor.execute('SET search_path TO %(schema)s',
-                                 {'schema': psycopg2.extensions.AsIs(self.schema_name)})
-        with open(os.path.join(self.path_to_solution, self.SCHEMA_FILE)) as schema_open:
+        self.tester.test_cursor.execute('DROP SCHEMA IF EXISTS %(schema)s CASCADE',
+                                        {'schema': psycopg2.extensions.AsIs(self.tester.schema_name)})
+        self.tester.test_cursor.execute('CREATE SCHEMA %(schema)s',
+                                        {'schema': psycopg2.extensions.AsIs(self.tester.schema_name)})
+        self.tester.test_cursor.execute('SET search_path TO %(schema)s',
+                                        {'schema': psycopg2.extensions.AsIs(self.tester.schema_name)})
+        with open(os.path.join(self.tester.path_to_solution, self.SCHEMA_FILE)) as schema_open:
             schema = schema_open.read()
-            self.test_cursor.execute(schema)
+            self.tester.test_cursor.execute(schema)
         if data_file != MarkusTestSpecs.MATRIX_NODATA_KEY:
-            with open(os.path.join(self.path_to_solution, self.DATASET_DIR, data_file)) as data_open:
+            with open(os.path.join(self.tester.path_to_solution, self.DATASET_DIR, data_file)) as data_open:
                 data = data_open.read()
-                self.test_cursor.execute(data)
-        self.test_connection.commit()
+                self.tester.test_cursor.execute(data)
+        self.tester.test_connection.commit()
 
     def get_test_results(self, table_name, sql_file=None, sql_order_file=None):
         if sql_file is not None:
             with open(sql_file) as sql_open:
                 sql = sql_open.read()
-                self.test_cursor.execute(sql)
+                self.tester.test_cursor.execute(sql)
         if sql_order_file is not None:
             with open(sql_order_file) as sql_order_open:
                 sql = sql_order_open.read()
-                self.test_cursor.execute(sql)
+                self.tester.test_cursor.execute(sql)
         else:
-            query, query_vars = self.select_query(schema_name=self.schema_name, table_name=table_name)
-            self.test_cursor.execute(query, query_vars)
-        self.test_connection.commit()
-        test_results = self.test_cursor.fetchall()
+            query, query_vars = self.select_query(schema_name=self.tester.schema_name, table_name=table_name)
+            self.tester.test_cursor.execute(query, query_vars)
+        self.tester.test_connection.commit()
+        test_results = self.tester.test_cursor.fetchall()
 
         return test_results
 
     def check_results(self, oracle_results, test_results, order_on=True):
 
-        oracle_columns = self.oracle_cursor.description
-        test_columns = self.test_cursor.description
+        oracle_columns = self.tester.oracle_cursor.description
+        test_columns = self.tester.test_cursor.description
 
         # check 1: column count
         oracle_num_columns = len(oracle_columns)
@@ -167,19 +157,19 @@ class MarkusSQLTest(MarkusTest):
     def get_psql_dump(self, table_name, oracle_order_by=None, test_order_file=None):
         oracle_query, oracle_vars = self.select_query(schema_name=self.data_name, table_name=table_name,
                                                       order_by=oracle_order_by)
-        oracle_command = ['psql', '-U', self.user_name, '-d', self.oracle_database, '-h', 'localhost', '-c',
-                          self.oracle_cursor.mogrify(oracle_query, oracle_vars)]
-        test_command = ['psql', '-U', self.user_name, '-d', self.test_database, '-h', 'localhost', '-c']
+        oracle_command = ['psql', '-U', self.tester.user_name, '-d', self.tester.oracle_database, '-h', 'localhost',
+                          '-c', self.tester.oracle_cursor.mogrify(oracle_query, oracle_vars)]
+        test_command = ['psql', '-U', self.tester.user_name, '-d', self.tester.test_database, '-h', 'localhost', '-c']
         if test_order_file is not None:
             test_query = 'SET search_path TO %(schema)s;'
-            test_vars = {'schema': psycopg2.extensions.AsIs(self.schema_name)}
+            test_vars = {'schema': psycopg2.extensions.AsIs(self.tester.schema_name)}
             with open(test_order_file) as test_order_open:
                 test_query += test_order_open.read()
         else:
-            test_query, test_vars = self.select_query(schema_name=self.schema_name, table_name=table_name)
-        test_command.extend([self.test_cursor.mogrify(test_query, test_vars)])
+            test_query, test_vars = self.select_query(schema_name=self.tester.schema_name, table_name=table_name)
+        test_command.extend([self.tester.test_cursor.mogrify(test_query, test_vars)])
         env = os.environ.copy()
-        env['PGPASSWORD'] = self.user_password
+        env['PGPASSWORD'] = self.tester.user_password
         oracle_proc = subprocess.run(oracle_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=True,
                                      env=env, universal_newlines=True)
         test_proc = subprocess.run(test_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=True, env=env,
@@ -216,8 +206,8 @@ class MarkusSQLTest(MarkusTest):
                                                                     test_order_file=test_order_file)
                 return self.failed(message, oracle_solution, test_solution)
         except Exception as e:
-            self.oracle_connection.commit()
-            self.test_connection.commit()
+            self.tester.oracle_connection.commit()
+            self.tester.test_connection.commit()
             return self.error(message=str(e))
 
 
@@ -238,7 +228,7 @@ class MarkusSQLTester(MarkusTester):
         self.test_connection = None
         self.test_cursor = None
 
-    def init_db(self):
+    def before_tester_run(self):
         self.oracle_connection = psycopg2.connect(database=self.oracle_database, user=self.user_name,
                                                   password=self.user_password, host='localhost')
         self.oracle_cursor = self.oracle_connection.cursor()
@@ -246,7 +236,7 @@ class MarkusSQLTester(MarkusTester):
                                                 password=self.user_password, host='localhost')
         self.test_cursor = self.test_connection.cursor()
 
-    def close_db(self):
+    def after_tester_run(self):
         if self.test_cursor:
             self.test_cursor.close()
         if self.test_connection:
@@ -255,12 +245,3 @@ class MarkusSQLTester(MarkusTester):
             self.oracle_cursor.close()
         if self.oracle_connection:
             self.oracle_connection.close()
-
-    def run(self):
-        try:
-            self.init_db()
-            super().run()
-        except Exception as e:
-            print(MarkusTester.error_all(message=str(e)), flush=True)
-        finally:
-            self.close_db()

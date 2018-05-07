@@ -343,8 +343,42 @@ class MarkusTester:
                           repo_path]
         subprocess.run(svn_ci_command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
+    def before_tester_run(self):
+        """
+        Callback invoked before running this tester.
+        Use this for tester initialization steps that can fail, rather than using __init__.
+        """
+        pass
+
+    def before_test_run(self, test):
+        """
+        Callback invoked before running a test.
+        Use this for test initialization steps that can fail, rather than using test_class.__init__().
+        :param test: The test after initialization.
+        """
+        pass
+
+    def after_successful_test_run(self, test):
+        """
+        Callback invoked after successfully running a test.
+        Use this to access test data in the tester. Don't use this for test cleanup steps, use test_class.run() instead.
+        :param test: The test after execution.
+        """
+        pass
+
+    def after_tester_run(self):
+        """
+        Callback invoked after running this tester, including in case of exceptions.
+        Use this for tester cleanup steps that should always be executed, regardless of errors.
+        """
+        pass
+
     def run(self):
+        """
+        Runs this tester.
+        """
         try:
+            self.before_tester_run()
             with contextlib.ExitStack() as stack:
                 feedback_open = (stack.enter_context(open(self.specs.feedback_file, 'w'))
                                  if self.specs.feedback_file is not None
@@ -360,7 +394,17 @@ class MarkusTester:
                         else:
                             data_files = [data_files]
                         test = self.test_class(self, test_file, data_files, points, test_extra, feedback_open)
-                        xml = test.run()
-                        print(xml, flush=True)
+                        try:
+                            # if a test __init__ fails it should really stop the whole tester, we don't have enough
+                            # info to continue safely, e.g. the total points (which skews the student mark)
+                            self.before_test_run(test)
+                            xml = test.run()
+                            self.after_successful_test_run(test)
+                        except Exception as e:
+                            xml = test.error(message=str(e))
+                        finally:
+                            print(xml, flush=True)
         except Exception as e:
             print(MarkusTester.error_all(message=str(e)), flush=True)
+        finally:
+            self.after_tester_run()

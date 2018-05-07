@@ -6,7 +6,7 @@ from uam_tester import UAMResult, UAMTester
 
 class MarkusUAMTest(MarkusTest):
 
-    def __init__(self, tester, uam_result, points_total, feedback_open):
+    def __init__(self, tester, uam_result, points_total, feedback_open=None):
         super().__init__(tester, uam_result.test_title, [MarkusTestSpecs.MATRIX_NODATA_KEY], points_total, {},
                          feedback_open)
         self.uam_result = uam_result
