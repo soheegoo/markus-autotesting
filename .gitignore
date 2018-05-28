@@ -1,6 +1,7 @@
 # all
 .idea
 __pycache__
+.DS_Store
 
 # server
 server/.bundle

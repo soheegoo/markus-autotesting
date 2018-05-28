@@ -2,7 +2,30 @@
 
 install_packages() {
     echo "[AUTOTEST] Installing system packages"
-    sudo apt-get install ruby redis-server bundler
+    sudo apt-get install redis-server python3 python3-venv 
+}
+
+run_as_serveruser() {
+    local cmd=$1
+    if [[ -n ${SERVERUSER} ]]; then
+        cmd="sudo -u ${SERVERUSER} --set-home -- ${cmd}"
+    fi
+    ${cmd}
+}
+
+install_venv() {
+    local serverhome=$(echo ~${SERVERUSER})
+    echo "[AUTOTEST] Installing python3 virtual environment in $serverhome/autotstenv"
+    sudo python3 -m autotstenv $serverhome
+    sudo echo "source $serverhome/autotstenv/bin/activate" >> $serverhome/.bash_profile
+    echo "[AUTOTEST] Installing pip packages"
+    sudo source $serverhome/autotstenv/bin/activate
+    pip install redis rq
+    pip install git+https://github.com/Supervisor/supervisor@master
+    source deactivate
+    echo "[AUTOTEST] Make autotest_enqueuer.py executable by ${SERVERUSER}"
+    sudo echo 'export PATH=$PATH:'${SERVERDIR} >> $serverhome/.bash_profile
+    sudo echo 'test -f $HOME/.bash_profile && source $HOME/.bash_profile' >> $serverhome/.bashrc
 }
 
 create_server_user() {
@@ -21,6 +44,12 @@ create_server_user() {
     fi
 }
 
+add_user_info_to_redis() {
+    local json=$(printf '{"username":"%s", "working_dir":"%s"}' $1 $2)
+    local userlist=$(get_config_param USER_LIST)
+    redis-cli RPUSH userlist json > /dev/null
+}
+
 create_default_tester_dir() {
     local testerdir=${WORKINGDIR}/${QUEUE}
 
@@ -28,7 +57,7 @@ create_default_tester_dir() {
     sudo mkdir -p ${testerdir}
     sudo chown ${SERVERUSER2}:${SERVERUSER2} ${testerdir}
     sudo chmod ug=rwx,o=,+t ${testerdir}
-    CONF="${CONF}{user: nil, dir: '${testerdir}', queue: '${QUEUE}'},"
+    add_user_info_to_redis ${SERVERUSER2} ${testerdir}
 }
 
 create_tester_user() {
@@ -45,7 +74,7 @@ create_tester_user() {
     sudo chown ${SERVERUSER2}:${testeruser} ${testerdir}
     sudo chmod ug=rwx,o=,+t ${testerdir}
     echo "${SERVERUSER2} ALL=(${testeruser}) NOPASSWD:ALL" | sudo EDITOR="tee -a" visudo
-    CONF="${CONF}{user: '${testeruser}', dir: '${testerdir}', queue: '${testeruser}'},"
+    add_user_info_to_redis ${testeruser} ${testerdir}
 }
 
 create_tester_users() {
@@ -67,24 +96,16 @@ create_working_dirs() {
     sudo mkdir -p ${SPECSDIR}
     sudo mkdir -p ${VENVSDIR}
     sudo mkdir -p ${RESULTSDIR}
+    sudo mkdir -p ${SCRIPTSDIR}
     sudo chmod u=rwx,go= ${RESULTSDIR}
-    sudo chown ${SERVERUSER2}:${SERVERUSER2} ${SPECSDIR} ${VENVSDIR} ${RESULTSDIR}
+    sudo chown ${SERVERUSER2}:${SERVERUSER2} ${SPECSDIR} ${VENVSDIR} ${RESULTSDIR} ${SCRIPTSDIR}
 }
 
-install_gems() {
-    echo "[AUTOTEST] Installing gems"
-    pushd ${SERVERDIR} > /dev/null
-    bundle install --deployment
-    popd > /dev/null
-}
-
-run_resque() {
-    local cmd="${SERVERDIR}/start_resque.sh ${QUEUE} ${NUMWORKERS}"
-    if [[ -n ${SERVERUSER} ]]; then
-        cmd="sudo -u ${SERVERUSER} -- ${cmd}"
-    fi
-
-    ${cmd}
+start_queues() {
+    echo "[AUTOTEST] Generating generate_supervisord.conf file in ${THISSCRIPTDIR}"
+    run_as_serveruser "python generate_supervisord.conf.py" 
+    echo "[AUTOTEST] Starting rq workers using supervisor"
+    supervisord -c ${THISSCRIPTDIR}/supervisord.conf
 }
 
 create_markus_conf() {
@@ -106,7 +127,6 @@ create_markus_conf() {
         AUTOTEST_SERVER_FILES_USERNAME = ${serverconf}
         AUTOTEST_SERVER_FILES_DIR = '${WORKINGDIR}'
         AUTOTEST_SERVER_RESULTS_DIR = '${RESULTSDIR}'
-        AUTOTEST_SERVER_TESTS = [${CONF}]
     " >| markus_conf.rb
 }
 
@@ -114,12 +134,16 @@ suggest_next_steps() {
     if [[ -n ${SERVERUSER} ]]; then
         echo "[AUTOTEST] (You must add MarkUs web server's public key to ${SERVERUSER}'s '~/.ssh/authorized_keys')"
     fi
-    echo "[AUTOTEST] (You may want to add '${SERVERDIR}/start_resque.sh ${QUEUE} ${NUMWORKERS}' to ${SERVERUSER2}'s crontab with a @reboot time)"
+    echo "[AUTOTEST] (You may want to add '${SERVERDIR}/start_queues.sh ${QUEUE} ${NUMWORKERS}' to ${SERVERUSER2}'s crontab with a @reboot time)"
     echo "[AUTOTEST] (You should install the individual testers you plan to use)"
 }
 
 print_usage() {
-    echo "Usage: $0 working_dir [-s|--server <server_user>] [-t|--tester <tester_user>] [-w|--workers <num_workers>] [-h|--help]"
+    echo "Usage: $0 config_file [-s|--server <server_user>] [-t|--tester <tester_user>] [-w|--workers <num_workers>] [-h|--help]"
+}
+
+get_config_param() {
+    grep -Po "^$1\s*=\s*([\'\"])\K.*(?=\1)" ${CONFIGFILE}
 }
 
 # script starts here
@@ -139,7 +163,7 @@ THISUSER=$(whoami)
 NUMWORKERS=""
 SERVERUSER=""
 TESTERUSER=""
-QUEUE=tester # default queue, otherwise QUEUE == TESTERUSER
+CONFIGFILE=""
 while true; do
     case "$1" in
         -s | --server )
@@ -149,7 +173,6 @@ while true; do
         -t | --tester )
             if [[ $2 != ${SERVERUSER} ]]; then
                 TESTERUSER=$2
-                QUEUE=${TESTERUSER}
             fi
             shift 2
             ;;
@@ -172,28 +195,32 @@ while true; do
             exit 1
     esac
 done
-if [[ $# -ne 1 ]]; then
+if [[ $# -ne 2 ]]; then
     print_usage
     exit 1
 fi
-WORKINGDIR=$(readlink -f $1)
+
+CONFIGFILE=$(readlink -f $1)
+
 if [[ -n ${SERVERUSER} ]]; then
     SERVERUSER2=${SERVERUSER}
 else
     SERVERUSER2=${THISUSER}
 fi
+
+WORKINGDIR=$(get_config_param WORKING_DIR)
 SERVERDIR=${THISSCRIPTDIR}/server
-SPECSDIR=${WORKINGDIR}/specs
-VENVSDIR=${WORKINGDIR}/venvs
-RESULTSDIR=${WORKINGDIR}/results
-CONF=""
+SPECSDIR=${WORKINGDIR}/$(get_config_param SPECS_DIR_NAME)
+VENVSDIR=${WORKINGDIR}/$(get_config_param VENVS_DIR_NAME)
+RESULTSDIR=${WORKINGDIR}/$(get_config_param TEST_RESULT_DIR_NAME)
+SCRIPTSDIR=${WORKINGDIR}/$(get_config_param TEST_SCRIPT_DIR_NAME)
 
 # main
 install_packages
 create_server_user
 create_tester_users
+install_venv
 create_working_dirs
-install_gems
-run_resque
+start_queues
 create_markus_conf
 suggest_next_steps
