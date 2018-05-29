@@ -20,7 +20,7 @@ REDIS_CONNECTION_KWARGS = {}
 SERVICE_QUEUE = 'service'
 
 ## WORKING DIR CONFIGS ##
-WORKING_DIR = '/data/autotst'
+WORKING_DIR = '/home/vagrant/Markus/data/dev/autotest/server'
 # path to root directory containing test scripts
 TEST_SCRIPT_DIR_NAME = 'scripts'
 # path to root directory containing test results

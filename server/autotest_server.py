@@ -14,7 +14,6 @@ import redis
 import rq
 from contextlib import contextmanager
 from functools import wraps
-sys.path.append(os.path.dirname(__file__))
 import config
 
 CURRENT_TEST_SCRIPT_FORMAT = '{}_{}'
@@ -141,9 +140,11 @@ def tester_user():
     This will block until a user is available if the queue is empty. 
     """
     r = _redis_connection()
-    user_data = r.blpop(config.USER_LIST)
-    yield json.loads(user_data)
-    r.rpush(config.USER_LIST, user_data)
+    _, user_data = r.blpop(config.USER_LIST)
+    try:
+        yield json.loads(user_data.decode('utf-8'))
+    finally:
+        r.rpush(config.USER_LIST, user_data)
 
 ### MAINTENANCE FUNCTIONS ###
 
@@ -195,7 +196,11 @@ def get_avg_pop_interval(queue_name):
     there is no current burst.
     """
     start, last, count = get_pop_interval_stat(queue_name)
-    if None in (start, last, count):
+    try:
+        start = float(start)
+        last = float(last)
+        count = int(count)
+    except TypeError:
         return None
     count -= 1
     return (last-start) / count if count else 0
@@ -203,7 +208,7 @@ def get_avg_pop_interval(queue_name):
 def clean_up():
     """ Reset the pop interval data for each empty queue """
     with rq.Connection(_redis_connection()):
-        for q in rq.Queues.all():
+        for q in rq.Queue.all():
             if q != rq.queue.FailedQueue():
                 if q.is_empty():
                     clear_pop_interval_stat(q.name)
@@ -329,7 +334,7 @@ def store_results(results, markus_address, assignment_id, group_id, submission_i
     clean_markus_address = _clean_dir_name(markus_address)
     run_time = "run_{}".format(int(time.time()))
     destination = os.path.join(TEST_RESULT_DIR, clean_markus_address, 
-                               assignment_id, group_id, submission_id, run_time)
+                               assignment_id, group_id, 's{}'.format(submission_id or ''), run_time)
     os.makedirs(destination, exist_ok=True)
     with open(os.path.join(destination, 'output.json'), 'w') as f:
         json.dump(results, f, indent=4)

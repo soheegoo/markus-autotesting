@@ -2,7 +2,7 @@
 
 install_packages() {
     echo "[AUTOTEST] Installing system packages"
-    sudo apt-get install redis-server python3 python3-venv 
+    sudo apt-get install redis-server python3.6 python3.6-venv
 }
 
 run_as_serveruser() {
@@ -13,19 +13,24 @@ run_as_serveruser() {
     ${cmd}
 }
 
+write_markus_profile() {
+    local serverhome=$(eval echo ~${SERVERUSER2})
+    local profile=${THISSCRIPTDIR}/.markus_profile
+    sudo echo "source $serverhome/autotstenv/bin/activate" > $profile
+    sudo echo '[[ ":$PATH:" != *"'${SERVERDIR}':"* ]] && export PATH="'${SERVERDIR}':${PATH}"' >> $profile
+    sudo echo "supervisord -c ${THISSCRIPTDIR}/supervisord.conf" >> $profile
+    sudo echo "source $profile &> /dev/null" >> $serverhome/.bashrc 
+    sudo echo "source $profile &> /dev/null" >> $serverhome/.bash_profile
+}
+
 install_venv() {
-    local serverhome=$(echo ~${SERVERUSER})
+    local serverhome=$(eval echo ~${SERVERUSER2})
     echo "[AUTOTEST] Installing python3 virtual environment in $serverhome/autotstenv"
-    sudo python3 -m autotstenv $serverhome
-    sudo echo "source $serverhome/autotstenv/bin/activate" >> $serverhome/.bash_profile
+    python3 -m venv $serverhome/autotstenv
     echo "[AUTOTEST] Installing pip packages"
-    sudo source $serverhome/autotstenv/bin/activate
-    pip install redis rq
+    source $serverhome/autotstenv/bin/activate
+    pip install redis rq requests
     pip install git+https://github.com/Supervisor/supervisor@master
-    source deactivate
-    echo "[AUTOTEST] Make autotest_enqueuer.py executable by ${SERVERUSER}"
-    sudo echo 'export PATH=$PATH:'${SERVERDIR} >> $serverhome/.bash_profile
-    sudo echo 'test -f $HOME/.bash_profile && source $HOME/.bash_profile' >> $serverhome/.bashrc
 }
 
 create_server_user() {
@@ -45,9 +50,9 @@ create_server_user() {
 }
 
 add_user_info_to_redis() {
-    local json=$(printf '{"username":"%s", "working_dir":"%s"}' $1 $2)
+    local json=$(printf '{"username":"%s","working_dir":"%s"}' $1 $2)
     local userlist=$(get_config_param USER_LIST)
-    redis-cli RPUSH userlist json > /dev/null
+    redis-cli RPUSH $userlist $json > /dev/null
 }
 
 create_default_tester_dir() {
@@ -103,7 +108,7 @@ create_working_dirs() {
 
 start_queues() {
     echo "[AUTOTEST] Generating generate_supervisord.conf file in ${THISSCRIPTDIR}"
-    run_as_serveruser "python generate_supervisord.conf.py" 
+    run_as_serveruser "python ${SERVERDIR}/generate_supervisord.conf.py ${THISSCRIPTDIR}/supervisord.conf" 
     echo "[AUTOTEST] Starting rq workers using supervisor"
     supervisord -c ${THISSCRIPTDIR}/supervisord.conf
 }
@@ -134,7 +139,7 @@ suggest_next_steps() {
     if [[ -n ${SERVERUSER} ]]; then
         echo "[AUTOTEST] (You must add MarkUs web server's public key to ${SERVERUSER}'s '~/.ssh/authorized_keys')"
     fi
-    echo "[AUTOTEST] (You may want to add '${SERVERDIR}/start_queues.sh ${QUEUE} ${NUMWORKERS}' to ${SERVERUSER2}'s crontab with a @reboot time)"
+    echo "[AUTOTEST] (You may want to add 'source ${THISSCRIPTDIR}/.markus_profile' to ${SERVERUSER2}'s crontab with a @reboot time)"
     echo "[AUTOTEST] (You should install the individual testers you plan to use)"
 }
 
@@ -195,7 +200,7 @@ while true; do
             exit 1
     esac
 done
-if [[ $# -ne 2 ]]; then
+if [[ $# -ne 1 ]]; then
     print_usage
     exit 1
 fi
@@ -223,4 +228,5 @@ install_venv
 create_working_dirs
 start_queues
 create_markus_conf
+write_markus_profile
 suggest_next_steps

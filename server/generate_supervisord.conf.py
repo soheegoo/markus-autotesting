@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import config
+import sys
 import os
 import shutil
 
@@ -33,7 +34,7 @@ try:
 except KeyError:
 	redis_url = ''
 
-with open('supervisord.conf', 'w') as f:
+with open(sys.argv[1], 'w') as f:
 	f.write(header)
 	for i, (numprocs, queues) in enumerate(config.WORKERS):
 		queue_str = ' '.join(queues)
