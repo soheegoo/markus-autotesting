@@ -23,6 +23,10 @@ TEST_RESULT_DIR = os.path.join(config.WORKING_DIR, config.TEST_RESULT_DIR_NAME)
 
 ### HELPER FUNCTIONS ###
 
+def _stringify(*args):
+    for a in args:
+        yield str(a)
+
 def current_user():
     return pwd.getpwuid(os.getuid()).pw_name
 
@@ -106,12 +110,13 @@ def loads_partial_json(json_string, expected_type=None):
     decoder = json.JSONDecoder()
     results = []
     malformed = False
+    json_string = json_string.strip()
     while i < len(json_string):
         try:
             obj, ind = decoder.raw_decode(json_string[i:])
             if expected_type is None or isinstance(obj, expected_type):
                 results.append(obj)
-            if json_string[i:i+ind].strip():
+            elif json_string[i:i+ind].strip():
                 malformed = True
             i += ind
         except json.JSONDecodeError:
@@ -268,7 +273,7 @@ def setup_files(files_path, tests_path, test_scripts, markus_address, assignment
         if fd == 'f' and os.path.relpath(file_or_dir, tests_path) not in test_scripts:
             permissions -= 0o111
         os.chmod(file_or_dir, permissions)
-    shutil.rmtree(files_path)
+        shutil.rmtree(files_path, onerror=_ignore_missing_dir_error)
 
 
 
@@ -286,8 +291,7 @@ def test_run_command(markus_address, user_api_key, assignment_id,
     >>> test_run_command('a', 'b', 'c', 'd', 'e', None).format(test_script)
     './myscript.py a b c d e'
     """
-    cmd = ' '.join(str(x) for x in ('./{}', markus_address, user_api_key, 
-                    assignment_id, group_id, group_repo_name))
+    cmd = ' '.join(_stringify('./{}', markus_address, user_api_key, assignment_id, group_id, group_repo_name))
 
     if test_username is not None:
         cmd = ' '.join(('sudo', '-u', test_username, '--', 'bash', '-c', 
@@ -346,32 +350,37 @@ def store_results(results, markus_address, assignment_id, group_id, submission_i
     """
     clean_markus_address = _clean_dir_name(markus_address)
     run_time = "run_{}".format(int(time.time()))
-    destination = os.path.join(TEST_RESULT_DIR, clean_markus_address, 
-                               assignment_id, group_id, 's{}'.format(submission_id or ''), run_time)
+    destination = os.path.join(*_stringify(TEST_RESULT_DIR, clean_markus_address, assignment_id, group_id, 's{}'.format(submission_id or ''), run_time))
     os.makedirs(destination, exist_ok=True)
     with open(os.path.join(destination, 'output.json'), 'w') as f:
         json.dump(results, f, indent=4)
 
 def clean_up_tests(tests_path, test_username):
     """
-    Run a command that clears the tests_path working directory and kills all processes started
-    by the user test_username (if not set to None)
-    """
-    cmd = "chmod -Rf ugo+rwX '{}';".format(tests_path)
-    
+    Run a command that clears the tests_path working directory 
+    and kills all processes started by the user test_username
+    """    
+    cmds = ['chmod -Rf ugo+rwX {}'.format(tests_path)]
+
     if test_username != current_user():
-        cmd = "chmod -Rf ugo+rwX '{}'; killall -KILL -u {}".format(tests_path, test_username)
-        cmd = 'sudo -u {} -- bash -c "{}"'.format(test_username, cmd)
-        subprocess.run(cmd)
+        cmds.append('killall -KILL -u {}'.format(test_username))        
+        sudo_cmd = 'sudo -u {} -- bash -c '.format(test_username)
+        cmds = [sudo_cmd + cmd for cmd in cmds]
+
+    cmds.append('rm -rf {}'.format(tests_path))
+
+    for cmd in cmds:
+        subprocess.run(cmd, shell=True)
+
 
 def report(results, markus_address, assignment_id, group_id, 
            server_api_key, avg_pop_interval, queue_len, run_id, error):
     """ Post the results of running test scripts to the markus api """
-    url = '/'.join(str(s) for s in ('api', 'assignments', assignment_id, 
+    url = '/'.join(_stringify('api', 'assignments', assignment_id, 
                                     'groups', group_id, 'test_script_results'))
     url = urllib.parse.urljoin(markus_address, url)
     
-    headers = {'MarkUsAuth' : server_api_key,
+    headers = {'Authorization' : 'MarkUsAuth {}'.format(server_api_key),
                'Accept'     : 'application/json'}
     
     data = {'test_scripts'       : results,
@@ -435,7 +444,7 @@ def update_test_scripts(files_path, assignment_id, markus_address):
     """
     test_script_dir_name = "test_scripts_{}".format(int(time.time()))
     clean_markus_address = _clean_dir_name(markus_address)
-    new_dir = os.path.join(TEST_SCRIPT_DIR, clean_markus_address, str(assignment_id), test_script_dir_name)
+    new_dir = os.path.join(*_stringify(TEST_SCRIPT_DIR, clean_markus_address, assignment_id, test_script_dir_name))
     _copy_tree(files_path, new_dir)
     old_test_script_dir = _test_script_directory(markus_address, assignment_id)
     _test_script_directory(markus_address, assignment_id, set_to=new_dir)
