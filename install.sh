@@ -2,7 +2,7 @@
 
 install_packages() {
     echo "[AUTOTEST] Installing system packages"
-    sudo apt-get install redis-server python3.6 python3.6-venv
+    sudo apt-get install redis-server python3 python3-venv
 }
 
 run_as_serveruser() {
@@ -56,7 +56,7 @@ add_user_info_to_redis() {
 }
 
 create_default_tester_dir() {
-    local testerdir=${WORKINGDIR}/${QUEUE}
+    local testerdir=${WORKINGDIR}/workspaces/${SERVERUSER2}
 
     echo "[AUTOTEST] No dedicated tester user, using '${SERVERUSER2}'"
     sudo mkdir -p ${testerdir}
@@ -67,7 +67,7 @@ create_default_tester_dir() {
 
 create_tester_user() {
     local testeruser=$1
-    local testerdir=${WORKINGDIR}/${testeruser}
+    local testerdir=${WORKINGDIR}/workspaces/${testeruser}
 
     if id ${testeruser} &> /dev/null; then
         echo "[AUTOTEST] Reusing existing tester user '${testeruser}'"

@@ -12,6 +12,7 @@ import signal
 import urllib
 import redis
 import rq
+import pwd
 from contextlib import contextmanager
 from functools import wraps
 import config
@@ -21,6 +22,12 @@ TEST_SCRIPT_DIR = os.path.join(config.WORKING_DIR, config.TEST_SCRIPT_DIR_NAME)
 TEST_RESULT_DIR = os.path.join(config.WORKING_DIR, config.TEST_RESULT_DIR_NAME)
 
 ### HELPER FUNCTIONS ###
+
+def current_user():
+    return pwd.getpwuid(os.getuid()).pw_name
+
+def _decode_if_bytes(b):
+    return b.decode('utf-8') if isinstance(b, bytes) else b
 
 def _clean_dir_name(name):
     """ Return name modified so that it can be used as a unix style directory name """
@@ -44,7 +51,8 @@ def _test_script_directory(markus_address, assignment_id, set_to=None):
     r = _redis_connection()
     if set_to is not None:
         r.hset(config.CURRENT_TEST_SCRIPT_HASH, key, set_to)
-    return r.hget(config.CURRENT_TEST_SCRIPT_HASH, key)
+    out = r.hget(config.CURRENT_TEST_SCRIPT_HASH, key)
+    return _decode_if_bytes(out)
 
 def _recursive_iglob(root_dir):
     """
@@ -66,7 +74,8 @@ def _redis_connection():
     conn = rq.get_current_connection()
     if conn:
         return conn
-    rq.use_connection(redis=redis.Redis(**config.REDIS_CONNECTION_KWARGS))
+    kwargs = config.REDIS_CONNECTION_KWARGS
+    rq.use_connection(redis=redis.Redis(**kwargs))
     return rq.get_current_connection()
 
 def _copy_tree(src, dst):
@@ -80,6 +89,7 @@ def _copy_tree(src, dst):
         if fd == 'd':
             os.makedirs(target, exist_ok=True)
         else:
+            os.makedirs(os.path.dirname(target), exist_ok=True)
             shutil.copy2(file_or_dir, target)
 
 def loads_partial_json(json_string, expected_type=None):
@@ -142,7 +152,7 @@ def tester_user():
     r = _redis_connection()
     _, user_data = r.blpop(config.USER_LIST)
     try:
-        yield json.loads(user_data.decode('utf-8'))
+        yield json.loads(_decode_if_bytes(user_data))
     finally:
         r.rpush(config.USER_LIST, user_data)
 
@@ -222,7 +232,7 @@ def clean_after(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         try:
-            func(*args, **kwargs)
+            return func(*args, **kwargs)
         finally:
             clean_up()
     return wrapper
@@ -258,6 +268,7 @@ def setup_files(files_path, tests_path, test_scripts, markus_address, assignment
         if fd == 'f' and os.path.relpath(file_or_dir, tests_path) not in test_scripts:
             permissions -= 0o111
         os.chmod(file_or_dir, permissions)
+    shutil.rmtree(files_path)
 
 
 
@@ -275,7 +286,7 @@ def test_run_command(markus_address, user_api_key, assignment_id,
     >>> test_run_command('a', 'b', 'c', 'd', 'e', None).format(test_script)
     './myscript.py a b c d e'
     """
-    cmd = ' '.join(('./{}', markus_address, user_api_key, 
+    cmd = ' '.join(str(x) for x in ('./{}', markus_address, user_api_key, 
                     assignment_id, group_id, group_repo_name))
 
     if test_username is not None:
@@ -321,6 +332,8 @@ def run_test_scripts(cmd, test_scripts, tests_path):
         except Exception as e:
             err += '\n\n{}'.format(e.message)
         finally:
+            out = _decode_if_bytes(out)
+            err = _decode_if_bytes(err)
             duration = int(round(time.time()-start, 3) * 1000)
             results.append(create_test_script_result(file_name, out, err, duration, timeout))
     return results
@@ -339,12 +352,14 @@ def store_results(results, markus_address, assignment_id, group_id, submission_i
     with open(os.path.join(destination, 'output.json'), 'w') as f:
         json.dump(results, f, indent=4)
 
-def clean_up_tests(tests_path, test_username=None):
+def clean_up_tests(tests_path, test_username):
     """
     Run a command that clears the tests_path working directory and kills all processes started
     by the user test_username (if not set to None)
     """
-    if test_username is not None:
+    cmd = "chmod -Rf ugo+rwX '{}';".format(tests_path)
+    
+    if test_username != current_user():
         cmd = "chmod -Rf ugo+rwX '{}'; killall -KILL -u {}".format(tests_path, test_username)
         cmd = 'sudo -u {} -- bash -c "{}"'.format(test_username, cmd)
         subprocess.run(cmd)
@@ -352,8 +367,9 @@ def clean_up_tests(tests_path, test_username=None):
 def report(results, markus_address, assignment_id, group_id, 
            server_api_key, avg_pop_interval, queue_len, run_id, error):
     """ Post the results of running test scripts to the markus api """
-    url = urllib.parse.urljoin(markus_address, 'api', 'assignments', 
-                               assignment_id, 'groups', group_id, 'test_script_results')
+    url = '/'.join(str(s) for s in ('api', 'assignments', assignment_id, 
+                                    'groups', group_id, 'test_script_results'))
+    url = urllib.parse.urljoin(markus_address, url)
     
     headers = {'MarkUsAuth' : server_api_key,
                'Accept'     : 'application/json'}
@@ -392,7 +408,7 @@ def run_test(markus_address, user_api_key, server_api_key, test_scripts, files_p
             results = run_test_scripts(cmd, test_scripts, tests_path)
             store_results(results, markus_address, assignment_id, group_id, submission_id)
         except Exception as e:
-            error = e.message
+            error = str(e)
         finally:
             clean_up_tests(tests_path, test_username)
             report(results, markus_address, assignment_id, group_id, 

@@ -54,6 +54,11 @@ def _print_queue_info(queue):
     print('count :', queue.count)
     print('pop_rate :', ats.get_avg_pop_interval(queue.name) or '')
 
+def _check_test_script_files_exist(markus_address, assignment_id, **kw):
+    if ats._test_script_directory(markus_address, assignment_id) is None:
+        raise RuntimeError('cannot find test script files: please upload some before running tests')
+
+
 ### COMMAND FUNCTIONS ###
 
 def run_test(user_type, batch_id, **kw):
@@ -62,6 +67,7 @@ def run_test(user_type, batch_id, **kw):
     """
     queue = _get_queue(user_type=user_type, batch_id=batch_id, **kw)
     _check_args(ats.run_test, **kw)
+    _check_test_script_files_exist(**kw)
     _print_queue_info(queue)
     queue.enqueue_call(ats.run_test, kwargs=kw, job_id=_job_id(**kw))
 
