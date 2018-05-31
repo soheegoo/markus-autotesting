@@ -1,6 +1,9 @@
 # all
 .idea
 __pycache__
+.DS_Store
+.markus_profile
+supervisord.*
 
 # server
 server/.bundle
