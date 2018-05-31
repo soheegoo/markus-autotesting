@@ -20,7 +20,7 @@ write_markus_profile() {
     sudo echo '[[ ":$PATH:" != *"'${SERVERDIR}':"* ]] && export PATH="'${SERVERDIR}':${PATH}"' >> $profile
     sudo echo "supervisord -c ${THISSCRIPTDIR}/supervisord.conf" >> $profile
     sudo echo "source $profile &> /dev/null" >> $serverhome/.bashrc 
-    sudo echo "source $profile &> /dev/null" >> $serverhome/.bash_profile
+    sudo echo "source $profile &> /dev/null" >> $serverhome/.profile
 }
 
 install_venv() {
