@@ -2,12 +2,11 @@
 .idea
 __pycache__
 .DS_Store
-.markus_profile
-supervisord.*
 
 # server
-server/.bundle
-server/vendor
+server/venv
+server/supervisord.*
+markus_config.rb
 
 # uam
 testers/uam-git/

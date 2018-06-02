@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import sys
-import os
 import argparse
 import rq
 import json
@@ -40,10 +39,9 @@ def _get_queue(**kw):
     Return a queue. The returned queue is one whose condition function
     returns True when called with the arguments in **kw. 
     """
-    name, condition = 0, 1
-    for queue_type in config.QUEUES:
-        if queue_type[condition](**kw):
-            return rq.Queue(queue_type[name], connection=ats._redis_connection())
+    for queue_type in config.WORKER_QUEUES:
+        if queue_type['filter'](**kw):
+            return rq.Queue(queue_type['name'], connection=ats._redis_connection())
     raise RuntimeError('cannot enqueue job: unable to determine correct queue type') 
 
 def _print_queue_info(queue):
