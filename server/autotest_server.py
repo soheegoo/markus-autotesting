@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import os
-import sys
 import fcntl
 import shutil
 import time
@@ -18,8 +17,8 @@ from functools import wraps
 import config
 
 CURRENT_TEST_SCRIPT_FORMAT = '{}_{}'
-TEST_SCRIPT_DIR = os.path.join(config.WORKING_DIR, config.TEST_SCRIPT_DIR_NAME)
-TEST_RESULT_DIR = os.path.join(config.WORKING_DIR, config.TEST_RESULT_DIR_NAME)
+TEST_SCRIPT_DIR = os.path.join(config.WORKING_DIR, config.TEST_SCRIPTS_DIR_NAME)
+TEST_RESULT_DIR = os.path.join(config.WORKING_DIR, config.TEST_RESULTS_DIR_NAME)
 
 ### HELPER FUNCTIONS ###
 
@@ -54,8 +53,8 @@ def _test_script_directory(markus_address, assignment_id, set_to=None):
     key = _get_test_script_key(markus_address, assignment_id)
     r = _redis_connection()
     if set_to is not None:
-        r.hset(config.CURRENT_TEST_SCRIPT_HASH, key, set_to)
-    out = r.hget(config.CURRENT_TEST_SCRIPT_HASH, key)
+        r.hset(config.REDIS_CURRENT_TEST_SCRIPT_HASH, key, set_to)
+    out = r.hget(config.REDIS_CURRENT_TEST_SCRIPT_HASH, key)
     return _decode_if_bytes(out)
 
 def _recursive_iglob(root_dir):
@@ -133,7 +132,7 @@ def fd_open(path, flags=os.O_RDONLY, *args, **kwargs):
     flags, *args and **kwargs are passed on to os.open.
     """
     fd = os.open(path, flags, *args, **kwargs)
-    yield fd 
+    yield fd
     os.close(fd)
 
 @contextmanager
@@ -155,11 +154,11 @@ def tester_user():
     This will block until a user is available if the queue is empty. 
     """
     r = _redis_connection()
-    _, user_data = r.blpop(config.USER_LIST)
+    _, user_data = r.blpop(config.REDIS_TESTERS_LIST)
     try:
         yield json.loads(_decode_if_bytes(user_data))
     finally:
-        r.rpush(config.USER_LIST, user_data)
+        r.rpush(config.REDIS_TESTERS_LIST, user_data)
 
 ### MAINTENANCE FUNCTIONS ###
 
@@ -172,9 +171,9 @@ def update_pop_interval_stat(queue_name):
     """
     r = _redis_connection()
     now = time.time()
-    r.hsetnx(config.POP_HASH, '{}_start'.format(queue_name), now)
-    r.hset(config.POP_HASH, '{}_last'.format(queue_name), now)
-    r.hincrby(config.POP_HASH, '{}_count'.format(queue_name), 1)
+    r.hsetnx(config.REDIS_POP_HASH, '{}_start'.format(queue_name), now)
+    r.hset(config.REDIS_POP_HASH, '{}_last'.format(queue_name), now)
+    r.hincrby(config.REDIS_POP_HASH, '{}_count'.format(queue_name), 1)
 
 def clear_pop_interval_stat(queue_name):
     """
@@ -183,9 +182,9 @@ def clear_pop_interval_stat(queue_name):
     empty. For more details about the data updated see get_pop_interval_stat. 
     """
     r = _redis_connection()
-    r.hdel(config.POP_HASH, '{}_start'.format(queue_name))
-    r.hset(config.POP_HASH, '{}_last'.format(queue_name), 0)
-    r.hset(config.POP_HASH, '{}_count'.format(queue_name), 0)
+    r.hdel(config.REDIS_POP_HASH, '{}_start'.format(queue_name))
+    r.hset(config.REDIS_POP_HASH, '{}_last'.format(queue_name), 0)
+    r.hset(config.REDIS_POP_HASH, '{}_count'.format(queue_name), 0)
 
 def get_pop_interval_stat(queue_name):
     """
@@ -198,9 +197,9 @@ def get_pop_interval_stat(queue_name):
           current burst of jobs.
     """
     r = _redis_connection()
-    start = r.hget(config.POP_HASH, '{}_start'.format(queue_name))
-    last = r.hget(config.POP_HASH, '{}_count'.format(queue_name))
-    count = r.hget(config.POP_HASH, '{}_count'.format(queue_name))
+    start = r.hget(config.REDIS_POP_HASH, '{}_start'.format(queue_name))
+    last = r.hget(config.REDIS_POP_HASH, '{}_count'.format(queue_name))
+    count = r.hget(config.REDIS_POP_HASH, '{}_count'.format(queue_name))
     return start, last, count
 
 def get_avg_pop_interval(queue_name):
@@ -410,7 +409,7 @@ def run_test(markus_address, user_api_key, server_api_key, test_scripts, files_p
     with tester_user() as user_data:
         test_username = user_data.get('username')
         try:
-            tests_path = user_data['working_dir']
+            tests_path = user_data['workspace_dir']
             setup_files(files_path, tests_path, test_scripts, markus_address, assignment_id)
             cmd = test_run_command(markus_address, user_api_key, assignment_id, 
                                    group_id, group_repo_name, test_username)
@@ -448,9 +447,10 @@ def update_test_scripts(files_path, assignment_id, markus_address):
     _copy_tree(files_path, new_dir)
     old_test_script_dir = _test_script_directory(markus_address, assignment_id)
     _test_script_directory(markus_address, assignment_id, set_to=new_dir)
-    with fd_open(old_test_script_dir) as fd:
-        with fd_lock(fd, exclusive=True):
-            shutil.rmtree(old_test_script_dir, onerror=_ignore_missing_dir_error)
+    if old_test_script_dir is not None:
+        with fd_open(old_test_script_dir) as fd:
+            with fd_lock(fd, exclusive=True):
+                shutil.rmtree(old_test_script_dir, onerror=_ignore_missing_dir_error)
 
 ## REQUIRED UPDATES ##
 """
@@ -483,6 +483,6 @@ deleting script (with rq)
 + create virtual environment with python dependencies (redis, rq)
 + source virtual env in server user's .profile 
 + make autotest_enqueuer script callable by the server user (in home dir or in PATH)
-+ after creating users, add their names and working directories to USER_LIST as json {'username':'user', 'working_dir':'/some/path'}
++ after creating users, add their names and working directories to USER_LIST as json {'username':'user', 'workspace_dir':'/some/path'}
 """
 
