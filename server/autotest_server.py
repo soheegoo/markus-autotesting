@@ -19,45 +19,48 @@ import config
 CURRENT_TEST_SCRIPT_FORMAT = '{}_{}'
 TEST_SCRIPT_DIR = os.path.join(config.WORKSPACE_DIR, config.SCRIPTS_DIR_NAME)
 TEST_RESULT_DIR = os.path.join(config.WORKSPACE_DIR, config.RESULTS_DIR_NAME)
+REDIS_CURRENT_TEST_SCRIPT_HASH = '{}:{}'.format(config.REDIS_PREFIX, config.REDIS_CURRENT_TEST_SCRIPT_HASH)
+REDIS_WORKERS_LIST = '{}:{}'.format(config.REDIS_PREFIX, config.REDIS_WORKERS_LIST)
+REDIS_POP_HASH = '{}:{}'.format(config.REDIS_PREFIX, config.REDIS_POP_HASH)
 
 ### HELPER FUNCTIONS ###
 
-def _stringify(*args):
+def stringify(*args):
     for a in args:
         yield str(a)
 
 def current_user():
     return pwd.getpwuid(os.getuid()).pw_name
 
-def _decode_if_bytes(b):
+def decode_if_bytes(b):
     return b.decode('utf-8') if isinstance(b, bytes) else b
 
-def _clean_dir_name(name):
+def clean_dir_name(name):
     """ Return name modified so that it can be used as a unix style directory name """
     return name.replace('/', '_')
 
-def _get_test_script_key(markus_address, assignment_id):
+def get_test_script_key(markus_address, assignment_id):
     """ 
     Return unique key for each assignment used for 
     storing the location of test scripts in Redis 
     """
-    clean_markus_address = _clean_dir_name(markus_address)
+    clean_markus_address = clean_dir_name(markus_address)
     return CURRENT_TEST_SCRIPT_FORMAT.format(clean_markus_address, assignment_id)
 
-def _test_script_directory(markus_address, assignment_id, set_to=None):
+def test_script_directory(markus_address, assignment_id, set_to=None):
     """
     Return the directory containing the test scripts for a specific assignment.
     Optionally updates the location of the test script directory to the value 
     of the set_to keyword argument (if it is not None)
     """
-    key = _get_test_script_key(markus_address, assignment_id)
-    r = _redis_connection()
+    key = get_test_script_key(markus_address, assignment_id)
+    r = redis_connection()
     if set_to is not None:
-        r.hset(config.REDIS_CURRENT_TEST_SCRIPT_HASH, key, set_to)
-    out = r.hget(config.REDIS_CURRENT_TEST_SCRIPT_HASH, key)
-    return _decode_if_bytes(out)
+        r.hset(REDIS_CURRENT_TEST_SCRIPT_HASH, key, set_to)
+    out = r.hget(REDIS_CURRENT_TEST_SCRIPT_HASH, key)
+    return decode_if_bytes(out)
 
-def _recursive_iglob(root_dir):
+def recursive_iglob(root_dir):
     """
     Walk breadth first over a directory tree starting at root_dir and
     yield the path to each directory or file encountered. 
@@ -68,7 +71,7 @@ def _recursive_iglob(root_dir):
         yield from (('d', os.path.join(root, d)) for d in dirnames)
         yield from (('f', os.path.join(root, f)) for f in filenames)
 
-def _redis_connection():
+def redis_connection():
     """
     Return the currently open redis connection object. If there is no 
     connection currently open, one is created using the keyword arguments 
@@ -81,13 +84,13 @@ def _redis_connection():
     rq.use_connection(redis=redis.Redis(**kwargs))
     return rq.get_current_connection()
 
-def _copy_tree(src, dst):
+def copy_tree(src, dst):
     """
     Recursively copy all files and subdirectories in the path 
     indicated by src to the path indicated by dst. If directories
     don't exist, they are created. 
     """
-    for fd, file_or_dir in _recursive_iglob(src):
+    for fd, file_or_dir in recursive_iglob(src):
         target = os.path.join(dst, os.path.relpath(file_or_dir, src))
         if fd == 'd':
             os.makedirs(target, exist_ok=True)
@@ -95,9 +98,21 @@ def _copy_tree(src, dst):
             os.makedirs(os.path.dirname(target), exist_ok=True)
             shutil.copy2(file_or_dir, target)
 
-def _move_tree(src, dst):
-    _copy_tree(src, dst)
-    shutil.rmtree(src, onerror=_ignore_missing_dir_error)
+def ignore_missing_dir_error(_func, _path, excinfo):
+    """ Used by shutil.rmtree to ignore a FileNotFoundError """
+    err_type, err_inst, traceback = excinfo
+    if err_type == FileNotFoundError:
+        return 
+    raise err_inst
+
+def move_tree(src, dst):
+    """
+    Recursively move all files and subdirectories in the path 
+    indicated by src to the path indicated by dst. If directories
+    don't exist, they are created. 
+    """
+    copy_tree(src, dst)
+    shutil.rmtree(src, onerror=ignore_missing_dir_error)
 
 def loads_partial_json(json_string, expected_type=None):
     """
@@ -153,42 +168,42 @@ def fd_lock(file_descriptor, exclusive=True):
 @contextmanager
 def tester_user():
     """
-    Pop the next available user from the queue named config.USER_LIST in redis, 
+    Pop the next available user from the array named REDIS_WORKERS_LIST in redis, 
     yield the user information and pop it back in the queue when finished.
     This will block until a user is available if the queue is empty. 
     """
-    r = _redis_connection()
-    _, user_data = r.blpop(config.REDIS_WORKERS_LIST)
+    r = redis_connection()
+    _, user_data = r.blpop(REDIS_WORKERS_LIST)
     try:
-        yield json.loads(_decode_if_bytes(user_data))
+        yield json.loads(decode_if_bytes(user_data))
     finally:
-        r.rpush(config.REDIS_WORKERS_LIST, user_data)
+        r.rpush(REDIS_WORKERS_LIST, user_data)
 
 ### MAINTENANCE FUNCTIONS ###
 
 def update_pop_interval_stat(queue_name):
     """
-    Update the values contained in the redis hash named config.POP_HASH for 
+    Update the values contained in the redis hash named REDIS_POP_HASH for 
     the queue named queue_name. This should be called whenever a new job
     is popped from a queue for which we want to keep track of the popping 
     rate. For more details about the data updated see get_pop_interval_stat.
     """
-    r = _redis_connection()
+    r = redis_connection()
     now = time.time()
-    r.hsetnx(config.REDIS_POP_HASH, '{}_start'.format(queue_name), now)
-    r.hset(config.REDIS_POP_HASH, '{}_last'.format(queue_name), now)
-    r.hincrby(config.REDIS_POP_HASH, '{}_count'.format(queue_name), 1)
+    r.hsetnx(REDIS_POP_HASH, '{}_start'.format(queue_name), now)
+    r.hset(REDIS_POP_HASH, '{}_last'.format(queue_name), now)
+    r.hincrby(REDIS_POP_HASH, '{}_count'.format(queue_name), 1)
 
 def clear_pop_interval_stat(queue_name):
     """
-    Reset the values contained in the redis hash named config.POP_HASH for 
+    Reset the values contained in the redis hash named REDIS_POP_HASH for 
     the queue named queue_name. This should be called whenever a queue becomes 
     empty. For more details about the data updated see get_pop_interval_stat. 
     """
-    r = _redis_connection()
-    r.hdel(config.REDIS_POP_HASH, '{}_start'.format(queue_name))
-    r.hset(config.REDIS_POP_HASH, '{}_last'.format(queue_name), 0)
-    r.hset(config.REDIS_POP_HASH, '{}_count'.format(queue_name), 0)
+    r = redis_connection()
+    r.hdel(REDIS_POP_HASH, '{}_start'.format(queue_name))
+    r.hset(REDIS_POP_HASH, '{}_last'.format(queue_name), 0)
+    r.hset(REDIS_POP_HASH, '{}_count'.format(queue_name), 0)
 
 def get_pop_interval_stat(queue_name):
     """
@@ -200,10 +215,10 @@ def get_pop_interval_stat(queue_name):
         - the time the most recent job was popped from the queue during
           current burst of jobs.
     """
-    r = _redis_connection()
-    start = r.hget(config.REDIS_POP_HASH, '{}_start'.format(queue_name))
-    last = r.hget(config.REDIS_POP_HASH, '{}_count'.format(queue_name))
-    count = r.hget(config.REDIS_POP_HASH, '{}_count'.format(queue_name))
+    r = redis_connection()
+    start = r.hget(REDIS_POP_HASH, '{}_start'.format(queue_name))
+    last = r.hget(REDIS_POP_HASH, '{}_count'.format(queue_name))
+    count = r.hget(REDIS_POP_HASH, '{}_count'.format(queue_name))
     return start, last, count
 
 def get_avg_pop_interval(queue_name):
@@ -225,7 +240,7 @@ def get_avg_pop_interval(queue_name):
 
 def clean_up():
     """ Reset the pop interval data for each empty queue """
-    with rq.Connection(_redis_connection()):
+    with rq.Connection(redis_connection()):
         for q in rq.Queue.all():
             if q != rq.queue.FailedQueue():
                 if q.is_empty():
@@ -253,10 +268,10 @@ def copy_test_script_files(markus_address, assignment_id, tests_path):
     directory. tests_path may already exist and contain files and 
     subdirectories.
     """
-    test_script_dir = _test_script_directory(markus_address, assignment_id)
+    test_script_dir = test_script_directory(markus_address, assignment_id)
     with fd_open(test_script_dir) as fd:
         with fd_lock(fd, exclusive=False):
-            _copy_tree(test_script_dir, tests_path)
+            copy_tree(test_script_dir, tests_path)
 
 def setup_files(files_path, tests_path, test_scripts, markus_address, assignment_id):
     """
@@ -268,10 +283,10 @@ def setup_files(files_path, tests_path, test_scripts, markus_address, assignment
         - other files:              rw-r--r--
     """
     if files_path != tests_path:
-        _move_tree(files_path, tests_path)
+        move_tree(files_path, tests_path)
         copy_test_script_files(markus_address, assignment_id, tests_path)
         os.chmod(tests_path, 0o1770)
-    for fd, file_or_dir in _recursive_iglob(tests_path):
+    for fd, file_or_dir in recursive_iglob(tests_path):
         permissions = 0o755 
         if fd == 'f' and os.path.relpath(file_or_dir, tests_path) not in test_scripts:
             permissions -= 0o111
@@ -293,7 +308,7 @@ def test_run_command(markus_address, user_api_key, assignment_id,
     >>> test_run_command('a', 'b', 'c', 'd', 'e', None).format(test_script)
     './myscript.py a b c d e'
     """
-    cmd = ' '.join(_stringify('./{}', markus_address, user_api_key, assignment_id, group_id, group_repo_name))
+    cmd = ' '.join(stringify('./{}', markus_address, user_api_key, assignment_id, group_id, group_repo_name))
 
     if test_username is not None:
         cmd = ' '.join(('sudo', '-u', test_username, '--', 'bash', '-c', 
@@ -338,8 +353,8 @@ def run_test_scripts(cmd, test_scripts, tests_path):
         except Exception as e:
             err += '\n\n{}'.format(e.message)
         finally:
-            out = _decode_if_bytes(out)
-            err = _decode_if_bytes(err)
+            out = decode_if_bytes(out)
+            err = decode_if_bytes(err)
             duration = int(round(time.time()-start, 3) * 1000)
             results.append(create_test_script_result(file_name, out, err, duration, timeout))
     return results
@@ -350,9 +365,9 @@ def store_results(results, markus_address, assignment_id, group_id, submission_i
     The output file is located at:
         {TEST_RESULT_DIR}/{markus_address}/{assignment_id}/{group_id}/{submission_id}/ouput.json
     """
-    clean_markus_address = _clean_dir_name(markus_address)
+    clean_markus_address = clean_dir_name(markus_address)
     run_time = "run_{}".format(int(time.time()))
-    destination = os.path.join(*_stringify(TEST_RESULT_DIR, clean_markus_address, assignment_id, group_id, 's{}'.format(submission_id or ''), run_time))
+    destination = os.path.join(*stringify(TEST_RESULT_DIR, clean_markus_address, assignment_id, group_id, 's{}'.format(submission_id or ''), run_time))
     os.makedirs(destination, exist_ok=True)
     with open(os.path.join(destination, 'output.json'), 'w') as f:
         json.dump(results, f, indent=4)
@@ -378,7 +393,7 @@ def clean_up_tests(tests_path, test_username):
 def report(results, markus_address, assignment_id, group_id, 
            server_api_key, avg_pop_interval, queue_len, run_id, error):
     """ Post the results of running test scripts to the markus api """
-    url = '/'.join(_stringify('api', 'assignments', assignment_id, 
+    url = '/'.join(stringify('api', 'assignments', assignment_id, 
                                     'groups', group_id, 'test_script_results'))
     url = urllib.parse.urljoin(markus_address, url)
     
@@ -427,13 +442,6 @@ def run_test(markus_address, user_api_key, server_api_key, test_scripts, files_p
 
 ### UPDATE TEST SCRIPTS ### 
 
-def _ignore_missing_dir_error(_func, _path, excinfo):
-    """ Used by shutil.rmtree to ignore a FileNotFoundError """
-    err_type, err_inst, traceback = excinfo
-    if err_type == FileNotFoundError:
-        return 
-    raise err_inst
-
 @clean_after
 def update_test_scripts(files_path, assignment_id, markus_address):
     """
@@ -445,13 +453,13 @@ def update_test_scripts(files_path, assignment_id, markus_address):
     This function should be used by an rq worker.
     """
     test_script_dir_name = "test_scripts_{}".format(int(time.time()))
-    clean_markus_address = _clean_dir_name(markus_address)
-    new_dir = os.path.join(*_stringify(TEST_SCRIPT_DIR, clean_markus_address, assignment_id, test_script_dir_name))
-    _move_tree(files_path, new_dir)
-    old_test_script_dir = _test_script_directory(markus_address, assignment_id)
-    _test_script_directory(markus_address, assignment_id, set_to=new_dir)
+    clean_markus_address = clean_dir_name(markus_address)
+    new_dir = os.path.join(*stringify(TEST_SCRIPT_DIR, clean_markus_address, assignment_id, test_script_dir_name))
+    move_tree(files_path, new_dir)
+    old_test_script_dir = test_script_directory(markus_address, assignment_id)
+    test_script_directory(markus_address, assignment_id, set_to=new_dir)
     if old_test_script_dir is not None:
         with fd_open(old_test_script_dir) as fd:
             with fd_lock(fd, exclusive=True):
-                shutil.rmtree(old_test_script_dir, onerror=_ignore_missing_dir_error)
+                shutil.rmtree(old_test_script_dir, onerror=ignore_missing_dir_error)
 

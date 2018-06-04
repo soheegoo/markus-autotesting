@@ -45,6 +45,7 @@ create_worker_user() {
 }
 
 create_worker_users() {
+    redis-cli DEL ${REDISWORKERS} > /dev/null
     if [[ -z ${WORKERUSERS} ]]; then
         echo "[AUTOTEST] No dedicated worker user, using '${SERVERUSEREFFECTIVE}'"
         create_worker_dir ${SERVERUSEREFFECTIVE}
@@ -115,7 +116,7 @@ create_markus_config() {
         serverconf="nil"
     fi
 
-    echo "[AUTOTEST] Creating Markus web server config snippet in 'markus_conf.rb'"
+    echo "[AUTOTEST] Creating Markus web server config snippet in 'markus_config.rb'"
     echo "
         AUTOTEST_ON = true
         AUTOTEST_STUDENT_TESTS_ON = false
@@ -125,9 +126,6 @@ create_markus_config() {
         AUTOTEST_SERVER_USERNAME = ${serverconf}
         AUTOTEST_SERVER_DIR = '${WORKSPACEDIR}'
         AUTOTEST_SERVER_COMMAND = 'autotest_enqueuer'
-        AUTOTEST_RUN_QUEUE = 'TODO_markus_run_queue'
-        AUTOTEST_CANCEL_QUEUE = 'TODO_markus_cancel_queue'
-        AUTOTEST_SCRIPTS_QUEUE = 'TODO_markus_scripts_queue'
     " >| markus_config.rb
 }
 
@@ -168,7 +166,8 @@ VENVSDIR=${WORKSPACEDIR}/$(get_config_param VENVS_DIR_NAME)
 RESULTSDIR=${WORKSPACEDIR}/$(get_config_param RESULTS_DIR_NAME)
 SCRIPTSDIR=${WORKSPACEDIR}/$(get_config_param SCRIPTS_DIR_NAME)
 WORKERSSDIR=${WORKSPACEDIR}/$(get_config_param WORKERS_DIR_NAME)
-REDISWORKERS=$(get_config_param REDIS_WORKERS_LIST)
+REDISPREFIX=$(get_config_param REDIS_PREFIX)
+REDISWORKERS=${REDISPREFIX}:$(get_config_param REDIS_WORKERS_LIST)
 
 # main
 install_packages
