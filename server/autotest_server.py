@@ -95,6 +95,10 @@ def _copy_tree(src, dst):
             os.makedirs(os.path.dirname(target), exist_ok=True)
             shutil.copy2(file_or_dir, target)
 
+def _move_tree(src, dst):
+    _copy_tree(src, dst)
+    shutil.rmtree(src, onerror=_ignore_missing_dir_error)
+
 def loads_partial_json(json_string, expected_type=None):
     """
     Return a list of objects loaded from a json string and a boolean
@@ -264,10 +268,9 @@ def setup_files(files_path, tests_path, test_scripts, markus_address, assignment
         - other files:              rw-r--r--
     """
     if files_path != tests_path:
-        _copy_tree(files_path, tests_path)
+        _move_tree(files_path, tests_path)
         copy_test_script_files(markus_address, assignment_id, tests_path)
         os.chmod(tests_path, 0o1770)
-        shutil.rmtree(files_path, onerror=_ignore_missing_dir_error)
     for fd, file_or_dir in _recursive_iglob(tests_path):
         permissions = 0o755 
         if fd == 'f' and os.path.relpath(file_or_dir, tests_path) not in test_scripts:
@@ -444,45 +447,11 @@ def update_test_scripts(files_path, assignment_id, markus_address):
     test_script_dir_name = "test_scripts_{}".format(int(time.time()))
     clean_markus_address = _clean_dir_name(markus_address)
     new_dir = os.path.join(*_stringify(TEST_SCRIPT_DIR, clean_markus_address, assignment_id, test_script_dir_name))
-    _copy_tree(files_path, new_dir)
+    _move_tree(files_path, new_dir)
     old_test_script_dir = _test_script_directory(markus_address, assignment_id)
     _test_script_directory(markus_address, assignment_id, set_to=new_dir)
     if old_test_script_dir is not None:
         with fd_open(old_test_script_dir) as fd:
             with fd_lock(fd, exclusive=True):
                 shutil.rmtree(old_test_script_dir, onerror=_ignore_missing_dir_error)
-
-## REQUIRED UPDATES ##
-"""
-params should include:
-    run_id -> integer indicating the autotest_run_id
-    job -> one of ['run_tests', 'cancel_test', 'update_test_scripts']
-    files_path -> temporary directory containing updated test scripts
-
-report time per test
-+ update all signatures to take only required arguments
-+ keep record of average popping interval per queue (timestamp of first pop, count of pops) 
-+ in api call: report average popping time and queue length (to end of batch)
-+ move to json
-
-"""
-# NEW FILE - MIDDLEWARE
-"""
-enqueuing script (with rq)
-    - should enqueue a new job with id = markus_instance+markus_job_id
-        - rq.enqueue_call(function, args, kwargs, job_id='csc108-2018-01-1223')
-    - should optionally report on the queue length
-    - should optionally set a hash value indicating the index 
-        of the last job enqueued
-    - should optionally give estimate until job is serviced
-deleting script (with rq)
-    - should delete a job with id = markus_instance+markus_job_id
-"""
-# SETUP
-"""
-+ create virtual environment with python dependencies (redis, rq)
-+ source virtual env in server user's .profile 
-+ make autotest_enqueuer script callable by the server user (in home dir or in PATH)
-+ after creating users, add their names and working directories to USER_LIST as json {'username':'user', 'workspace_dir':'/some/path'}
-"""
 
