@@ -17,8 +17,8 @@ from functools import wraps
 import config
 
 CURRENT_TEST_SCRIPT_FORMAT = '{}_{}'
-TEST_SCRIPT_DIR = os.path.join(config.WORKING_DIR, config.TEST_SCRIPTS_DIR_NAME)
-TEST_RESULT_DIR = os.path.join(config.WORKING_DIR, config.TEST_RESULTS_DIR_NAME)
+TEST_SCRIPT_DIR = os.path.join(config.WORKSPACE_DIR, config.SCRIPTS_DIR_NAME)
+TEST_RESULT_DIR = os.path.join(config.WORKSPACE_DIR, config.RESULTS_DIR_NAME)
 
 ### HELPER FUNCTIONS ###
 
@@ -154,11 +154,11 @@ def tester_user():
     This will block until a user is available if the queue is empty. 
     """
     r = _redis_connection()
-    _, user_data = r.blpop(config.REDIS_TESTERS_LIST)
+    _, user_data = r.blpop(config.REDIS_WORKERS_LIST)
     try:
         yield json.loads(_decode_if_bytes(user_data))
     finally:
-        r.rpush(config.REDIS_TESTERS_LIST, user_data)
+        r.rpush(config.REDIS_WORKERS_LIST, user_data)
 
 ### MAINTENANCE FUNCTIONS ###
 
@@ -267,12 +267,12 @@ def setup_files(files_path, tests_path, test_scripts, markus_address, assignment
         _copy_tree(files_path, tests_path)
         copy_test_script_files(markus_address, assignment_id, tests_path)
         os.chmod(tests_path, 0o1770)
+        shutil.rmtree(files_path, onerror=_ignore_missing_dir_error)
     for fd, file_or_dir in _recursive_iglob(tests_path):
         permissions = 0o755 
         if fd == 'f' and os.path.relpath(file_or_dir, tests_path) not in test_scripts:
             permissions -= 0o111
         os.chmod(file_or_dir, permissions)
-        shutil.rmtree(files_path, onerror=_ignore_missing_dir_error)
 
 
 
@@ -409,7 +409,7 @@ def run_test(markus_address, user_api_key, server_api_key, test_scripts, files_p
     with tester_user() as user_data:
         test_username = user_data.get('username')
         try:
-            tests_path = user_data['workspace_dir']
+            tests_path = user_data['worker_dir']
             setup_files(files_path, tests_path, test_scripts, markus_address, assignment_id)
             cmd = test_run_command(markus_address, user_api_key, assignment_id, 
                                    group_id, group_repo_name, test_username)
