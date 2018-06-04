@@ -5,6 +5,7 @@ __pycache__
 
 # server
 server/venv
+server/workspace
 server/supervisord.*
 markus_config.rb
 

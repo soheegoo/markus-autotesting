@@ -8,7 +8,7 @@ install_packages() {
 create_server_user() {
     if [[ -z ${SERVERUSER} ]]; then
         echo "[AUTOTEST] No dedicated server user, using '${THISUSER}'"
-        mkdir -p ${WORKINGDIR}
+        mkdir -p ${WORKSPACEDIR}
     else
         if id ${SERVERUSER} &> /dev/null; then
             echo "[AUTOTEST] Using existing server user '${SERVERUSER}'"
@@ -16,54 +16,55 @@ create_server_user() {
             echo "[AUTOTEST] Creating server user '${SERVERUSER}'"
             sudo adduser --disabled-password ${SERVERUSER}
         fi
-        sudo mkdir -p ${WORKINGDIR}
-        sudo chown ${SERVERUSER}:${SERVERUSER} ${WORKINGDIR}
+        sudo mkdir -p ${WORKSPACEDIR}
+        sudo chown ${SERVERUSER}:${SERVERUSER} ${WORKSPACEDIR}
     fi
 }
 
-create_tester_dir() {
-    local testeruser=$1
-    local testerdir=${WORKSPACESDIR}/${testeruser}
+create_worker_dir() {
+    local workeruser=$1
+    local workerdir=${WORKERSSDIR}/${workeruser}
 
-    sudo mkdir -p ${testerdir}
-    sudo chown ${SERVERUSEREFFECTIVE}:${testeruser} ${testerdir}
-    sudo chmod ug=rwx,o=,+t ${testerdir}
-    redis-cli RPUSH ${REDISTESTERS} "{\"username\":\"${testeruser}\",\"workspace_dir\":\"${testerdir}\"}" > /dev/null
+    sudo mkdir -p ${workerdir}
+    sudo chown ${SERVERUSEREFFECTIVE}:${workeruser} ${workerdir}
+    sudo chmod ug=rwx,o=,+t ${workerdir}
+    redis-cli RPUSH ${REDISWORKERS} "{\"username\":\"${workeruser}\",\"worker_dir\":\"${workerdir}\"}" > /dev/null
 }
 
-create_tester_user() {
-    local testeruser=$1
+create_worker_user() {
+    local workeruser=$1
 
-    if id ${testeruser} &> /dev/null; then
-        echo "[AUTOTEST] Reusing existing tester user '${testeruser}'"
+    if id ${workeruser} &> /dev/null; then
+        echo "[AUTOTEST] Reusing existing worker user '${workeruser}'"
     else
-        echo "[AUTOTEST] Creating tester user '${testeruser}'"
-        sudo adduser --disabled-login --no-create-home ${testeruser}
+        echo "[AUTOTEST] Creating worker user '${workeruser}'"
+        sudo adduser --disabled-login --no-create-home ${workeruser}
     fi
-    create_tester_dir ${testeruser}
-    echo "${SERVERUSEREFFECTIVE} ALL=(${testeruser}) NOPASSWD:ALL" | sudo EDITOR="tee -a" visudo
+    create_worker_dir ${workeruser}
+    echo "${SERVERUSEREFFECTIVE} ALL=(${workeruser}) NOPASSWD:ALL" | sudo EDITOR="tee -a" visudo
 }
 
-create_tester_users() {
-    if [[ -z ${TESTERUSERS} ]]; then
-        echo "[AUTOTEST] No dedicated tester user, using '${SERVERUSEREFFECTIVE}'"
-        create_tester_dir ${SERVERUSEREFFECTIVE}
+create_worker_users() {
+    redis-cli DEL ${REDISWORKERS} > /dev/null
+    if [[ -z ${WORKERUSERS} ]]; then
+        echo "[AUTOTEST] No dedicated worker user, using '${SERVERUSEREFFECTIVE}'"
+        create_worker_dir ${SERVERUSEREFFECTIVE}
     else
-        for testeruser in ${TESTERUSERS}; do
-            create_tester_user ${testeruser}
+        for workeruser in ${WORKERUSERS}; do
+            create_worker_user ${workeruser}
         done
     fi
 }
 
-create_working_dirs() {
-    echo "[AUTOTEST] Creating working directories"
+create_workspace_dirs() {
+    echo "[AUTOTEST] Creating workspace directories"
     sudo mkdir -p ${SPECSDIR}
     sudo mkdir -p ${VENVSDIR}
     sudo mkdir -p ${RESULTSDIR}
     sudo mkdir -p ${SCRIPTSDIR}
-    sudo mkdir -p ${WORKSPACESDIR}
+    sudo mkdir -p ${WORKERSSDIR}
     sudo chmod u=rwx,go= ${RESULTSDIR} ${SCRIPTSDIR}
-    sudo chown ${SERVERUSEREFFECTIVE}:${SERVERUSEREFFECTIVE} ${SPECSDIR} ${VENVSDIR} ${RESULTSDIR} ${SCRIPTSDIR} ${WORKSPACESDIR}
+    sudo chown ${SERVERUSEREFFECTIVE}:${SERVERUSEREFFECTIVE} ${SPECSDIR} ${VENVSDIR} ${RESULTSDIR} ${SCRIPTSDIR} ${WORKERSSDIR}
 }
 
 install_venv() {
@@ -94,12 +95,15 @@ start_queues() {
 }
 
 create_enqueuer_wrapper() {
-    local enqueuer=/usr/local/bin/autotest_enqueuer.py
+    local enqueuer=/usr/local/bin/autotest_enqueuer
 
-    echo "
-        source ${SERVERDIR}/venv/bin/activate
-        ${SERVERDIR}/autotest_enqueuer.py \"\$@\"
-    " | sudo tee ${enqueuer} > /dev/null
+    # this heredoc requires actual tabs
+    cat <<-EOF | sudo tee ${enqueuer} > /dev/null
+		#!/usr/bin/env bash
+
+		source ${SERVERDIR}/venv/bin/activate
+		${SERVERDIR}/autotest_enqueuer.py "\$@"
+	EOF
     sudo chown ${SERVERUSEREFFECTIVE}:${SERVERUSEREFFECTIVE} ${enqueuer}
     sudo chmod u+x ${enqueuer}
 }
@@ -112,7 +116,7 @@ create_markus_config() {
         serverconf="nil"
     fi
 
-    echo "[AUTOTEST] Creating Markus web server config snippet in 'markus_conf.rb'"
+    echo "[AUTOTEST] Creating Markus web server config snippet in 'markus_config.rb'"
     echo "
         AUTOTEST_ON = true
         AUTOTEST_STUDENT_TESTS_ON = false
@@ -120,11 +124,8 @@ create_markus_config() {
         AUTOTEST_CLIENT_DIR = 'TODO_markus_dir'
         AUTOTEST_SERVER_HOST = '$(hostname).$(dnsdomainname)'
         AUTOTEST_SERVER_USERNAME = ${serverconf}
-        AUTOTEST_SERVER_DIR = '${WORKINGDIR}'
-        AUTOTEST_SERVER_COMMAND = 'autotest_enqueuer.py'
-        AUTOTEST_RUN_QUEUE = 'TODO_markus_run_queue'
-        AUTOTEST_CANCEL_QUEUE = 'TODO_markus_cancel_queue'
-        AUTOTEST_SCRIPTS_QUEUE = 'TODO_markus_scripts_queue'
+        AUTOTEST_SERVER_DIR = '${WORKSPACEDIR}'
+        AUTOTEST_SERVER_COMMAND = 'autotest_enqueuer'
     " >| markus_config.rb
 }
 
@@ -158,20 +159,21 @@ if [[ -n ${SERVERUSER} ]]; then
 else
     SERVERUSEREFFECTIVE=${THISUSER}
 fi
-TESTERUSERS=$(get_config_param TESTER_USERS)
-WORKINGDIR=$(get_config_param WORKING_DIR)
-SPECSDIR=${WORKINGDIR}/$(get_config_param SPECS_DIR_NAME)
-VENVSDIR=${WORKINGDIR}/$(get_config_param VENVS_DIR_NAME)
-RESULTSDIR=${WORKINGDIR}/$(get_config_param TEST_RESULTS_DIR_NAME)
-SCRIPTSDIR=${WORKINGDIR}/$(get_config_param TEST_SCRIPTS_DIR_NAME)
-WORKSPACESDIR=${WORKINGDIR}/$(get_config_param WORKSPACES_DIR_NAME)
-REDISTESTERS=$(get_config_param REDIS_TESTERS_LIST)
+WORKERUSERS=$(get_config_param WORKER_USERS)
+WORKSPACEDIR=$(get_config_param WORKSPACE_DIR)
+SPECSDIR=${WORKSPACEDIR}/$(get_config_param SPECS_DIR_NAME)
+VENVSDIR=${WORKSPACEDIR}/$(get_config_param VENVS_DIR_NAME)
+RESULTSDIR=${WORKSPACEDIR}/$(get_config_param RESULTS_DIR_NAME)
+SCRIPTSDIR=${WORKSPACEDIR}/$(get_config_param SCRIPTS_DIR_NAME)
+WORKERSSDIR=${WORKSPACEDIR}/$(get_config_param WORKERS_DIR_NAME)
+REDISPREFIX=$(get_config_param REDIS_PREFIX)
+REDISWORKERS=${REDISPREFIX}:$(get_config_param REDIS_WORKERS_LIST)
 
 # main
 install_packages
 create_server_user
-create_tester_users
-create_working_dirs
+create_worker_users
+create_workspace_dirs
 install_venv
 start_queues
 create_enqueuer_wrapper
