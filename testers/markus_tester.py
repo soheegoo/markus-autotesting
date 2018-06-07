@@ -147,7 +147,7 @@ class MarkusTest:
             return '{} + {}'.format(self.test_name, self.data_name)
 
     @staticmethod
-    def format_result(test_name, status, output, points_earned, points_total):
+    def format_result(test_name, status, output, points_earned, points_total, time=None):
         """
         Formats a test result as expected by Markus.
         :param test_name: The test name
@@ -156,24 +156,26 @@ class MarkusTest:
         :param points_earned: The points earned by the test, must be a float >= 0 (can be greater than the test total
                               points when assigning bonus points).
         :param points_total: The total points the test could earn, must be a float >= 0.
+        :param time: The time it took to run the test, can be None
         :return The formatted test result.
         """
         if points_total < 0:
             raise ValueError('The test total points must be >= 0')
         if points_earned < 0:
             raise ValueError('The test points earned must be >= 0')
-        output_escaped = saxutils.escape(output.replace('\x00', ''), entities={"'": '&apos;'})
-        return '''
-<test>
-  <name>{}</name>
-  <input></input>
-  <expected></expected>
-  <actual>{}</actual>
-  <marks_earned>{}</marks_earned>
-  <marks_total>{}</marks_total>
-  <status>{}</status>
-</test>
-'''.format(test_name, output_escaped, points_earned, points_total, status.value)
+        if time is not None:
+            if not isinstance(time, int) or time < 0:
+                raise ValueError('The time must be a positive integer or None')
+
+        result_json = json.dumps({'name': test_name, 
+                                  'input': '', 
+                                  'expected': '', 
+                                  'actual': output_escaped, 
+                                  'marks_earned': points_earned, 
+                                  'marks_total': points_total, 
+                                  'status': status.value, 
+                                  'time': time})
+        print(result_json)
 
     def format(self, status, output, points_earned):
         """
