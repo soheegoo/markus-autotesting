@@ -49,7 +49,7 @@ def print_queue_info(queue):
     Print json to stdout indicating the number of jobs in the queue and the 
     average pop interval during the current burst of jobs.
     """
-    print(json.dumps({'count' : queue.count, 'pop_rate': ats.get_avg_pop_interval(queue.name)}))
+    print(json.dumps({'queue_len' : queue.count, 'avg_pop_interval': ats.get_avg_pop_interval(queue.name)}))
 
 def check_test_script_files_exist(markus_address, assignment_id, **kw):
     if ats.test_script_directory(markus_address, assignment_id) is None:
