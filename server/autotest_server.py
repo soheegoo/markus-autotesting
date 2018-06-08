@@ -391,7 +391,7 @@ def clean_up_tests(tests_path, test_username):
 
 
 def report(results, markus_address, assignment_id, group_id, 
-           server_api_key, avg_pop_interval, queue_len, run_id, error):
+           server_api_key, run_id, error, time_to_service):
     """ Post the results of running test scripts to the markus api """
     url = '/'.join(stringify('api', 'assignments', assignment_id, 
                                     'groups', group_id, 'test_script_results'))
@@ -401,9 +401,8 @@ def report(results, markus_address, assignment_id, group_id,
                'Accept'     : 'application/json'}
     
     data = {'test_scripts'       : results,
-            'error'              : error,
-            'queue_len'          : queue_len,
-            'avg_pop_interval'   : avg_pop_interval} 
+            'error'              : error, 
+            'time_to_service'    : time_to_service} 
 
     data = {'test_run_id' : run_id, 'test_output' : json.dumps(data)}
 
@@ -411,7 +410,7 @@ def report(results, markus_address, assignment_id, group_id,
 
 @clean_after
 def run_test(markus_address, user_api_key, server_api_key, test_scripts, files_path, 
-              assignment_id, group_id, group_repo_name, submission_id, run_id):
+             assignment_id, group_id, group_repo_name, submission_id, run_id, enqueue_time):
     """
     Run autotesting tests using the tests in test_scripts on the files in files_path. 
 
@@ -419,8 +418,7 @@ def run_test(markus_address, user_api_key, server_api_key, test_scripts, files_p
     """
     job = rq.get_current_job()
     update_pop_interval_stat(job.origin)
-    queue_len = rq.Queue(job.origin).count
-    avg_pop_interval = get_avg_pop_interval(job.origin)
+    time_to_service = int(round(time.time() - enqueue_time, 3) * 1000)
     
     results = []
     error = None
@@ -438,7 +436,7 @@ def run_test(markus_address, user_api_key, server_api_key, test_scripts, files_p
         finally:
             clean_up_tests(tests_path, test_username)
             report(results, markus_address, assignment_id, group_id, 
-                   server_api_key, avg_pop_interval, queue_len, run_id, error)
+                   server_api_key, run_id, error, time_to_service)
 
 ### UPDATE TEST SCRIPTS ### 
 
