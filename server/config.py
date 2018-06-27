@@ -23,7 +23,7 @@ REDIS_PREFIX = 'autotest'
 ## WORKING DIR CONFIGS ##
 
 # the main working directory
-WORKSPACE_DIR = '/home/vagrant/markus-autotesting/server/workspace'
+WORKSPACE_DIR = '/Users/mschwa/Desktop/markus-autotesting/server/workspace'
 # name of the directory containing test scripts
 SCRIPTS_DIR_NAME = 'scripts'
 # name of the directory containing test results

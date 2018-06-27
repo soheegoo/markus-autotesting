@@ -16,3 +16,6 @@ testers/python/uam-git
 #java
 testers/java/server/.gradle
 testers/java/server/build
+
+#racket
+testers/racket/**/compiled/
