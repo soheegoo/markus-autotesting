@@ -25,7 +25,7 @@ class MarkusTestSpecs(collections.MutableMapping):
             path_to_specs = sys.executable.replace('venvs', 'specs').replace('bin/python3', 'specs.json')
         try:
             with open(path_to_specs) as f:
-                self._specs = json.load(path_to_specs)
+                self._specs = json.load(f)
         except (FileNotFoundError, json.JSONDecodeError) as e:
             if warn:
                 warnings.warn(str(e))

@@ -2,6 +2,7 @@ import contextlib
 import enum
 import json
 import subprocess
+import os
 
 from markus_tester import MarkusTester, MarkusTest, MarkusTestSpecs
 
@@ -37,14 +38,13 @@ class MarkusRacketTester(MarkusTester):
     def __init__(self, specs, test_class=MarkusRacketTest):
         super().__init__(specs, test_class)
     
-    def run_racket_test(self)
+    def run_racket_test(self):
         results = {}
-        markus_rkt = os.path.join(os.path.realpath(__file__), 'markus.rkt')
+        markus_rkt = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'markus.rkt')
         for test_file in self.specs.tests:
-            suite_name = self.specs.test_suite_name[test_file]
+            suite_name = self.specs['test_suite_name'][test_file]
             cmd = [markus_rkt, '--test-suite', suite_name, test_file]
-            rkt = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True,
-                                 check=True)
+            rkt = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
             results[test_file] = rkt
         return results
         
@@ -65,7 +65,7 @@ class MarkusRacketTester(MarkusTester):
                     if result.stderr:
                         print(MarkusTester.error_all(message=result.stderr), flush=True)
                     try:
-                        test_results = json.loads(results.stdout)
+                        test_results = json.loads(result.stdout)
                     except json.JSONDecodeError:
                         msg = f'Unable to parse JSON: {result.stdout}'
                         print(MarkusTester.error_all(message=msg), flush=True)

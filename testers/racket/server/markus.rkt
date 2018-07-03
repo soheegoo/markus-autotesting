@@ -44,8 +44,8 @@
           (markus-result 
             test-case-name 
             "fail" 
-            (format "~s" (if (pretty-info? actual) (pretty-info-value actual) actual))
-            (format "~s" (if (pretty-info? expected) (pretty-info-value expected) expected))))))
+            (format "~s" actual)
+            (format "~s" expected)))))
 
 (define (make-error test-case-name result)
   (markus-result->hash 
