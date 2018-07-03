@@ -15,19 +15,31 @@ class MarkusTestSpecs(collections.MutableMapping):
     MATRIX_NONTEST_KEY = 'extra'
     FEEDBACK_FILE_KEY = 'feedback_file'
     TEST_SUITE_KEY = 'test_suite_name'
+    TEST_TIMEOUT_KEY = 'test_timeout'
+    TEST_CASES_KEY = 'test_cases'
     DATA_FILES_SEPARATOR = ','
 
     def __init__(self, path_to_specs=None):
-        if path_to_specs is None:  # try to find specs automagically
+        warn = bool(path_to_specs)
+        if path_to_specs is None: # try to find specs automagically in the virtual environment
             path_to_specs = sys.executable.replace('venvs', 'specs').replace('bin/python3', 'specs.json')
-        with open(path_to_specs, 'r') as specs_open:
-            self._specs = json.loads(specs_open.read())
+        try:
+            with open(path_to_specs) as f:
+                self._specs = json.load(path_to_specs)
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            if warn:
+                warnings.warn(str(e))
+            self._specs = {}
         if MarkusTestSpecs.MATRIX_KEY not in self._specs:
             self._specs[MarkusTestSpecs.MATRIX_KEY] = {}
         if MarkusTestSpecs.FEEDBACK_FILE_KEY not in self._specs:
             self._specs[MarkusTestSpecs.FEEDBACK_FILE_KEY] = None
         if MarkusTestSpecs.TEST_SUITE_KEY not in self._specs:
-            self._specs[MarkusTestSpecs.TEST_SUITE_KEY] = {}
+            self._specs[MarkusTestSpecs.TEST_SUITE_KEY] = 'all-tests'
+        if MarkusTestSpecs.TEST_TIMEOUT_KEY not in self._specs:
+            self._specs[MarkusTestSpecs.TEST_TIMEOUT_KEY] = 3600
+        if MarkusTestSpecs.TEST_CASES_KEY not in self._specs:
+            self._specs[MarkusTestSpecs.TEST_CASES_KEY] = 100
 
     def _setitem(self, key, value):
         self._specs[key] = value
@@ -93,7 +105,7 @@ class MarkusTestSpecs(collections.MutableMapping):
     def __getitem__(self, key):
         switch = {'test_suite_name': self._get_test_suite_name}
         getter = switch.get(key, self._specs.__getitem__)
-        return getter[key]
+        return getter(key)
 
     def __delitem__(self, key):
         del self._specs[key]
@@ -180,12 +192,12 @@ class MarkusTest:
         result_json = json.dumps({'name': test_name, 
                                   'input': '', 
                                   'expected': '', 
-                                  'actual': output_escaped, 
+                                  'actual': output, 
                                   'marks_earned': points_earned, 
                                   'marks_total': points_total, 
                                   'status': status.value, 
                                   'time': time})
-        print(result_json)
+        return result_json
 
     def format(self, status, output, points_earned):
         """

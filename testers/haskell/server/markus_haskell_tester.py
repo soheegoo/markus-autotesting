@@ -23,60 +23,56 @@ class MarkusHaskellTest(MarkusTest):
         return self._test_name
 
     def run(self):
-        if self.status == "PASS":
-            return self.passed()
+        if self.status == "OK":
+            return self.passed(message=self.message)
         elif self.status == "FAIL":
             return self.failed(message=self.message)
         else:
             return self.error(message=self.message)
 
-
 class MarkusHaskellTester(MarkusTester):
 
     # column indexes of relevant data from tasty-stats csv
     # reference: http://hackage.haskell.org/package/tasty-stats
-    class TastyStats(enum.Enum):
-        NAME = 1
-        TIME = 2
-        RESULT = 3
-        DESCRIPTION = -1
+    TASTYSTATS = {'name' : 1,
+                  'time' : 2,
+                  'result' : 3,
+                  'description' : -1}
 
-    def __init__(self, specs, test_class=MarkusRacketTest):
+    def __init__(self, specs, test_class=MarkusHaskellTest):
         super().__init__(specs, test_class)
     
-    def _test_run_flags(self):
+    def _test_run_flags(self, test_file):
         module_flag = f"--modules={os.path.basename(test_file)}"
         stats_flag = "--ingredient=Test.Tasty.Stats.consoleStatsReporter"
         flags = [module_flag, stats_flag]
-        if self.specs.test_timeout:
-            flags.append(f"--timeout={self.specs.test_timeout}s")
-        if self.specs.test_cases:
-            flags.append(f"--quickcheck-tests={self.specs.test_cases}")
+        flags.append(f"--timeout={self.specs['test_timeout']}s")
+        flags.append(f"--quickcheck-tests={self.specs['test_cases']}")
         return flags
 
     def _parse_test_results(self, reader):
         test_results = []
         for line in reader:
-            result = {'status' : line[TastyStats.RESULT], 
-                      'name' : line[TastyStats.NAME], 
-                      'description' : line[TastyStats.DESCRIPTION], 
-                      'time' : line[TastyStats.TIME]}
+            result = {'status' : line[self.TASTYSTATS['result']], 
+                      'name' : line[self.TASTYSTATS['name']], 
+                      'description' : line[self.TASTYSTATS['description']], 
+                      'time' : line[self.TASTYSTATS['time']]}
             test_results.append(result)
         return test_results
 
-    def run_haskell_tests(self, test_files)
+    def run_haskell_tests(self):
         results = {}
         for test_file in self.specs.tests:
 
             with tempfile.NamedTemporaryFile() as f:
-                cmd = ['tasty-discover', '.', '_', f.name] + self._test_run_flags()
+                cmd = ['tasty-discover', '.', '_', f.name] + self._test_run_flags(test_file)
                 discover_proc = subprocess.run(cmd, stderr=subprocess.PIPE, stdout=subprocess.DEVNULL, universal_newlines=True)
                 if discover_proc.stderr:
                     print(MarkusTester.error_all(message=discover_proc.stderr), flush=True)
                     continue
                 with tempfile.NamedTemporaryFile(mode="w+") as sf:
                     cmd = ['runghc', f.name, f"--stats={sf.name}"]
-                    test_proc = subprocess.run(cmd, stderr=subprocess.PIPE, stdout=subprocess.DEVNULL, universal_newlines=True, check=True)
+                    test_proc = subprocess.run(cmd, stderr=subprocess.PIPE, stdout=subprocess.DEVNULL, universal_newlines=True)
                     results[test_file] = {'stderr':test_proc.stderr, 'results':self._parse_test_results(csv.reader(sf))}
         return results
 
@@ -86,7 +82,7 @@ class MarkusHaskellTester(MarkusTester):
             try:
                 results = self.run_haskell_tests()
             except subprocess.CalledProcessError as e:
-                msg = e.stdout + e.stderr
+                msg = (e.stdout or '' + e.stderr or '') or str(e)
                 print(MarkusTester.error_all(message=msg), flush=True)
                 return
             with contextlib.ExitStack() as stack:
@@ -96,10 +92,9 @@ class MarkusHaskellTester(MarkusTester):
                 for test_file, result in results.items():
                     if result['stderr']:
                         print(MarkusTester.error_all(message=result.stderr), flush=True)
-                    for res in result:
+                    for res in result['results']:
                         test = self.test_class(self, feedback_open, test_file, res)
                         print(test.run(), flush=True)
-
         except Exception as e:
             print(MarkusTester.error_all(message=str(e)), flush=True)
             return

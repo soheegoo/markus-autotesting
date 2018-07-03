@@ -75,7 +75,7 @@ install_venv() {
 
     echo "[AUTOTEST] Installing server virtual environment in '${servervenv}'"
     rm -rf ${servervenv}
-    python3 -m venv ${servervenv}
+    python3.6 -m venv ${servervenv}
     echo "[AUTOTEST] Installing pip packages"
     source ${servervenv}/bin/activate
     pip install -r ${SERVERDIR}/requirements.txt

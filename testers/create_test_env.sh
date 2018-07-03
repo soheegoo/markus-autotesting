@@ -9,7 +9,7 @@ check_tester_existence() {
 
 install_packages() {
     echo "[ENV] Installing system packages"
-    sudo apt-get install python3 python3-venv
+    sudo apt-get install python${PYVERSION} python${PYVERSION}-venv
 }
 
 create_specs() {

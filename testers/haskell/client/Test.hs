@@ -1,7 +1,7 @@
 #!/usr/bin/env runghc
 
+module Test where
 import Test.QuickCheck (Property, (==>))
-import Markus (doTest)
 import Submission (celsiusToFarenheit, nCopies, numEvens, numManyEvens)
 import qualified Submission as Soln (celsiusToFarenheit, nCopies, numEvens, numManyEvens)
 
@@ -51,12 +51,12 @@ prop_numManyEvensAgainstReference x = numManyEvens x == Soln.numManyEvens x
 
 main :: IO ()
 main = do
-  doTest "prop_celsius0" prop_celsius0
-  doTest "prop_celsius37" prop_celsius37
-  doTest "prop_nCopiesLength" prop_nCopiesLength
-  doTest "prop_numEvensLength" prop_numEvensLength
-  doTest "prop_numManyEvensDoubled" prop_numManyEvensDoubled
-  doTest "celsiusToFarenheit: check against reference solution" prop_celsiusAgainstReference
-  doTest "nCopies: check against reference solution" prop_nCopiesAgainstReference
-  doTest "numEvens: check against reference solution" prop_numEvensAgainstReference
-  doTest "numManyEvens: check against reference solution" prop_numManyEvensAgainstReference
+  quickCheck prop_celsius0
+  quickCheck prop_celsius37
+  quickCheck prop_nCopiesLength
+  quickCheck prop_numEvensLength
+  quickCheck prop_numManyEvensDoubled
+  quickCheck prop_celsiusAgainstReference
+  quickCheck prop_nCopiesAgainstReference
+  quickCheck prop_numEvensAgainstReference
+  quickCheck prop_numManyEvensAgainstReference
