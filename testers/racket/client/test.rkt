@@ -1,8 +1,8 @@
 #!/usr/bin/env racket
 #lang racket
 
-(require "student/submission.rkt")
-(require (for-meta 1 "student/submission.rkt"))
+(require "submission.rkt")
+(require (for-meta 1 "submission.rkt"))
 (require (for-meta 1 rackunit))
 (require (for-meta 1 racket/local))
 
@@ -36,7 +36,7 @@
         (x1 <- (parse-num "3"))
         (x2 <- (parse-num "8"))
         (return (+ x1 x2))))
-      (Just 11))
+      (Just 12))
      
      
      (test-equal?
