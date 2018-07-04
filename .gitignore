@@ -19,3 +19,6 @@ testers/java/server/build
 
 #racket
 testers/racket/**/compiled/
+
+#haskell
+markus_cabal

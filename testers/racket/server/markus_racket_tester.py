@@ -39,6 +39,10 @@ class MarkusRacketTester(MarkusTester):
         super().__init__(specs, test_class)
     
     def run_racket_test(self):
+        """
+        Return the subprocess.CompletedProcess object for each test file run using the
+        markus.rkt tester.  
+        """
         results = {}
         markus_rkt = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'markus.rkt')
         for test_file in self.specs.tests:
@@ -50,7 +54,6 @@ class MarkusRacketTester(MarkusTester):
         
     def run(self):
         try:
-            # run the tests with racket
             try:
                 results = self.run_racket_test()
             except subprocess.CalledProcessError as e:

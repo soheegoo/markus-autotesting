@@ -23,10 +23,10 @@ create_specs() {
     fi
 }
 
-init_specs() {
-    if [[ -e ${TESTERDIR}/init_specs.sh ]]; then
-        echo "[ENV] Initializing specs"
-        ${TESTERDIR}/init_specs.sh ${WORKINGDIR} ${SPECSDIR}
+customize_test_env() {
+    if [[ -e ${TESTERDIR}/customize_test_env.sh ]]; then
+        echo "[ENV] Customizing test environment"
+        ${TESTERDIR}/customize_test_env.sh ${WORKINGDIR} ${SPECSDIR} ${VENVDIR}
     fi
 }
 
@@ -74,6 +74,6 @@ fi
 check_tester_existence
 install_packages
 create_specs
-init_specs
 create_venv
+customize_test_env
 suggest_next_steps

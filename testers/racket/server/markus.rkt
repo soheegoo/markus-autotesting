@@ -16,23 +16,27 @@
                 (define (name) (error (format "Name ~a could not be imported" (quote name)))))
     ...))
   
-; For testing
+; struct containing the required values from running a single test
 (struct markus-result (name status actual expected))
 
+; convert a markus-result struct to hash
 (define (markus-result->hash r) 
   (hasheq 'name (markus-result-name r)
           'status (markus-result-status r)
           'actual (markus-result-actual r)
           'expected (markus-result-expected r)))
 
+; convert test result info to hash
 (define (check-infos->hash stack)
   (make-immutable-hash
    (map (lambda (ci) (cons (check-info-name ci) (check-info-value ci))) stack)))
 
+; create result hash from a successful markus test
 (define (make-success test-case-name result)
   (markus-result->hash 
     (markus-result test-case-name "pass" "" "")))
 
+; create result hash from a failed markus test
 (define (make-failure test-case-name result)
   (let* ( [failure-data
             (if (exn:test:check? result)
@@ -47,19 +51,25 @@
             (format "~s" actual)
             (format "~s" expected)))))
 
+; create result hash from a markus test that caused an error
 (define (make-error test-case-name result)
   (markus-result->hash 
     (markus-result test-case-name "error" (format "~s" (exn-message result)) "")))
 
+; create result hash depending for a markus test depending on whether it was a
+; success, failure, or caused an error (see above)
 (define (show-test-result result)
   (match result
     [(test-success test-case-name result) (make-success test-case-name result)]
     [(test-failure test-case-name result) (make-failure test-case-name result)]
     [(test-error test-case-name result) (make-error test-case-name result)]))
 
+; define a custom error type (currently not used)
 (define (raise-markus-error message [error-type 'markus-error])
   (raise (error error-type message)))
 
+; main module: parses command line arguments, runs tests specified by these arguments
+; and prints the results to stdout as a json string.
 (module+ main
   (define test-suite-sym 'all-tests)
   (define test-file 
