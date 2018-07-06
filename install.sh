@@ -2,10 +2,9 @@
 
 install_packages() {
     echo "[AUTOTEST] Installing system packages"
-    sudo apt-get install redis-server
     sudo add-apt-repository ppa:deadsnakes/ppa
     sudo apt-get update
-    sudo apt-get install python3.6 python3.6-venv
+    sudo apt-get install python3.6 python3.6-venv redis-server
 }
 
 create_server_user() {

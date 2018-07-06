@@ -39,9 +39,12 @@ create_venv() {
     if [[ -e ${TESTERDIR}/requirements.txt ]]; then
         pip install -r ${TESTERDIR}/requirements.txt
     fi
-    echo "${TESTERDIR}/server" > ${VENVDIR}/lib/python${PYVERSION}/site-packages/markus_${TESTERNAME}.pth
-    echo "${THISSCRIPTDIR}" > ${VENVDIR}/lib/python${PYVERSION}/site-packages/markus.pth
-    echo "${TESTERDIR}/server/lib" > ${VENVDIR}/lib/python${PYVERSION}/site-packages/markus_lib.pth
+    local pth_file = ${VENVDIR}/lib/python${PYVERSION}/site-packages/markus_${TESTERNAME}.pth
+    echo "${TESTERDIR}/server" >> pth_file
+    echo "${THISSCRIPTDIR}" >> pth_file
+    if [[ -d ${TESTERDIR}/server/lib ]]; then
+        echo "${TESTERDIR}/server/lib" >> pth_file
+    fi
 }
 
 suggest_next_steps() {
