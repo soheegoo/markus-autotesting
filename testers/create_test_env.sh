@@ -9,7 +9,7 @@ check_tester_existence() {
 
 install_packages() {
     echo "[ENV] Installing system packages"
-    sudo apt-get install python3 python3-venv
+    sudo apt-get install python${PYVERSION} python${PYVERSION}-venv
 }
 
 create_specs() {
@@ -23,10 +23,10 @@ create_specs() {
     fi
 }
 
-init_specs() {
-    if [[ -e ${TESTERDIR}/init_specs.sh ]]; then
-        echo "[ENV] Initializing specs"
-        ${TESTERDIR}/init_specs.sh ${WORKINGDIR} ${SPECSDIR}
+customize_test_env() {
+    if [[ -e ${TESTERDIR}/customize_test_env.sh ]]; then
+        echo "[ENV] Customizing test environment"
+        ${TESTERDIR}/customize_test_env.sh ${WORKINGDIR} ${SPECSDIR} ${VENVDIR}
     fi
 }
 
@@ -39,8 +39,12 @@ create_venv() {
     if [[ -e ${TESTERDIR}/requirements.txt ]]; then
         pip install -r ${TESTERDIR}/requirements.txt
     fi
-    echo "${TESTERDIR}/server" > ${VENVDIR}/lib/python${PYVERSION}/site-packages/markus_${TESTERNAME}.pth
-    echo "${THISSCRIPTDIR}" > ${VENVDIR}/lib/python${PYVERSION}/site-packages/markus.pth
+    local pth_file = ${VENVDIR}/lib/python${PYVERSION}/site-packages/markus_${TESTERNAME}.pth
+    echo "${TESTERDIR}/server" >> pth_file
+    echo "${THISSCRIPTDIR}" >> pth_file
+    if [[ -d ${TESTERDIR}/server/lib ]]; then
+        echo "${TESTERDIR}/server/lib" >> pth_file
+    fi
 }
 
 suggest_next_steps() {
@@ -73,6 +77,6 @@ fi
 check_tester_existence
 install_packages
 create_specs
-init_specs
 create_venv
+customize_test_env
 suggest_next_steps

@@ -2,11 +2,13 @@
 
 install_packages() {
     echo "[AUTOTEST] Installing system packages"
-    sudo apt-get install redis-server python3 python3-venv
+    sudo add-apt-repository ppa:deadsnakes/ppa
+    sudo apt-get update
+    sudo apt-get install python3.6 python3.6-venv redis-server
 }
 
 create_server_user() {
-    if [[ -z ${SERVERUSER} ]]; then
+    if [[ -z ${SERVERUSER} ]]; then 
         echo "[AUTOTEST] No dedicated server user, using '${THISUSER}'"
         mkdir -p ${WORKSPACEDIR}
     else
@@ -72,7 +74,7 @@ install_venv() {
 
     echo "[AUTOTEST] Installing server virtual environment in '${servervenv}'"
     rm -rf ${servervenv}
-    python3 -m venv ${servervenv}
+    python3.6 -m venv ${servervenv}
     echo "[AUTOTEST] Installing pip packages"
     source ${servervenv}/bin/activate
     pip install -r ${SERVERDIR}/requirements.txt

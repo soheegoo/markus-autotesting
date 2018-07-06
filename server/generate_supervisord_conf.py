@@ -43,5 +43,5 @@ with open(sys.argv[1], 'w') as f:
                            worker_args=redis_url,
                            queues=queue_str,
                            numprocs=numprocs,
-                           directory=os.path.abspath('server'))
+                           directory=os.path.dirname(os.path.abspath(__file__)))
         f.write(c)

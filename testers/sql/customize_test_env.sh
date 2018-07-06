@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-if [ $# -ne 2 ]; then
-    echo "Usage: $0 autotest_working_dir specs_dir"
+if [ $# -lt 2 ]; then
+    echo "Usage: $0 autotest_working_dir specs_dir" 
     exit 1
 fi
 
