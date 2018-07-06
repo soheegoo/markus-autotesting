@@ -8,6 +8,8 @@ import inspect
 import autotest_server as ats
 import time
 import config
+import shutil
+from functools import wraps
 
 ### HELPER FUNCTIONS ###
 
@@ -60,8 +62,27 @@ def check_test_script_files_exist(markus_address, assignment_id, **kw):
         raise RuntimeError('cannot find test script files: please upload some before running tests')
 
 
+def clean_on_error(func):
+    """ 
+    Remove files_path directories from the working dir if a function raises an error.
+
+    Note: the files_path directory must be passed to the function as a keyword argument.
+    """
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except:
+            files_path = kwargs.get('files_path')
+            if files_path:
+                shutil.rmtree(files_path, onerror=ats.ignore_missing_dir_error)
+            raise
+
+    return wrapper
+
 ### COMMAND FUNCTIONS ###
 
+@clean_on_error
 def run_test(user_type, batch_id, **kw):
     """
     Enqueue a test run job with keyword arguments specified in **kw
@@ -73,6 +94,7 @@ def run_test(user_type, batch_id, **kw):
     print_queue_info(queue)
     queue.enqueue_call(ats.run_test, kwargs=kw, job_id=job_id(**kw))
 
+@clean_on_error
 def update_scripts(**kw):
     """
     Enqueue a test script update job with keyword arguments specified in **kw
@@ -80,7 +102,7 @@ def update_scripts(**kw):
     queue = rq.Queue(config.SERVICE_QUEUE, connection=ats.redis_connection())
     check_args(ats.update_test_scripts, **kw)
     queue.enqueue_call(ats.update_test_scripts, kwargs=kw)
-
+ 
 def cancel_test(markus_address, run_ids, **kw):
     """
     Cancel a test run job with the job_id defined using 
