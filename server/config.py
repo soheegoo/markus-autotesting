@@ -38,6 +38,9 @@ WORKERS_DIR_NAME = 'workers'
 SERVER_USER = ''
 # names of the tester users
 WORKER_USERS = ''
+# prefix used to name reaper users 
+# (reapers not used to kill worker processes if set to the empty string)
+REAPER_USER_PREFIX = ''
 
 
 ### QUEUE CONFIGS ###

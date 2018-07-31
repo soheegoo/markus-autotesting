@@ -33,20 +33,30 @@ create_worker_dir() {
     redis-cli RPUSH ${REDISWORKERS} "{\"username\":\"${workeruser}\",\"worker_dir\":\"${workerdir}\"}" > /dev/null
 }
 
-create_worker_user() {
-    local workeruser=$1
-
+create_user() {
+    local username=$1
+    local usertype=$2
     if id ${workeruser} &> /dev/null; then
-        echo "[AUTOTEST] Reusing existing worker user '${workeruser}'"
+        echo "[AUTOTEST] Reusing existing ${usertype} user '${username}'"
     else
-        echo "[AUTOTEST] Creating worker user '${workeruser}'"
-        sudo adduser --disabled-login --no-create-home ${workeruser}
+        echo "[AUTOTEST] Creating ${usertype} user '${username}'"
+        sudo adduser --disabled-login --no-create-home ${username}
     fi
-    create_worker_dir ${workeruser}
-    echo "${SERVERUSEREFFECTIVE} ALL=(${workeruser}) NOPASSWD:ALL" | sudo EDITOR="tee -a" visudo
+    echo "${SERVERUSEREFFECTIVE} ALL=(${username}) NOPASSWD:ALL" | sudo EDITOR="tee -a" visudo
 }
 
-create_worker_users() {
+create_worker_user() {
+    create_user $1 'worker'
+}
+
+create_reaper_user() {
+    if [[ -n ${REAPERPREFIX} ]]; then
+        local reaperuser="${REAPERPREFIX}$1"
+        create_user ${reaperuser} 'reaper'
+    fi
+}
+
+create_worker_and_reaper_users() {
     redis-cli DEL ${REDISWORKERS} > /dev/null
     if [[ -z ${WORKERUSERS} ]]; then
         echo "[AUTOTEST] No dedicated worker user, using '${SERVERUSEREFFECTIVE}'"
@@ -54,6 +64,8 @@ create_worker_users() {
     else
         for workeruser in ${WORKERUSERS}; do
             create_worker_user ${workeruser}
+            create_reaper_user ${workeruser}
+            create_worker_dir ${workeruser}
         done
     fi
 }
@@ -170,11 +182,12 @@ SCRIPTSDIR=${WORKSPACEDIR}/$(get_config_param SCRIPTS_DIR_NAME)
 WORKERSSDIR=${WORKSPACEDIR}/$(get_config_param WORKERS_DIR_NAME)
 REDISPREFIX=$(get_config_param REDIS_PREFIX)
 REDISWORKERS=${REDISPREFIX}:$(get_config_param REDIS_WORKERS_LIST)
+REAPERPREFIX=$(get_config_param REAPER_USER_PREFIX)
 
 # main
 install_packages
 create_server_user
-create_worker_users
+create_worker_and_reaper_users
 create_workspace_dirs
 install_venv
 start_queues

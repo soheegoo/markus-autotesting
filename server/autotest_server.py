@@ -32,6 +32,23 @@ def stringify(*args):
 def current_user():
     return pwd.getpwuid(os.getuid()).pw_name
 
+def get_tester_uid(test_username):
+    return pwd.getpwnam(test_username).pw_uid
+
+def get_reaper_username(test_username):
+    return '{}{}'.format(config.REAPER_USER_PREFIX, test_username)
+
+def kill_with_reaper():
+    return bool(config.REAPER_USER_PREFIX)
+
+def get_reaper_uid(test_username):
+    if kill_with_reaper():
+        reaper_username = get_reaper_username(test_username)
+        try:
+            return pwd.getpwnam(reaper_username).pw_uid
+        except KeyError:
+            pass
+
 def decode_if_bytes(b):
     return b.decode('utf-8') if isinstance(b, bytes) else b
 
@@ -329,12 +346,25 @@ def create_test_script_result(file_name, stdout, stderr, run_time, timeout=None)
             'stderr' : stderr or None,
             'malformed' :  stdout if malformed else None}
 
-def run_test_scripts(cmd, test_scripts, tests_path):
+def get_run_test_preexec_fn(test_username):
+    """
+    Return a function that set's a processes real, effective, and saved user ids
+    so that it can later be safely killed by a reaper process 
+    (see https://lwn.net/Articles/754980/for reference)
+
+    Returns None if kill_with_reaper() returns false
+    """
+    if kill_with_reaper():
+        tester_uid = get_tester_uid(test_username) 
+        return lambda uid=tester_uid: os.setresuid(uid, uid, uid)
+
+def run_test_scripts(cmd, test_scripts, tests_path, test_username):
     """
     Run each test script in test_scripts in the tests_path directory using the 
     command cmd. Return the results. 
     """
     results = []
+    preexec_fn = get_run_test_preexec_fn(test_username)
     for file_name, timeout in test_scripts.items():
         out, err = '', '' 
         start = time.time()
@@ -342,7 +372,7 @@ def run_test_scripts(cmd, test_scripts, tests_path):
         try:
             args = cmd.format(file_name)
             proc = subprocess.Popen(args, start_new_session=True, cwd=tests_path, shell=True, 
-                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=preexec_fn)
             try:
                 out, err = proc.communicate(timeout=timeout)
             except subprocess.TimeoutExpired:
@@ -372,22 +402,49 @@ def store_results(results, markus_address, assignment_id, group_id, submission_i
     with open(os.path.join(destination, 'output.json'), 'w') as f:
         json.dump(results, f, indent=4)
 
+def get_clean_up_tests_preexec_fn(test_username):
+    """
+    Return a function that sets a process's real, effective, and saved user ids
+    so that the process can safely kill all processed currently being run by 
+    the tester user, without having to worry about being killed itself
+    (see https://lwn.net/Articles/754980/for reference)
+
+    Returns None if kill_with_reaper() returns false or if the reaper user that 
+    corresponds to test_username does not exist
+
+    Note: this will only safely kill processes that were run with the preexec function
+    returned by get_run_test_preexec_fn (or their child processes)
+    """
+    if kill_with_reaper():
+        reaper_uid = get_reaper_uid(test_username)
+        tester_uid = get_tester_uid(test_username)
+        if reaper_uid:
+            return lambda ruid=reaper_uid, tuid=tester_uid: os.setresuid(ruid, tuid, ruid)
+
 def clean_up_tests(tests_path, test_username):
     """
-    Run a command that clears the tests_path working directory 
-    and kills all processes started by the user test_username
-    """    
-    cmds = ['chmod -Rf ugo+rwX {}'.format(tests_path)]
-
+    Run a command that kills all tester processes either by killing all 
+    user processes or killing with a reaper user (see https://lwn.net/Articles/754980/
+    for reference). 
+    Run commands that clear the tests_path working directory
+    """ 
     if test_username != current_user():
-        cmds.append('killall -KILL -u {}'.format(test_username))        
-        sudo_cmd = 'sudo -u {} -- bash -c '.format(test_username)
-        cmds = [sudo_cmd + cmd for cmd in cmds]
-
-    cmds.append('rm -rf {}'.format(tests_path))
-
-    for cmd in cmds:
-        subprocess.run(cmd, shell=True)
+        if kill_with_reaper():
+            preexec_fn = get_clean_up_tests_preexec_fn(test_username)
+            reaper = reaper_username(test_username)
+            kill_cmd = 'sudo -u {} -- bash -c kill -KILL -1'.format(reaper)
+            subprocess.Popen(kill_cmd, shell=True, preexec_fn=preexec_fn).wait()
+        else:
+            kill_cmd = 'sudo -u {} -- bash -c killall -KILL -u {}'.format(test_username, test_username)
+            subprocess.run(kill_cmd, shell=True)
+        chmod_cmd = 'sudo -u {} -- bash -c chmod -Rf ugo+rwX {}'.format(test_username, tests_path)
+    else:
+        chmod_cmd = 'chmod -Rf ugo+rwX {}'.format(tests_path)
+    
+    subprocess.run(chmod_cmd, shell=True)
+    
+    clean_cmd = 'rm -rf {}'.format(tests_path)
+    subprocess.run(clean_cmd, shell=True)
 
 
 def report(results, markus_address, assignment_id, group_id, 
@@ -429,7 +486,8 @@ def run_test(markus_address, user_api_key, server_api_key, test_scripts, files_p
             setup_files(files_path, tests_path, test_scripts, markus_address, assignment_id)
             cmd = test_run_command(markus_address, user_api_key, assignment_id, 
                                    group_id, group_repo_name, test_username)
-            results = run_test_scripts(cmd, test_scripts, tests_path)
+            preexec_fn = get_preexec_fn(test_username)
+            results = run_test_scripts(cmd, test_scripts, tests_path, test_username)
             store_results(results, markus_address, assignment_id, group_id, submission_id)
         except Exception as e:
             error = str(e)
