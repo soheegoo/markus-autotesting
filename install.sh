@@ -35,24 +35,30 @@ create_worker_dir() {
 
 create_user() {
     local username=$1
-    local usertype=$2
-    if id ${workeruser} &> /dev/null; then
+    local groupname=$2
+    local usertype=$3
+    if id ${username} &> /dev/null; then
         echo "[AUTOTEST] Reusing existing ${usertype} user '${username}'"
     else
         echo "[AUTOTEST] Creating ${usertype} user '${username}'"
         sudo adduser --disabled-login --no-create-home ${username}
     fi
+    if [[ $(id -gn ${username}) -ne ${groupname} ]]; then
+        echo "[AUTOTEST] Changing primary group for '${username}' to '${groupname}'"
+        sudo usermod -g ${groupname} ${username}
+    fi
     echo "${SERVERUSEREFFECTIVE} ALL=(${username}) NOPASSWD:ALL" | sudo EDITOR="tee -a" visudo
 }
 
 create_worker_user() {
-    create_user $1 'worker'
+    create_user $1 $1 'worker'
 }
 
 create_reaper_user() {
     if [[ -n ${REAPERPREFIX} ]]; then
-        local reaperuser="${REAPERPREFIX}$1"
-        create_user ${reaperuser} 'reaper'
+        local testeruser=$1
+        local reaperuser="${REAPERPREFIX}${testeruser}"
+        create_user ${reaperuser} ${testeruser} 'reaper'
     fi
 }
 
@@ -106,6 +112,14 @@ start_queues() {
     ${supervisorcmd}
     popd > /dev/null
     deactivate
+}
+
+compile_reaper_script() {
+    if [[ ! -f "${SERVERDIR}/kill_worker_procs" ]]; then
+        echo "[AUTOTEST] Compiling reaper script"
+        gcc "${SERVERDIR}/kill_worker_procs.c" -o "${SERVERDIR}/kill_worker_procs"
+    fi
+    chmod 444 "${SERVERDIR}/kill_worker_procs"
 }
 
 create_enqueuer_wrapper() {
@@ -191,6 +205,7 @@ create_worker_and_reaper_users
 create_workspace_dirs
 install_venv
 start_queues
+compile_reaper_script
 create_enqueuer_wrapper
 create_markus_config
 suggest_next_steps

@@ -42,6 +42,13 @@ WORKER_USERS = ''
 # (reapers not used to kill worker processes if set to the empty string)
 REAPER_USER_PREFIX = ''
 
+## RLIMIT SETTINGS FOR TESTER PROCESSES ##
+
+# values are: (soft limit, hard limit)
+# see https://docs.python.org/3/library/resource.html for reference on limit options
+RLIMIT_SETTINGS = {
+    'RLIMIT_NPROC': (300, 300)
+}
 
 ### QUEUE CONFIGS ###
 
