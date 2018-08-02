@@ -43,9 +43,11 @@ create_user() {
         echo "[AUTOTEST] Creating ${usertype} user '${username}'"
         sudo adduser --disabled-login --no-create-home ${username}
     fi
-    if [[ $(id -gn ${username}) -ne ${groupname} ]]; then
+    if [[ $(id -gn ${username}) != ${groupname} ]]; then
         echo "[AUTOTEST] Changing primary group for '${username}' to '${groupname}'"
         sudo usermod -g ${groupname} ${username}
+    else
+        echo "[AUTOTEST] Primary group of '${username}' is '${groupname}'"
     fi
     echo "${SERVERUSEREFFECTIVE} ALL=(${username}) NOPASSWD:ALL" | sudo EDITOR="tee -a" visudo
 }

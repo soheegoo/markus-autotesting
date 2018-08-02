@@ -453,7 +453,9 @@ def clean_up_tests(tests_path, test_username):
     
     subprocess.run(chmod_cmd, shell=True)
     
-    clean_cmd = 'rm -rf {}'.format(tests_path)
+    # be careful not to remove the tests_path dir itself since we have to 
+    # set the group ownership with sudo (and that is only done in ../install.sh)
+    clean_cmd = 'rm -rf {}/*'.format(tests_path)
     subprocess.run(clean_cmd, shell=True)
 
 
