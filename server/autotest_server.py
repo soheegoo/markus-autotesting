@@ -27,6 +27,10 @@ REDIS_CURRENT_TEST_SCRIPT_HASH = '{}:{}'.format(config.REDIS_PREFIX, config.REDI
 REDIS_WORKERS_LIST = '{}:{}'.format(config.REDIS_PREFIX, config.REDIS_WORKERS_LIST)
 REDIS_POP_HASH = '{}:{}'.format(config.REDIS_PREFIX, config.REDIS_POP_HASH)
 
+# For each rlimit limit (key), make sure that cleanup processes
+# have at least n=(value) resources more than tester processes 
+RLIMIT_ADJUSTMENTS = {'RLIMIT_NPROC': 10}
+
 ### HELPER FUNCTIONS ###
 
 def stringify(*args):
@@ -342,24 +346,48 @@ def create_test_script_result(file_name, stdout, stderr, run_time, timeout=None)
             'stderr' : stderr or None,
             'malformed' :  stdout if malformed else None}
 
-def get_test_preexec_fn(for_cleanup=False):
+def get_test_preexec_fn():
     """
     Return a function that sets rlimit settings specified in config file
-    If for_cleanup is True, then limits for RLIMIT_NPROC are increased by
-    10 so that cleanup scripts will work even if the NPROC limit has been
-    reached.  
+    This function ensures that for specific limits (defined in RLIMIT_ADJUSTMENTS),
+    there are at least n=RLIMIT_ADJUSTMENTS[limit] resources available for cleanup
+    processes that are not available for test processes.  This ensures that cleanup
+    processes will always be able to run. 
     """
     def preexec_fn():
-        for limit, values in config.RLIMIT_SETTINGS.items():
-            limit = rlimit_str2int(limit)
-            if limit == 'RLIMIT_NPROC' and for_cleanup:
-                values = tuple([v+10 for v in values])
-            try:
-                resource.setrlimit(limit, values)
-            except ValueError:
-                pass
+        for limit_str in config.RLIMIT_SETTINGS.keys() | RLIMIT_ADJUSTMENTS.keys():
+            limit = rlimit_str2int(limit_str)
+
+            values = config.RLIMIT_SETTINGS.get(limit_str, (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
+            curr_soft, curr_hard = resource.getrlimit(limit)
+            soft, hard = (min(vals) for vals in zip((curr_soft, curr_hard), values))
+            # reduce the hard limit so that cleanup scripts will have at least 
+            # adj more resources to use. 
+            adj = RLIMIT_ADJUSTMENTS.get(limit_str, 0)
+            if (curr_hard - hard) < adj:
+                hard = curr_hard - adj
+            # make sure the soft limit doesn't exceed the hard limit
+            hard = max(hard, 0)
+            soft = max(min(hard, soft), 0)
+            
+            resource.setrlimit(limit, (soft, hard))
+
     return preexec_fn
 
+def get_cleanup_preexec_fn():
+    """
+    Return a function that sets the rlimit settings specified in RLIMIT_ADJUSTMENTS
+    so that both the soft and hard limits are set as high as possible. This ensures
+    that cleanup processes will have as many resources as possible to run. 
+    """
+    def preexec_fn():
+        for limit_str in RLIMIT_ADJUSTMENTS:
+            limit = rlimit_str2int(limit_str)
+            soft, hard = resource.getrlimit(limit)
+            soft = max(soft, hard)
+            resource.setrlimit(limit, (soft, hard))
+
+    return preexec_fn
 
 def run_test_scripts(cmd, test_scripts, tests_path):
     """
@@ -422,9 +450,9 @@ def kill_with_reaper(test_username):
     """
     if config.REAPER_USER_PREFIX:
         reaper_username = get_reaper_username(test_username)
-        preexec_fn = get_test_preexec_fn(for_cleanup=True)
         cwd = os.path.dirname(os.path.abspath(__file__))
         kill_file_dst = random_tmpfile_name()
+        preexec_fn = get_cleanup_preexec_fn()
 
         copy_cmd = "sudo -u {0} -- bash -c 'cp kill_worker_procs {1} && chmod 4550 {1}'".format(test_username, kill_file_dst)
         copy_proc = subprocess.Popen(copy_cmd, shell=True, preexec_fn=preexec_fn, cwd=cwd)
