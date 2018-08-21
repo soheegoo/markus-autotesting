@@ -14,7 +14,11 @@ import rq
 import pwd
 from contextlib import contextmanager
 from functools import wraps
+import resource
+import uuid
+import tempfile
 import config
+
 
 CURRENT_TEST_SCRIPT_FORMAT = '{}_{}'
 TEST_SCRIPT_DIR = os.path.join(config.WORKSPACE_DIR, config.SCRIPTS_DIR_NAME)
@@ -23,14 +27,24 @@ REDIS_CURRENT_TEST_SCRIPT_HASH = '{}:{}'.format(config.REDIS_PREFIX, config.REDI
 REDIS_WORKERS_LIST = '{}:{}'.format(config.REDIS_PREFIX, config.REDIS_WORKERS_LIST)
 REDIS_POP_HASH = '{}:{}'.format(config.REDIS_PREFIX, config.REDIS_POP_HASH)
 
+# For each rlimit limit (key), make sure that cleanup processes
+# have at least n=(value) resources more than tester processes 
+RLIMIT_ADJUSTMENTS = {'RLIMIT_NPROC': 10}
+
 ### HELPER FUNCTIONS ###
 
 def stringify(*args):
     for a in args:
         yield str(a)
 
+def rlimit_str2int(rlimit_string):
+    return resource.__getattribute__(rlimit_string)
+
 def current_user():
     return pwd.getpwuid(os.getuid()).pw_name
+
+def get_reaper_username(test_username):
+    return '{}{}'.format(config.REAPER_USER_PREFIX, test_username)
 
 def decode_if_bytes(b):
     return b.decode('utf-8') if isinstance(b, bytes) else b
@@ -38,6 +52,9 @@ def decode_if_bytes(b):
 def clean_dir_name(name):
     """ Return name modified so that it can be used as a unix style directory name """
     return name.replace('/', '_')
+
+def random_tmpfile_name():
+    return os.path.join(tempfile.gettempdir(), uuid.uuid4().hex)
 
 def get_test_script_key(markus_address, assignment_id):
     """ 
@@ -329,12 +346,56 @@ def create_test_script_result(file_name, stdout, stderr, run_time, timeout=None)
             'stderr' : stderr or None,
             'malformed' :  stdout if malformed else None}
 
+def get_test_preexec_fn():
+    """
+    Return a function that sets rlimit settings specified in config file
+    This function ensures that for specific limits (defined in RLIMIT_ADJUSTMENTS),
+    there are at least n=RLIMIT_ADJUSTMENTS[limit] resources available for cleanup
+    processes that are not available for test processes.  This ensures that cleanup
+    processes will always be able to run. 
+    """
+    def preexec_fn():
+        for limit_str in config.RLIMIT_SETTINGS.keys() | RLIMIT_ADJUSTMENTS.keys():
+            limit = rlimit_str2int(limit_str)
+
+            values = config.RLIMIT_SETTINGS.get(limit_str, (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
+            curr_soft, curr_hard = resource.getrlimit(limit)
+            soft, hard = (min(vals) for vals in zip((curr_soft, curr_hard), values))
+            # reduce the hard limit so that cleanup scripts will have at least 
+            # adj more resources to use. 
+            adj = RLIMIT_ADJUSTMENTS.get(limit_str, 0)
+            if (curr_hard - hard) < adj:
+                hard = curr_hard - adj
+            # make sure the soft limit doesn't exceed the hard limit
+            hard = max(hard, 0)
+            soft = max(min(hard, soft), 0)
+            
+            resource.setrlimit(limit, (soft, hard))
+
+    return preexec_fn
+
+def get_cleanup_preexec_fn():
+    """
+    Return a function that sets the rlimit settings specified in RLIMIT_ADJUSTMENTS
+    so that both the soft and hard limits are set as high as possible. This ensures
+    that cleanup processes will have as many resources as possible to run. 
+    """
+    def preexec_fn():
+        for limit_str in RLIMIT_ADJUSTMENTS:
+            limit = rlimit_str2int(limit_str)
+            soft, hard = resource.getrlimit(limit)
+            soft = max(soft, hard)
+            resource.setrlimit(limit, (soft, hard))
+
+    return preexec_fn
+
 def run_test_scripts(cmd, test_scripts, tests_path):
     """
     Run each test script in test_scripts in the tests_path directory using the 
     command cmd. Return the results. 
     """
     results = []
+    preexec_fn = get_test_preexec_fn()
     for file_name, timeout in test_scripts.items():
         out, err = '', '' 
         start = time.time()
@@ -342,7 +403,7 @@ def run_test_scripts(cmd, test_scripts, tests_path):
         try:
             args = cmd.format(file_name)
             proc = subprocess.Popen(args, start_new_session=True, cwd=tests_path, shell=True, 
-                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=preexec_fn)
             try:
                 out, err = proc.communicate(timeout=timeout)
             except subprocess.TimeoutExpired:
@@ -372,22 +433,58 @@ def store_results(results, markus_address, assignment_id, group_id, submission_i
     with open(os.path.join(destination, 'output.json'), 'w') as f:
         json.dump(results, f, indent=4)
 
+def kill_with_reaper(test_username):
+    """
+    Try to kill all processes currently being run by test_username using the method
+    described in this article: https://lwn.net/Articles/754980/. Return True if this
+    is method is attempted and is successful, otherwise return False.
+
+    This copies the kill_worker_procs executable as the test_username user and sets
+    the permissions of this copied file so that it can be executed by the corresponding
+    reaper user.  Crucially, it sets the permissions to include the setuid bit so that
+    the reaper user can manipulate the real uid and effective uid values of the process.
+    
+    The reaper user then runs this copied executable which kills all processes being
+    run by the test_username user, deletes itself and exits with a 0 exit code if 
+    sucessful.  
+    """
+    if config.REAPER_USER_PREFIX:
+        reaper_username = get_reaper_username(test_username)
+        cwd = os.path.dirname(os.path.abspath(__file__))
+        kill_file_dst = random_tmpfile_name()
+        preexec_fn = get_cleanup_preexec_fn()
+
+        copy_cmd = "sudo -u {0} -- bash -c 'cp kill_worker_procs {1} && chmod 4550 {1}'".format(test_username, kill_file_dst)
+        copy_proc = subprocess.Popen(copy_cmd, shell=True, preexec_fn=preexec_fn, cwd=cwd)
+        if copy_proc.wait() < 0: # wait returns the return code of the proc
+            return False
+
+        kill_cmd = 'sudo -u {} -- bash -c {}'.format(reaper_username, kill_file_dst)
+        kill_proc = subprocess.Popen(kill_cmd, shell=True, preexec_fn=preexec_fn)
+        return kill_proc.wait() == 0
+    return False
+
 def clean_up_tests(tests_path, test_username):
     """
-    Run a command that clears the tests_path working directory 
-    and kills all processes started by the user test_username
-    """    
-    cmds = ['chmod -Rf ugo+rwX {}'.format(tests_path)]
-
+    Run a command that kills all tester processes either by killing all 
+    user processes or killing with a reaper user (see https://lwn.net/Articles/754980/
+    for reference). 
+    Run commands that clear the tests_path working directory
+    """ 
     if test_username != current_user():
-        cmds.append('killall -KILL -u {}'.format(test_username))        
-        sudo_cmd = 'sudo -u {} -- bash -c '.format(test_username)
-        cmds = [sudo_cmd + cmd for cmd in cmds]
-
-    cmds.append('rm -rf {}'.format(tests_path))
-
-    for cmd in cmds:
-        subprocess.run(cmd, shell=True)
+        if not kill_with_reaper(test_username):
+            kill_cmd = 'sudo -u {} -- bash -c killall -KILL -u {}'.format(test_username, test_username)
+            subprocess.run(kill_cmd, shell=True)
+        chmod_cmd = 'sudo -u {} -- bash -c chmod -Rf ugo+rwX {}'.format(test_username, tests_path)
+    else:
+        chmod_cmd = 'chmod -Rf ugo+rwX {}'.format(tests_path)
+    
+    subprocess.run(chmod_cmd, shell=True)
+    
+    # be careful not to remove the tests_path dir itself since we have to 
+    # set the group ownership with sudo (and that is only done in ../install.sh)
+    clean_cmd = 'rm -rf {}/*'.format(tests_path)
+    subprocess.run(clean_cmd, shell=True)
 
 
 def report(results, markus_address, assignment_id, group_id, 
