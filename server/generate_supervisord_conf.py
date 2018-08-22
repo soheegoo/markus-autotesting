@@ -28,11 +28,15 @@ autorestart=true
 
 """
 
+THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+
 try:
     rkw = config.REDIS_CONNECTION_KWARGS
     redis_url = '--url redis://{}:{}/{}'.format(rkw['host'], rkw['port'], rkw['db'])
 except KeyError:
     redis_url = ''
+
+redis_url += ' --config rq_password_config --path {}'.format(THIS_DIR)
 
 with open(sys.argv[1], 'w') as f:
     f.write(header)
@@ -43,5 +47,5 @@ with open(sys.argv[1], 'w') as f:
                            worker_args=redis_url,
                            queues=queue_str,
                            numprocs=numprocs,
-                           directory=os.path.dirname(os.path.abspath(__file__)))
+                           directory=THIS_DIR)
         f.write(c)
