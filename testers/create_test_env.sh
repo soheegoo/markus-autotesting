@@ -39,7 +39,7 @@ create_venv() {
     if [[ -e ${TESTERDIR}/requirements.txt ]]; then
         pip install -r ${TESTERDIR}/requirements.txt
     fi
-    local pth_file = ${VENVDIR}/lib/python${PYVERSION}/site-packages/markus_${TESTERNAME}.pth
+    local pth_file=${VENVDIR}/lib/python${PYVERSION}/site-packages/markus_${TESTERNAME}.pth
     echo "${TESTERDIR}/server" >> ${pth_file}
     echo "${THISSCRIPTDIR}" >> ${pth_file}
     if [[ -d ${TESTERDIR}/server/lib ]]; then
