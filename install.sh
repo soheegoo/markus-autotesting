@@ -91,6 +91,7 @@ create_workspace_dirs() {
     sudo mkdir -p ${SCRIPTSDIR}
     sudo mkdir -p ${WORKERSSDIR}
     sudo chmod u=rwx,go= ${RESULTSDIR} ${SCRIPTSDIR}
+    sudo chmod o+x ${RESULTSDIR}
     sudo chown ${SERVERUSEREFFECTIVE}:${SERVERUSEREFFECTIVE} ${SPECSDIR} ${VENVSDIR} ${RESULTSDIR} ${SCRIPTSDIR} ${WORKERSSDIR}
 }
 

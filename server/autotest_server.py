@@ -83,11 +83,15 @@ def recursive_iglob(root_dir):
     Walk breadth first over a directory tree starting at root_dir and
     yield the path to each directory or file encountered. 
     Yields a tuple containing a string indicating whether the path is to
-    a directory ("d") or a file ("f") and the path itself. 
+    a directory ("d") or a file ("f") and the path itself. Raise a 
+    ValueError if the root_dir doesn't exist 
     """
-    for root, dirnames, filenames in os.walk(root_dir):
-        yield from (('d', os.path.join(root, d)) for d in dirnames)
-        yield from (('f', os.path.join(root, f)) for f in filenames)
+    if os.path.isdir(root_dir):
+        for root, dirnames, filenames in os.walk(root_dir):
+            yield from (('d', os.path.join(root, d)) for d in dirnames)
+            yield from (('f', os.path.join(root, f)) for f in filenames)
+    else:
+        raise ValueError('directory does not exist: {}'.format(root_dir))
 
 def get_redis_password():
     """
@@ -492,7 +496,7 @@ def clean_up_tests(tests_path, test_username):
         if not kill_with_reaper(test_username):
             kill_cmd = 'sudo -u {} -- bash -c killall -KILL -u {}'.format(test_username, test_username)
             subprocess.run(kill_cmd, shell=True)
-        chmod_cmd = 'sudo -u {} -- bash -c chmod -Rf ugo+rwX {}'.format(test_username, tests_path)
+        chmod_cmd = "sudo -u {} -- bash -c 'chmod -Rf ugo+rwX {}'".format(test_username, tests_path)
     else:
         chmod_cmd = 'chmod -Rf ugo+rwX {}'.format(tests_path)
     
@@ -500,14 +504,15 @@ def clean_up_tests(tests_path, test_username):
     
     # be careful not to remove the tests_path dir itself since we have to 
     # set the group ownership with sudo (and that is only done in ../install.sh)
-    clean_cmd = 'rm -rf {}/*'.format(tests_path)
+    clean_cmd = 'rm -rf {0}/.[!.]* {0}/*'.format(tests_path)
     subprocess.run(clean_cmd, shell=True)
-
 
 def report(results, markus_address, assignment_id, group_id, 
            server_api_key, run_id, error, time_to_service):
     """ Post the results of running test scripts to the markus api """
-    url = '/'.join(stringify('api', 'assignments', assignment_id, 
+    markus_url = urllib.parse.urlparse(markus_address)
+
+    url = '/'.join(stringify(markus_url.path, 'api', 'assignments', assignment_id, 
                                     'groups', group_id, 'test_script_results'))
     url = urllib.parse.urljoin(markus_address, url)
     
