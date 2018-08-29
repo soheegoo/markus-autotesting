@@ -36,8 +36,6 @@ try:
 except KeyError:
     redis_url = ''
 
-redis_url += ' --config rq_password_config --path {}'.format(THIS_DIR)
-
 with open(sys.argv[1], 'w') as f:
     f.write(header)
     for i, (numprocs, queues) in enumerate(config.WORKERS):

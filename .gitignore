@@ -7,6 +7,7 @@ __pycache__
 server/venv
 server/workspace
 server/supervisord.*
+server/kill_worker_procs
 markus_config.rb
 
 # uam

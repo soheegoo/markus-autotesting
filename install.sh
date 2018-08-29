@@ -2,8 +2,6 @@
 
 install_packages() {
     echo "[AUTOTEST] Installing system packages"
-    sudo add-apt-repository ppa:deadsnakes/ppa
-    sudo apt-get update
     sudo apt-get install python3.6 python3.6-venv redis-server
 }
 
@@ -21,11 +19,20 @@ create_server_user() {
         sudo mkdir -p ${WORKSPACEDIR}
         sudo chown ${SERVERUSER}:${SERVERUSER} ${WORKSPACEDIR}
     fi
-    local serverhome=$(getent passwd ${SERVERUSER} | cut -d: -f6)
-    if [[ -d "${serverhome}" ]]; then
-        sudo -u ${SERVERUSER} -- bash -c "touch ${serverhome}/.rediscli_history"
-        sudo chmod 600 "${serverhome}/.rediscli_history"
+}
+
+create_unprivileged_user() {
+    local username=$1
+    local usertype=$2
+
+    if id ${username} &> /dev/null; then
+        echo "[AUTOTEST] Reusing existing ${usertype} user '${username}'"
+    else
+        echo "[AUTOTEST] Creating ${usertype} user '${username}'"
+        sudo adduser --disabled-login --no-create-home ${username}
     fi
+    sudo iptables -I OUTPUT -p tcp --dport 6379 -m owner --uid-owner ${username} -j REJECT
+    echo "${SERVERUSEREFFECTIVE} ALL=(${username}) NOPASSWD:ALL" | sudo EDITOR="tee -a" visudo
 }
 
 create_worker_dir() {
@@ -38,37 +45,6 @@ create_worker_dir() {
     redis-cli RPUSH ${REDISWORKERS} "{\"username\":\"${workeruser}\",\"worker_dir\":\"${workerdir}\"}" > /dev/null
 }
 
-create_user() {
-    local username=$1
-    local groupname=$2
-    local usertype=$3
-    if id ${username} &> /dev/null; then
-        echo "[AUTOTEST] Reusing existing ${usertype} user '${username}'"
-    else
-        echo "[AUTOTEST] Creating ${usertype} user '${username}'"
-        sudo adduser --disabled-login --no-create-home ${username}
-    fi
-    if [[ $(id -gn ${username}) != ${groupname} ]]; then
-        echo "[AUTOTEST] Changing primary group for '${username}' to '${groupname}'"
-        sudo usermod -g ${groupname} ${username}
-    else
-        echo "[AUTOTEST] Primary group of '${username}' is '${groupname}'"
-    fi
-    echo "${SERVERUSEREFFECTIVE} ALL=(${username}) NOPASSWD:ALL" | sudo EDITOR="tee -a" visudo
-}
-
-create_worker_user() {
-    create_user $1 $1 'worker'
-}
-
-create_reaper_user() {
-    if [[ -n ${REAPERPREFIX} ]]; then
-        local testeruser=$1
-        local reaperuser="${REAPERPREFIX}${testeruser}"
-        create_user ${reaperuser} ${testeruser} 'reaper'
-    fi
-}
-
 create_worker_and_reaper_users() {
     redis-cli DEL ${REDISWORKERS} > /dev/null
     if [[ -z ${WORKERUSERS} ]]; then
@@ -76,9 +52,13 @@ create_worker_and_reaper_users() {
         create_worker_dir ${SERVERUSEREFFECTIVE}
     else
         for workeruser in ${WORKERUSERS}; do
-            create_worker_user ${workeruser}
-            create_reaper_user ${workeruser}
+            create_unprivileged_user ${workeruser} worker
             create_worker_dir ${workeruser}
+            if [[ -n ${REAPERPREFIX} ]]; then
+                local reaperuser="${REAPERPREFIX}${workeruser}"
+                create_unprivileged_user ${reaperuser} reaper
+                sudo usermod -g ${workeruser} ${reaperuser}
+            fi
         done
     fi
 }
@@ -91,7 +71,6 @@ create_workspace_dirs() {
     sudo mkdir -p ${SCRIPTSDIR}
     sudo mkdir -p ${WORKERSSDIR}
     sudo chmod u=rwx,go= ${RESULTSDIR} ${SCRIPTSDIR}
-    sudo chmod o+x ${RESULTSDIR}
     sudo chown ${SERVERUSEREFFECTIVE}:${SERVERUSEREFFECTIVE} ${SPECSDIR} ${VENVSDIR} ${RESULTSDIR} ${SCRIPTSDIR} ${WORKERSSDIR}
 }
 
@@ -101,8 +80,8 @@ install_venv() {
     echo "[AUTOTEST] Installing server virtual environment in '${servervenv}'"
     rm -rf ${servervenv}
     python3.6 -m venv ${servervenv}
-    echo "[AUTOTEST] Installing pip packages"
     source ${servervenv}/bin/activate
+    pip install wheel # must be installed before requirements
     pip install -r ${SERVERDIR}/requirements.txt
 }
 
@@ -113,9 +92,8 @@ start_queues() {
         supervisorcmd="sudo -u ${SERVERUSER} --set-home -- ${supervisorcmd}"
     fi
 
-    echo "[AUTOTEST] Generating supervisor config file in '${supervisorconf}'"
+    echo "[AUTOTEST] Generating supervisor config in '${supervisorconf}' and starting rq workers"
     ${SERVERDIR}/generate_supervisord_conf.py ${supervisorconf}
-    echo "[AUTOTEST] Starting rq workers using supervisor"
     pushd ${SERVERDIR} > /dev/null
     ${supervisorcmd}
     popd > /dev/null
@@ -123,11 +101,11 @@ start_queues() {
 }
 
 compile_reaper_script() {
-    if [[ ! -f "${SERVERDIR}/kill_worker_procs" ]]; then
-        echo "[AUTOTEST] Compiling reaper script"
-        gcc "${SERVERDIR}/kill_worker_procs.c" -o "${SERVERDIR}/kill_worker_procs"
-    fi
-    chmod 444 "${SERVERDIR}/kill_worker_procs"
+    local reaperexe="${SERVERDIR}/kill_worker_procs"
+
+    echo "[AUTOTEST] Compiling reaper script"
+    gcc "${reaperexe}.c" -o  ${reaperexe}
+    chmod ugo=r ${reaperexe}
 }
 
 create_enqueuer_wrapper() {
@@ -171,7 +149,6 @@ suggest_next_steps() {
     fi
     echo "[AUTOTEST] (You may want to add 'source ${SERVERDIR}/venv/bin/activate && supervisord -c ${SERVERDIR}/supervisord.conf' to ${SERVERUSEREFFECTIVE}'s crontab with a @reboot time)"
     echo "[AUTOTEST] (You should install the individual testers you plan to use)"
-    echo "[AUTOTEST] (It is recommended to password protect the redis-server: set a password in the redis.conf configuration file and make that file readable by the server user and NOT readable by tester users (if any))"
 }
 
 get_config_param() {
