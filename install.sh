@@ -4,7 +4,7 @@ install_packages() {
     echo "[AUTOTEST] Installing system packages"
     sudo add-apt-repository ppa:deadsnakes/ppa
     sudo apt-get update
-    sudo apt-get install python3.6 python3.6-venv redis-server
+    sudo apt-get install python3.7 python3.7-venv redis-server
 }
 
 create_server_user() {
@@ -100,7 +100,7 @@ install_venv() {
 
     echo "[AUTOTEST] Installing server virtual environment in '${servervenv}'"
     rm -rf ${servervenv}
-    python3.6 -m venv ${servervenv}
+    python3.7 -m venv ${servervenv}
     echo "[AUTOTEST] Installing pip packages"
     source ${servervenv}/bin/activate
     pip install -r ${SERVERDIR}/requirements.txt
