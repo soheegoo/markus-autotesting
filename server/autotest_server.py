@@ -149,6 +149,7 @@ def move_tree(src, dst):
     indicated by src to the path indicated by dst. If directories
     don't exist, they are created. 
     """
+    os.makedirs(dst, exist_ok=True)
     copy_tree(src, dst)
     shutil.rmtree(src, onerror=ignore_missing_dir_error)
 
