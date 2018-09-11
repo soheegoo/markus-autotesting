@@ -18,7 +18,6 @@ import resource
 import uuid
 import tempfile
 import config
-import re
 
 
 CURRENT_TEST_SCRIPT_FORMAT = '{}_{}'
@@ -93,21 +92,6 @@ def recursive_iglob(root_dir):
     else:
         raise ValueError('directory does not exist: {}'.format(root_dir))
 
-def get_redis_password():
-    """
-    Read the redis password from the config.REDIS_CONF file and return 
-    a dictionary that contains the password if it is set or an empty
-    dictionary otherwise.
-    """
-    with open(config.REDIS_CONF) as f:
-        pwd = None
-        for line in f:
-            if line.startswith('requirepass'):
-                pwd = re.search(r'requirepass(.*)', line).group(1).strip()
-    if pwd:
-        return {'password': pwd}
-    return {}
-
 def redis_connection():
     """
     Return the currently open redis connection object. If there is no 
@@ -118,7 +102,6 @@ def redis_connection():
     if conn:
         return conn
     kwargs = config.REDIS_CONNECTION_KWARGS
-    kwargs.update(get_redis_password())
     rq.use_connection(redis=redis.Redis(**kwargs))
     return rq.get_current_connection()
 
