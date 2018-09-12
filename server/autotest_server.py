@@ -404,7 +404,7 @@ def run_test_scripts(cmd, test_scripts, tests_path):
     for file_name, timeout in test_scripts.items():
         out, err = '', '' 
         start = time.time()
-        timeout = None
+        timeout_expired = None
         try:
             args = cmd.format(file_name)
             proc = subprocess.Popen(args, start_new_session=True, cwd=tests_path, shell=True, 
@@ -415,14 +415,14 @@ def run_test_scripts(cmd, test_scripts, tests_path):
                 pgrp = os.getpgid(proc.pid)
                 os.killpg(pgrp, signal.SIGKILL)
                 out, err = proc.communicate()
-                timeout = timeout
+                timeout_expired = timeout
         except Exception as e:
             err += '\n\n{}'.format(e.message)
         finally:
             out = decode_if_bytes(out)
             err = decode_if_bytes(err)
             duration = int(round(time.time()-start, 3) * 1000)
-            results.append(create_test_script_result(file_name, out, err, duration, timeout))
+            results.append(create_test_script_result(file_name, out, err, duration, timeout_expired))
     return results
 
 def store_results(results, markus_address, assignment_id, group_id, submission_id):
