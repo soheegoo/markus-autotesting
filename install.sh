@@ -2,7 +2,7 @@
 
 install_packages() {
     echo "[AUTOTEST] Installing system packages"
-    sudo apt-get install python3.6 python3.6-venv redis-server
+    sudo apt-get install python3.7 python3.7-venv redis-server
 }
 
 create_server_user() {
@@ -79,7 +79,7 @@ install_venv() {
 
     echo "[AUTOTEST] Installing server virtual environment in '${servervenv}'"
     rm -rf ${servervenv}
-    python3.6 -m venv ${servervenv}
+    python3.7 -m venv ${servervenv}
     source ${servervenv}/bin/activate
     pip install wheel # must be installed before requirements
     pip install -r ${SERVERDIR}/requirements.txt
