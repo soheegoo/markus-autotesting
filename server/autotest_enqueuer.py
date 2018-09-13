@@ -13,7 +13,7 @@ from functools import wraps
 
 ### HELPER FUNCTIONS ###
 
-def job_id(markus_address, run_id, **kw):
+def format_job_id(markus_address, run_id, **kw):
     """
     Return a unique job id for each enqueued job
     based on the markus_address and the run_id
@@ -100,7 +100,7 @@ def run_test(user_type, batch_id, **kw):
     check_test_script_files_exist(**kw)
     print_queue_info(queue)
     timeout = get_job_timeout(kw.get('test_scripts', {}))
-    queue.enqueue_call(ats.run_test, kwargs=kw, job_id=job_id(**kw), timeout=timeout)
+    queue.enqueue_call(ats.run_test, kwargs=kw, job_id=format_job_id(**kw), timeout=timeout)
 
 @clean_on_error
 def update_scripts(**kw):
@@ -118,7 +118,7 @@ def cancel_test(markus_address, run_ids, **kw):
     """
     with rq.Connection(ats.redis_connection()):
         for run_id in run_ids:
-            job_id = job_id(markus_address, run_id)
+            job_id = format_job_id(markus_address, run_id)
             rq.cancel_job(job_id)
 
 COMMANDS = {'run'       : run_test,
