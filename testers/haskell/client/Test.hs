@@ -47,14 +47,14 @@ prop_numManyEvensAgainstReference :: [[Int]] -> Bool
 prop_numManyEvensAgainstReference x = numManyEvens x == Soln.numManyEvens x
 
 
-main :: IO ()
-main = do
-  quickCheck prop_celsius0
-  quickCheck prop_celsius37
-  quickCheck prop_nCopiesLength
-  quickCheck prop_numEvensLength
-  quickCheck prop_numManyEvensDoubled
-  quickCheck prop_celsiusAgainstReference
-  quickCheck prop_nCopiesAgainstReference
-  quickCheck prop_numEvensAgainstReference
-  quickCheck prop_numManyEvensAgainstReference
+-- main :: IO ()
+-- main = do
+  -- quickCheck prop_celsius0
+  -- quickCheck prop_celsius37
+  -- quickCheck prop_nCopiesLength
+  -- quickCheck prop_numEvensLength
+  -- quickCheck prop_numManyEvensDoubled
+  -- quickCheck prop_celsiusAgainstReference
+  -- quickCheck prop_nCopiesAgainstReference
+  -- quickCheck prop_numEvensAgainstReference
+  -- quickCheck prop_numManyEvensAgainstReference

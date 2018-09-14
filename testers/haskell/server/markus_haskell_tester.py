@@ -74,8 +74,10 @@ class MarkusHaskellTester(MarkusTester):
 
         GHC_PACKAGE_PATH <- tells the haskell compiler where to find installed packages
         """
-        env_update = {'GHC_PACKAGE_PATH' : self.specs.get('ghc_package_path', '')}
-        return {**os.environ, **env_update}
+        ghc_pkg_pth = self.specs.get('ghc_package_path')
+        if ghc_pkg_pth is not None:
+            return {**os.environ, **{'GHC_PACKAGE_PATH' : ghc_pkg_pth}}
+        return os.environ
 
     def run_haskell_tests(self):
         """
