@@ -1,5 +1,3 @@
-#!/usr/bin/env runghc
-
 module Test where
 import Test.QuickCheck (Property, (==>))
 import Submission (celsiusToFarenheit, nCopies, numEvens, numManyEvens)

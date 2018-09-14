@@ -6,21 +6,6 @@ import csv
 
 from markus_tester import MarkusTester, MarkusTest, MarkusTestSpecs
 
-def _get_haskell_global_pkg_dir():
-    """
-    Return the directory containing globally installed Haskell packages, or the
-    empty string if there are none. 
-
-    Note: if there are none then haskell probably hasn't been installed properly 
-    and that is a problem. All tests will fail
-    """
-    cmd = ['ghc-pkg', 'list', '--global']
-    proc = subprocess.run(cmd, stdout=subprocess.PIPE, universal_newlines=True)
-    pkg_dir = (proc.stdout.splitlines() or [''])[0].strip(':')
-    return pkg_dir
-
-HASKELL_PKG_GLOBAL = _get_haskell_global_pkg_dir()
-
 class MarkusHaskellTest(MarkusTest):
 
     def __init__(self, tester, feedback_open, test_file, result):
@@ -85,22 +70,11 @@ class MarkusHaskellTester(MarkusTester):
         """
         Return a dictionary of all environment variables required to run haskell tests.
         The environment variable are a copy of the current environment with extra paths
-        added to the GHC_PACKAGE_PATH and PATH variables. 
+        added to the GHC_PACKAGE_PATH.
 
         GHC_PACKAGE_PATH <- tells the haskell compiler where to find installed packages
-        PATH <- we need to add the package bin directory to run installed haskell executables
         """
-        markus_cabal_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'markus_cabal')
-        cabal_pkg_dir = os.path.join(markus_cabal_dir, 'package.conf.d')
-        cabal_bin_dir = os.path.join(markus_cabal_dir, 'packages', 'bin')
-        
-        ghc_paths = ':'.join([cabal_pkg_dir,
-                              HASKELL_PKG_GLOBAL,
-                              os.environ.get('GHC_PACKAGE_PATH', '')]).strip(':')
-
-        path_paths = ':'.join([cabal_bin_dir, os.environ.get('PATH', '')]).strip(':')
-        
-        env_update = {'GHC_PACKAGE_PATH' : ghc_paths, 'PATH' : path_paths}
+        env_update = {'GHC_PACKAGE_PATH' : self.specs.get('ghc_package_path', '')}
         return {**os.environ, **env_update}
 
     def run_haskell_tests(self):
