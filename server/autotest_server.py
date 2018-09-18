@@ -394,54 +394,6 @@ def get_cleanup_preexec_fn():
 
     return preexec_fn
 
-def run_test_scripts(cmd, test_scripts, tests_path, test_username):
-    """
-    Run each test script in test_scripts in the tests_path directory using the 
-    command cmd. Return the results. 
-    """
-    results = []
-    preexec_fn = get_test_preexec_fn()
-    for file_name, timeout in test_scripts.items():
-        out, err = '', '' 
-        start = time.time()
-        timeout_expired = None
-        try:
-            args = cmd.format(file_name)
-            proc = subprocess.Popen(args, start_new_session=True, cwd=tests_path, shell=True, 
-                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=preexec_fn)
-            try:
-                out, err = proc.communicate(timeout=timeout)
-            except subprocess.TimeoutExpired:
-                pgrp = os.getpgid(proc.pid)
-                if test_username == current_user():
-                    os.killpg(pgrp, signal.SIGKILL)
-                else:
-                    killpg_cmd = f"sudo -u {test_username} -- bash -c 'kill -KILL -{pgrp}'"
-                    subprocess.run(killpg_cmd, shell=True)
-                out, err = proc.communicate()
-                timeout_expired = timeout
-        except Exception as e:
-            err += '\n\n{}'.format(e)
-        finally:
-            out = decode_if_bytes(out)
-            err = decode_if_bytes(err)
-            duration = int(round(time.time()-start, 3) * 1000)
-            results.append(create_test_script_result(file_name, out, err, duration, timeout_expired))
-    return results
-
-def store_results(results, markus_address, assignment_id, group_id, submission_id):
-    """
-    Write the results of multiple test script runs to an output file as a json string.
-    The output file is located at:
-        {TEST_RESULT_DIR}/{markus_address}/{assignment_id}/{group_id}/{submission_id}/ouput.json
-    """
-    clean_markus_address = clean_dir_name(markus_address)
-    run_time = "run_{}".format(int(time.time()))
-    destination = os.path.join(*stringify(TEST_RESULT_DIR, clean_markus_address, assignment_id, group_id, 's{}'.format(submission_id or ''), run_time))
-    os.makedirs(destination, exist_ok=True)
-    with open(os.path.join(destination, 'output.json'), 'w') as f:
-        json.dump(results, f, indent=4)
-
 def kill_with_reaper(test_username):
     """
     Try to kill all processes currently being run by test_username using the method
@@ -473,6 +425,62 @@ def kill_with_reaper(test_username):
         return kill_proc.wait() == 0
     return False
 
+def kill_without_reaper(test_username):
+    """
+    Kill all processes that test_username is able to kill 
+    """
+    kill_cmd = f"sudo -u {test_username} -- bash -c 'kill -KILL -1'"
+    subprocess.run(kill_cmd, shell=True)
+
+def run_test_scripts(cmd, test_scripts, tests_path, test_username):
+    """
+    Run each test script in test_scripts in the tests_path directory using the 
+    command cmd. Return the results. 
+    """
+    results = []
+    preexec_fn = get_test_preexec_fn()
+    for file_name, timeout in test_scripts.items():
+        out, err = '', '' 
+        start = time.time()
+        timeout_expired = None
+        try:
+            args = cmd.format(file_name)
+            proc = subprocess.Popen(args, start_new_session=True, cwd=tests_path, shell=True, 
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=preexec_fn)
+            try:
+                out, err = proc.communicate(timeout=timeout)
+            except subprocess.TimeoutExpired:
+                if test_username == current_user():
+                    pgrp = os.getpgid(proc.pid)
+                    os.killpg(pgrp, signal.SIGKILL)
+                else:
+                    if not kill_with_reaper(test_username):
+                        kill_without_reaper(test_username)
+                out, err = proc.communicate()
+                timeout_expired = timeout
+        except Exception as e:
+            err += '\n\n{}'.format(e)
+        finally:
+            out = decode_if_bytes(out)
+            err = decode_if_bytes(err)
+            duration = int(round(time.time()-start, 3) * 1000)
+            results.append(create_test_script_result(file_name, out, err, duration, timeout_expired))
+    return results
+
+def store_results(results, markus_address, assignment_id, group_id, submission_id):
+    """
+    Write the results of multiple test script runs to an output file as a json string.
+    The output file is located at:
+        {TEST_RESULT_DIR}/{markus_address}/{assignment_id}/{group_id}/{submission_id}/ouput.json
+    """
+    clean_markus_address = clean_dir_name(markus_address)
+    run_time = "run_{}".format(int(time.time()))
+    destination = os.path.join(*stringify(TEST_RESULT_DIR, clean_markus_address, assignment_id, group_id, 's{}'.format(submission_id or ''), run_time))
+    os.makedirs(destination, exist_ok=True)
+    with open(os.path.join(destination, 'output.json'), 'w') as f:
+        json.dump(results, f, indent=4)
+
+
 def clean_up_tests(tests_path, test_username):
     """
     Run a command that kills all tester processes either by killing all 
@@ -482,8 +490,7 @@ def clean_up_tests(tests_path, test_username):
     """ 
     if test_username != current_user():
         if not kill_with_reaper(test_username):
-            kill_cmd = f"sudo -u {test_username} -- bash -c 'kill -KILL -1'"
-            subprocess.run(kill_cmd, shell=True)
+            kill_without_reaper(test_username)
         chmod_cmd = "sudo -u {} -- bash -c 'chmod -Rf ugo+rwX {}'".format(test_username, tests_path)
     else:
         chmod_cmd = 'chmod -Rf ugo+rwX {}'.format(tests_path)
