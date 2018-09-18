@@ -394,7 +394,7 @@ def get_cleanup_preexec_fn():
 
     return preexec_fn
 
-def run_test_scripts(cmd, test_scripts, tests_path):
+def run_test_scripts(cmd, test_scripts, tests_path, test_username):
     """
     Run each test script in test_scripts in the tests_path directory using the 
     command cmd. Return the results. 
@@ -413,11 +413,15 @@ def run_test_scripts(cmd, test_scripts, tests_path):
                 out, err = proc.communicate(timeout=timeout)
             except subprocess.TimeoutExpired:
                 pgrp = os.getpgid(proc.pid)
-                os.killpg(pgrp, signal.SIGKILL)
+                if test_username == current_user():
+                    os.killpg(pgrp, signal.SIGKILL)
+                else:
+                    killpg_cmd = f"sudo -u {test_username} -- bash -c 'kill -KILL -{pgrp}'"
+                    subprocess.run(killpg_cmd, shell=True)
                 out, err = proc.communicate()
                 timeout_expired = timeout
         except Exception as e:
-            err += '\n\n{}'.format(e.message)
+            err += '\n\n{}'.format(e)
         finally:
             out = decode_if_bytes(out)
             err = decode_if_bytes(err)
@@ -478,7 +482,7 @@ def clean_up_tests(tests_path, test_username):
     """ 
     if test_username != current_user():
         if not kill_with_reaper(test_username):
-            kill_cmd = 'sudo -u {} -- bash -c killall -KILL -u {}'.format(test_username, test_username)
+            kill_cmd = "sudo -u {} -- bash -c 'killall -KILL -u {}'".format(test_username, test_username)
             subprocess.run(kill_cmd, shell=True)
         chmod_cmd = "sudo -u {} -- bash -c 'chmod -Rf ugo+rwX {}'".format(test_username, tests_path)
     else:
@@ -532,7 +536,7 @@ def run_test(markus_address, user_api_key, server_api_key, test_scripts, files_p
             setup_files(files_path, tests_path, test_scripts, markus_address, assignment_id)
             cmd = test_run_command(markus_address, user_api_key, assignment_id, 
                                    group_id, group_repo_name, test_username)
-            results = run_test_scripts(cmd, test_scripts, tests_path)
+            results = run_test_scripts(cmd, test_scripts, tests_path, test_username)
             store_results(results, markus_address, assignment_id, group_id, submission_id)
         except Exception as e:
             error = str(e)
