@@ -11,6 +11,11 @@ import xml.etree.ElementTree as eTree
 from markus_tester import MarkusTester, MarkusTest, MarkusTestSpecs
 
 class MarkusTextTestResults(unittest.TextTestResult):
+    """
+    Custom unittest.TextTestResult that saves results as
+    a hash to self.results so they can be more easily 
+    parsed by the MarkusPythonTest.run function
+    """
     def __init__(self, stream, descriptions, verbosity):
         super().__init__(stream, descriptions, verbosity)
         self.results = []
@@ -64,8 +69,9 @@ class MarkusPythonTester(MarkusTester):
 
     def _load_unittest_tests(self, test_file):
         """
+        Discover unittest tests in test_file and return 
+        a unittest.TestSuite that contains these tests 
         """
-        # get TestSuites from test files
         test_loader = unittest.defaultTestLoader
         test_file_dir = os.path.dirname(test_file)
         discovered_tests = test_loader.discover(test_file_dir, test_file)
@@ -73,6 +79,9 @@ class MarkusPythonTester(MarkusTester):
 
     def _parse_junitxml(self, xml_filename):
         """
+        Parse pytest results written to the file named
+        xml_filename and yield a hash containing result data
+        for each testcase so it can be parsed by MarkusPythonTest.run
         """
         tree = eTree.parse(xml_filename)
         root = tree.getroot()
@@ -92,6 +101,8 @@ class MarkusPythonTester(MarkusTester):
 
     def _run_unittest_tests(self, test_file):
         """
+        Run unittest tests in test_file and return the results
+        of these tests
         """
         test_suite = self._load_unittest_tests(test_file)
         with open(os.devnull, 'w') as nullstream:    
@@ -104,6 +115,8 @@ class MarkusPythonTester(MarkusTester):
 
     def _run_pytest_tests(self, test_file):
         """
+        Run unittest tests in test_file and return the results
+        of these tests
         """
         results = []
         this_dir = os.path.dirname(os.path.abspath(__file__))
@@ -114,6 +127,10 @@ class MarkusPythonTester(MarkusTester):
 
     def _detect_test_tool_function(self, test_file):
         """
+        Return the function used to run the tests in 
+        test_file. Run as unittest if the file imports
+        unittests, run as pytest if the file imports 
+        pytest. Otherwise run as pytest
         """
         with open(test_file) as f:
             for line in f:
@@ -127,6 +144,7 @@ class MarkusPythonTester(MarkusTester):
 
     def run_python_tests(self):
         """
+        Return a dict mapping each filename to its results
         """
         results = {}
         for test_file in self.specs.tests:

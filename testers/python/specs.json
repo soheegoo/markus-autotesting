@@ -1,4 +1,5 @@
 {
+  "path_to_uam": "/path/to/uam",
   "test_timeout": 10,
   "global_timeout": 3600,
   "feedback_file": null
