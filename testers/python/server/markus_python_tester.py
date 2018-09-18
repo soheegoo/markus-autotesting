@@ -89,13 +89,12 @@ class MarkusPythonTester(MarkusTester):
             yield result
 
     def _run_unittest_tests(self, test_file):
-        results = TextTestResultWithSuccesses()
         test_suite = self._load_unittest_tests(test_file)
         with open(os.devnull, 'w') as nullstream:    
             test_runner = unittest.TextTestRunner(
                 verbosity=2, # TODO: don't hardcode this
                 stream=nullstream,
-                resultclass=TextTestResultWithSuccesses)
+                resultclass=MarkusTextTestResults)
             test_result = test_runner.run(test_suite)
         return test_result.results
 
