@@ -482,7 +482,7 @@ def clean_up_tests(tests_path, test_username):
     """ 
     if test_username != current_user():
         if not kill_with_reaper(test_username):
-            kill_cmd = "sudo -u {} -- bash -c 'killall -KILL -u {}'".format(test_username, test_username)
+            kill_cmd = f"sudo -u {test_username} -- bash -c 'kill -KILL -1'"
             subprocess.run(kill_cmd, shell=True)
         chmod_cmd = "sudo -u {} -- bash -c 'chmod -Rf ugo+rwX {}'".format(test_username, tests_path)
     else:
