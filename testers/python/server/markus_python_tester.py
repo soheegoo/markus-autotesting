@@ -72,6 +72,8 @@ class MarkusPythonTester(MarkusTester):
         return unittest.TestSuite(discovered_tests)
 
     def _parse_junitxml(self, xml_filename):
+        """
+        """
         tree = eTree.parse(xml_filename)
         root = tree.getroot()
         for testcase in root.iterfind('testcase'):
@@ -89,6 +91,8 @@ class MarkusPythonTester(MarkusTester):
             yield result
 
     def _run_unittest_tests(self, test_file):
+        """
+        """
         test_suite = self._load_unittest_tests(test_file)
         with open(os.devnull, 'w') as nullstream:    
             test_runner = unittest.TextTestRunner(
@@ -99,6 +103,8 @@ class MarkusPythonTester(MarkusTester):
         return test_result.results
 
     def _run_pytest_tests(self, test_file):
+        """
+        """
         results = []
         this_dir = os.path.dirname(os.path.abspath(__file__))
         with tempfile.NamedTemporaryFile(mode="w+", dir=this_dir) as sf:
@@ -116,7 +122,7 @@ class MarkusPythonTester(MarkusTester):
                         return self._run_unittest_tests
                     if 'pytest' in line:
                         return self._run_pytest_tests
-        return self._run_unittest_tests
+        return self._run_pytest_tests
 
 
     def run_python_tests(self):
