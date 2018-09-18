@@ -1,3 +1,4 @@
 testtools
 timeout-decorator
 python-ta
+pytest

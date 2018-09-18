@@ -3,7 +3,7 @@
 import os
 import sys
 
-from markus_pam_tester import MarkusPAMTester
+from markus_pam_tester import MarkusPythonTester
 from markus_tester import MarkusTestSpecs
 from markusapi import Markus
 
@@ -41,7 +41,7 @@ if __name__ == '__main__':
     """
     # SPECS['feedback_file'] = 'feedback_python.txt'
 
-    tester = MarkusPAMTester(specs=SPECS)
+    tester = MarkusPythonTester(specs=SPECS)
     tester.run()
 
     """
