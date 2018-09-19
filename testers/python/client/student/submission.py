@@ -10,6 +10,5 @@ def loop():
     while True:
         pass
 
-
-def return_xml():
-    return '<escapeme>\'"&</escapeme>'
+def return_json():
+    return ']}[{"\\'

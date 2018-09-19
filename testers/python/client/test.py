@@ -22,9 +22,9 @@ class Test2(unittest.TestCase):
         """This test should timeout"""
         submission.loop()
 
-    def test_fails_and_outputs_xml(self):
-        """This test should fail and print xml"""
-        self.fail(submission.return_xml())
+    def test_fails_and_outputs_json(self):
+        """This test should fail and print json"""
+        self.fail(submission.return_json())
 
 
 if __name__ == '__main__':

@@ -29,14 +29,6 @@ if __name__ == '__main__':
     SPECS['test_points'] = {'test.py': POINTS, 'test2.py': POINTS}
 
     """
-    The max time to run a single test (defaults to 10 seconds if commented out).
-    (this timeout may not work in particular cases, e.g. when using the hypothesis package and with multi-threading, or
-    you may want to have a specific timeout per test function; in those cases, you can decorate your test functions:
-    @timeout_decorator.timeout(10, use_signals=False)
-    """
-    # SPECS['test_timeout'] = 10
-
-    """
     The feedback file name; defaults to no feedback file if commented out.
     """
     # SPECS['feedback_file'] = 'feedback_python.txt'
