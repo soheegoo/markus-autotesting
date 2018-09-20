@@ -1,11 +1,10 @@
 import contextlib
-import subprocess
 import os
 import tempfile
 import csv
 import unittest
 import pytest
-import io
+import sys
 import xml.etree.ElementTree as eTree
 
 from markus_tester import MarkusTester, MarkusTest, MarkusTestSpecs
@@ -37,7 +36,7 @@ class MarkusTextTestResults(unittest.TextTestResult):
         super().addError(test, err)
         self.results.append({'status': 'error', 
                              'name'  : test.id(), 
-                             'errors': self.failures[-1][-1]})
+                             'errors': self.errors[-1][-1]})
 
 class MarkusPythonTest(MarkusTest):
 
@@ -97,6 +96,10 @@ class MarkusPythonTester(MarkusTester):
             else:
                 result['status'] = 'success'
                 result['errors'] = ''
+            error = testcase.find('error')
+            if error is not None:
+                result['status'] = 'error'
+                result['errors'] = error.text
             yield result
 
     def _run_unittest_tests(self, test_file):
@@ -120,9 +123,14 @@ class MarkusPythonTester(MarkusTester):
         """
         results = []
         this_dir = os.getcwd()
-        with tempfile.NamedTemporaryFile(mode="w+", dir=this_dir) as sf:
-            pytest.main([test_file, '--junitxml', sf.name])
-            results = list(self._parse_junitxml(sf))
+        with open(os.devnull, 'w') as null_out:
+            try:
+                sys.stdout = null_out
+                with tempfile.NamedTemporaryFile(mode="w+", dir=this_dir) as sf:
+                    pytest.main([test_file, '--junitxml', sf.name])
+                    results = list(self._parse_junitxml(sf))
+            finally:
+                sys.stdout = sys.__stdout__
         return results
 
     def _detect_test_tool_function(self, test_file):
@@ -155,19 +163,14 @@ class MarkusPythonTester(MarkusTester):
 
     def run(self):
         try:
-            try:
-                results = self.run_python_tests()
-            except subprocess.CalledProcessError as e:
-                msg = (e.stdout or '' + e.stderr or '') or str(e)
-                print(MarkusTester.error_all(message=msg), flush=True)
-                return
+            results = self.run_python_tests()
             with contextlib.ExitStack() as stack:
-                feedback_open = (stack.enter_context(open(self.specs.feedback_file, 'w'))
+                self.feedback_open = (stack.enter_context(open(self.specs.feedback_file, 'w'))
                                  if self.specs.feedback_file is not None
                                  else None)
                 for test_file, result in results.items():
                     for res in result:
-                        test = self.test_class(self, feedback_open, test_file, res)
+                        test = self.test_class(self, self.feedback_open, test_file, res)
                         print(test.run(), flush=True)
         except Exception as e:
             print(MarkusTester.error_all(message=str(e)), flush=True)
