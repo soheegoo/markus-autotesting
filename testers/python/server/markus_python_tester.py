@@ -119,7 +119,7 @@ class MarkusPythonTester(MarkusTester):
         of these tests
         """
         results = []
-        this_dir = os.path.dirname(os.path.abspath(__file__))
+        this_dir = os.getcwd()
         with tempfile.NamedTemporaryFile(mode="w+", dir=this_dir) as sf:
             pytest.main([test_file, '--junitxml', sf.name])
             results = list(self._parse_junitxml(sf))

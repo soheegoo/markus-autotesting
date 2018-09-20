@@ -88,7 +88,7 @@ class MarkusHaskellTester(MarkusTester):
         and then running all the discovered tests and parsing the results from a csv file.
         """
         results = {}
-        this_dir = os.path.dirname(os.path.abspath(__file__))
+        this_dir = os.getcwd()
         for test_file in self.specs.tests:
             with tempfile.NamedTemporaryFile(dir=this_dir) as f:
                 cmd = ['tasty-discover', '.', '_', f.name] + self._test_run_flags(test_file)
