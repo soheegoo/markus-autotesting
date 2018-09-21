@@ -35,6 +35,8 @@ class MarkusRacketTest(MarkusTest):
 
 class MarkusRacketTester(MarkusTester):
 
+    ERROR_MSGS = {'bad_json': 'Unable to parse test results: {}'}
+
     def __init__(self, specs, test_class=MarkusRacketTest):
         super().__init__(specs, test_class)
     
@@ -69,7 +71,7 @@ class MarkusRacketTester(MarkusTester):
                         try:
                             test_results = json.loads(result.stdout)
                         except json.JSONDecodeError:
-                            msg = f'Unable to parse test results: {result.stdout}'
+                            msg = MarkusRacketTester.ERROR_MSGS['bad_json'].format(result.stdout)
                             print(MarkusTester.error_all(message=msg), flush=True)
                             continue
                         for t_result in test_results:
