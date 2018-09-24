@@ -5,6 +5,7 @@ import csv
 import unittest
 import pytest
 import sys
+import subprocess
 import xml.etree.ElementTree as eTree
 
 from markus_tester import MarkusTester, MarkusTest, MarkusTestSpecs
@@ -126,9 +127,20 @@ class MarkusPythonTester(MarkusTester):
         with open(os.devnull, 'w') as null_out:
             try:
                 sys.stdout = null_out
-                with tempfile.NamedTemporaryFile(mode="w+", dir=this_dir) as sf:
-                    pytest.main([test_file, '--junitxml', sf.name])
-                    results = list(self._parse_junitxml(sf))
+                legacy_venv_dir = self.specs.get('legacy_virtualenv')
+                if legacy_venv_dir is None:
+                    with tempfile.NamedTemporaryFile(mode="w+", dir=this_dir) as sf:
+                        pytest.main([test_file, '--junitxml', sf.name])
+                        results = list(self._parse_junitxml(sf))
+                else:
+                    try:
+                        with tempfile.NamedTemporaryFile(dir=this_dir, delete=False) as sf:
+                            tmp_file_path = sf.name
+                        pytest_exec = os.path.join(legacy_venv_dir, 'bin', 'pytest')
+                        subprocess.run([pytest_exec, '--junitxml', tmp_file_path, test_file])
+                        results = list(self._parse_junitxml(tmp_file_path))
+                    finally:
+                        os.unlink(tmp_file_path)
             finally:
                 sys.stdout = sys.__stdout__
         return results
@@ -140,13 +152,14 @@ class MarkusPythonTester(MarkusTester):
         unittests, run as pytest if the file imports 
         pytest. Otherwise run as pytest
         """
-        with open(test_file) as f:
-            for line in f:
-                if 'import' in line:
-                    if 'unittest' in line:
-                        return self._run_unittest_tests
-                    if 'pytest' in line:
-                        return self._run_pytest_tests
+        if self.specs.get('legacy_virtualenv') is None:
+            with open(test_file) as f:
+                for line in f:
+                    if 'import' in line:
+                        if 'unittest' in line:
+                            return self._run_unittest_tests
+                        if 'pytest' in line:
+                            return self._run_pytest_tests
         return self._run_pytest_tests
 
 
