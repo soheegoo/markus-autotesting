@@ -50,8 +50,8 @@ class MarkusRacketTester(MarkusTester):
         for test_file in self.specs.tests:
             suite_name = self.specs['test_suite_name'][test_file]
             cmd = [markus_rkt, '--test-suite', suite_name, test_file]
-            rkt = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-            results[test_file] = rkt
+            rkt = subprocess.run(cmd, stdout=subprocess.PIPE, universal_newlines=True)
+            results[test_file] = rkt.stdout
         return results
         
     def run(self):
@@ -69,9 +69,9 @@ class MarkusRacketTester(MarkusTester):
                 for test_file, result in results.items():
                     if result.strip():
                         try:
-                            test_results = json.loads(result.stdout)
+                            test_results = json.loads(result)
                         except json.JSONDecodeError:
-                            msg = MarkusRacketTester.ERROR_MSGS['bad_json'].format(result.stdout)
+                            msg = MarkusRacketTester.ERROR_MSGS['bad_json'].format(result)
                             print(MarkusTester.error_all(message=msg), flush=True)
                             continue
                         for t_result in test_results:
