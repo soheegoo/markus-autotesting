@@ -31,6 +31,10 @@ REDIS_POP_HASH = '{}:{}'.format(config.REDIS_PREFIX, config.REDIS_POP_HASH)
 # have at least n=(value) resources more than tester processes 
 RLIMIT_ADJUSTMENTS = {'RLIMIT_NPROC': 10}
 
+### CUSTOM EXCEPTION CLASSES ###
+
+class AutotestError(Exception): pass
+
 ### HELPER FUNCTIONS ###
 
 def stringify(*args):
@@ -195,7 +199,10 @@ def tester_user():
     This will block until a user is available if the queue is empty. 
     """
     r = redis_connection()
-    _, user_data = r.blpop(REDIS_WORKERS_LIST)
+    try:
+        _, user_data = r.blpop(REDIS_WORKERS_LIST)
+    except rq.timeouts.JobTimeoutException:
+        raise AutotestError('No worker users available to run this job')
     try:
         yield json.loads(decode_if_bytes(user_data))
     finally:
@@ -530,27 +537,28 @@ def run_test(markus_address, user_api_key, server_api_key, test_scripts, files_p
 
     This function should be used by an rq worker.
     """
-    job = rq.get_current_job()
-    update_pop_interval_stat(job.origin)
-    time_to_service = int(round(time.time() - enqueue_time, 3) * 1000)
-    
     results = []
     error = None
-    with tester_user() as user_data:
-        test_username = user_data.get('username')
-        try:
+    time_to_service = int(round(time.time() - enqueue_time, 3) * 1000)
+    try:
+        job = rq.get_current_job()
+        update_pop_interval_stat(job.origin)
+        with tester_user() as user_data:
+            test_username = user_data.get('username')
             tests_path = user_data['worker_dir']
-            setup_files(files_path, tests_path, test_scripts, markus_address, assignment_id)
-            cmd = test_run_command(markus_address, user_api_key, assignment_id, 
-                                   group_id, group_repo_name, test_username)
-            results = run_test_scripts(cmd, test_scripts, tests_path, test_username)
-            store_results(results, markus_address, assignment_id, group_id, submission_id)
-        except Exception as e:
-            error = str(e)
-        finally:
-            clean_up_tests(tests_path, test_username)
-            report(results, markus_address, assignment_id, group_id, 
-                   server_api_key, run_id, error, time_to_service)
+            try:
+                setup_files(files_path, tests_path, test_scripts, markus_address, assignment_id)
+                cmd = test_run_command(markus_address, user_api_key, assignment_id, 
+                                       group_id, group_repo_name, test_username)
+                results = run_test_scripts(cmd, test_scripts, tests_path, test_username)
+                store_results(results, markus_address, assignment_id, group_id, submission_id)
+            finally:
+                clean_up_tests(tests_path, test_username)
+    except Exception as e:
+        error = str(e)
+    finally:
+        report(results, markus_address, assignment_id, group_id,
+               server_api_key, run_id, error, time_to_service)
 
 ### UPDATE TEST SCRIPTS ### 
 
