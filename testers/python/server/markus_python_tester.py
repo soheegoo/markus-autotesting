@@ -24,25 +24,34 @@ class MarkusTextTestResults(unittest.TextTestResult):
     def addSuccess(self, test):
         self.results.append({'status': 'success', 
                              'name'  : test.id(), 
-                             'errors': ''})
+                             'errors': '',
+                             'description': test._testMethodDoc})
         self.successes.append(test)
 
     def addFailure(self, test, err):
         super().addFailure(test, err)
         self.results.append({'status': 'failure', 
                              'name'  : test.id(), 
-                             'errors': self.failures[-1][-1]})
+                             'errors': self.failures[-1][-1],
+                             'description': test._testMethodDoc})
 
     def addError(self, test, err):
         super().addError(test, err)
         self.results.append({'status': 'error', 
                              'name'  : test.id(), 
-                             'errors': self.errors[-1][-1]})
+                             'errors': self.errors[-1][-1],
+                             'description': test._testMethodDoc})
+
+class AddDocstringToJunitXMLPlugin(object):
+    def pytest_itemcollected(self, item):
+        docstring = item.obj.__doc__ or ''
+        item.user_properties.append(("description", docstring))
 
 class MarkusPythonTest(MarkusTest):
 
     def __init__(self, tester, feedback_open, test_file, result):
         self._test_name = result['name']
+        self.description = result.get('description')
         all_points = tester.specs.matrix[test_file][MarkusTestSpecs.MATRIX_NODATA_KEY]
         points = all_points.get(self._test_name, 1)
         self.status = result['status']
@@ -51,7 +60,10 @@ class MarkusPythonTest(MarkusTest):
 
     @property
     def test_name(self):
-        return self._test_name
+        if self.description:
+            return f'{self._test_name} - {self.description}'
+        else:
+            return self._test_name
 
     def run(self):
         if self.status == "success":
@@ -101,6 +113,9 @@ class MarkusPythonTester(MarkusTester):
             if error is not None:
                 result['status'] = 'error'
                 result['errors'] = error.text
+            description = testcase.find("./properties/property[@name='description']")
+            if description is not None:
+                result['description'] = description.attrib['value']
             yield result
 
     def _run_unittest_tests(self, test_file):
@@ -130,7 +145,7 @@ class MarkusPythonTester(MarkusTester):
                 legacy_venv_dir = self.specs.get('legacy_virtualenv')
                 if legacy_venv_dir is None:
                     with tempfile.NamedTemporaryFile(mode="w+", dir=this_dir) as sf:
-                        pytest.main([test_file, '--junitxml', sf.name])
+                        pytest.main([test_file, '--junitxml', sf.name], plugins=[AddDocstringToJunitXMLPlugin()])
                         results = list(self._parse_junitxml(sf))
                 else:
                     try:
