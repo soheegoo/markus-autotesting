@@ -61,7 +61,7 @@ class MarkusPythonTest(MarkusTest):
     @property
     def test_name(self):
         if self.description:
-            return f'{self._test_name} - {self.description}'
+            return f'{self._test_name} ({self.description})'
         else:
             return self._test_name
 
