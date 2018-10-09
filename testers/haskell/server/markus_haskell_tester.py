@@ -92,14 +92,11 @@ class MarkusHaskellTester(MarkusTester):
         for test_file in self.specs.tests:
             with tempfile.NamedTemporaryFile(dir=this_dir) as f:
                 cmd = ['tasty-discover', '.', '_', f.name] + self._test_run_flags(test_file)
-                discover_proc = subprocess.run(cmd, stderr=subprocess.PIPE, stdout=subprocess.DEVNULL,
+                discover_proc = subprocess.run(cmd, stdout=subprocess.DEVNULL,
                                                universal_newlines=True, env=self._get_haskell_env())
-                if discover_proc.stderr:
-                    print(MarkusTester.error_all(message=discover_proc.stderr), flush=True)
-                    continue
                 with tempfile.NamedTemporaryFile(mode="w+", dir=this_dir) as sf:
                     cmd = ['runghc', f.name, f"--stats={sf.name}"]
-                    test_proc = subprocess.run(cmd, stderr=subprocess.PIPE, stdout=subprocess.DEVNULL,
+                    test_proc = subprocess.run(cmd, stdout=subprocess.DEVNULL,
                                                universal_newlines=True, env=self._get_haskell_env())
                     results[test_file] = {'stderr':test_proc.stderr, 'results':self._parse_test_results(csv.reader(sf))}
         return results
