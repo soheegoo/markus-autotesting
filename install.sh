@@ -83,19 +83,25 @@ install_venv() {
     source ${servervenv}/bin/activate
     pip install wheel # must be installed before requirements
     pip install -r ${SERVERDIR}/requirements.txt
+    deactivate
 }
 
 start_queues() {
+    local servervenv=${SERVERDIR}/venv/bin/activate
     local supervisorconf=${SERVERDIR}/supervisord.conf
-    local supervisorcmd="supervisord -c ${supervisorconf}"
-    if [[ -n ${SERVERUSER} ]]; then
-        supervisorcmd="sudo -u ${SERVERUSER} --set-home -- ${supervisorcmd}"
-    fi
 
     echo "[AUTOTEST] Generating supervisor config in '${supervisorconf}' and starting rq workers"
+    source ${servervenv}
     ${SERVERDIR}/generate_supervisord_conf.py ${supervisorconf}
-    pushd ${SERVERDIR} > /dev/null
-    ${supervisorcmd}
+    pushd ${WORKSPACEDIR} > /dev/null
+    if [[ -z ${SERVERUSER} ]]; then
+        supervisord -c ${supervisorconf}
+    else
+        # an extra venv sourcing is needed because sudo loses it
+        sudo -u ${SERVERUSER} -- bash -c "source ${servervenv} &&
+                                          supervisord -c ${supervisorconf} &&
+                                          deactivate"
+    fi
     popd > /dev/null
     deactivate
 }
@@ -119,7 +125,7 @@ create_enqueuer_wrapper() {
 		${SERVERDIR}/autotest_enqueuer.py "\$@"
 	EOF
     sudo chown ${SERVERUSEREFFECTIVE}:${SERVERUSEREFFECTIVE} ${enqueuer}
-    sudo chmod u+x ${enqueuer}
+    sudo chmod u=rwx,go=r ${enqueuer}
 }
 
 create_markus_config() {

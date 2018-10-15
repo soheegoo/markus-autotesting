@@ -14,8 +14,8 @@ public class Submission {
         while (true) {}
     }
 
-    public String returnXml() {
-        return "<escapeme>'\" &</escapeme>";
+    public String returnJson() {
+        return "]}[{\"\\";
     }
 
 }
