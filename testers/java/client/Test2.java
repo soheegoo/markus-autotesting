@@ -28,9 +28,9 @@ public class Test2 {
     }
 
     @Test
-    @DisplayName("This test should fail and print xml")
-    public void testFailsAndOutputsXml() {
-        fail(submission.returnXml());
+    @DisplayName("This test should fail and print json")
+    public void testFailsAndOutputsJson() {
+        fail(submission.returnJson());
     }
 
 }

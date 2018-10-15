@@ -6,21 +6,6 @@ import csv
 
 from markus_tester import MarkusTester, MarkusTest, MarkusTestSpecs
 
-def _get_haskell_global_pkg_dir():
-    """
-    Return the directory containing globally installed Haskell packages, or the
-    empty string if there are none. 
-
-    Note: if there are none then haskell probably hasn't been installed properly 
-    and that is a problem. All tests will fail
-    """
-    cmd = ['ghc-pkg', 'list', '--global']
-    proc = subprocess.run(cmd, stdout=subprocess.PIPE, universal_newlines=True)
-    pkg_dir = (proc.stdout.splitlines() or [''])[0].strip(':')
-    return pkg_dir
-
-HASKELL_PKG_GLOBAL = _get_haskell_global_pkg_dir()
-
 class MarkusHaskellTest(MarkusTest):
 
     def __init__(self, tester, feedback_open, test_file, result):
@@ -85,23 +70,14 @@ class MarkusHaskellTester(MarkusTester):
         """
         Return a dictionary of all environment variables required to run haskell tests.
         The environment variable are a copy of the current environment with extra paths
-        added to the GHC_PACKAGE_PATH and PATH variables. 
+        added to the GHC_PACKAGE_PATH.
 
         GHC_PACKAGE_PATH <- tells the haskell compiler where to find installed packages
-        PATH <- we need to add the package bin directory to run installed haskell executables
         """
-        markus_cabal_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'markus_cabal')
-        cabal_pkg_dir = os.path.join(markus_cabal_dir, 'package.conf.d')
-        cabal_bin_dir = os.path.join(markus_cabal_dir, 'packages', 'bin')
-        
-        ghc_paths = ':'.join([cabal_pkg_dir,
-                              HASKELL_PKG_GLOBAL,
-                              os.environ.get('GHC_PACKAGE_PATH', '')]).strip(':')
-
-        path_paths = ':'.join([cabal_bin_dir, os.environ.get('PATH', '')]).strip(':')
-        
-        env_update = {'GHC_PACKAGE_PATH' : ghc_paths, 'PATH' : path_paths}
-        return {**os.environ, **env_update}
+        ghc_pkg_pth = self.specs.get('ghc_package_path')
+        if ghc_pkg_pth is not None:
+            return {**os.environ, **{'GHC_PACKAGE_PATH' : ghc_pkg_pth}}
+        return os.environ
 
     def run_haskell_tests(self):
         """
@@ -112,17 +88,16 @@ class MarkusHaskellTester(MarkusTester):
         and then running all the discovered tests and parsing the results from a csv file.
         """
         results = {}
+        this_dir = os.getcwd()
         for test_file in self.specs.tests:
-
-            with tempfile.NamedTemporaryFile() as f:
+            with tempfile.NamedTemporaryFile(dir=this_dir) as f:
                 cmd = ['tasty-discover', '.', '_', f.name] + self._test_run_flags(test_file)
-                discover_proc = subprocess.run(cmd, stderr=subprocess.PIPE, stdout=subprocess.DEVNULL, universal_newlines=True, env=self._get_haskell_env())
-                if discover_proc.stderr:
-                    print(MarkusTester.error_all(message=discover_proc.stderr), flush=True)
-                    continue
-                with tempfile.NamedTemporaryFile(mode="w+") as sf:
+                discover_proc = subprocess.run(cmd, stdout=subprocess.DEVNULL,
+                                               universal_newlines=True, env=self._get_haskell_env())
+                with tempfile.NamedTemporaryFile(mode="w+", dir=this_dir) as sf:
                     cmd = ['runghc', f.name, f"--stats={sf.name}"]
-                    test_proc = subprocess.run(cmd, stderr=subprocess.PIPE, stdout=subprocess.DEVNULL, universal_newlines=True, env=self._get_haskell_env())
+                    test_proc = subprocess.run(cmd, stdout=subprocess.DEVNULL,
+                                               universal_newlines=True, env=self._get_haskell_env())
                     results[test_file] = {'stderr':test_proc.stderr, 'results':self._parse_test_results(csv.reader(sf))}
         return results
 
