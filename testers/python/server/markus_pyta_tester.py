@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 from collections import defaultdict
 
 import python_ta
@@ -8,6 +9,7 @@ from python_ta.reporters import PositionReporter, PlainReporter
 
 from markus_tester import MarkusTester, MarkusTest
 
+PYTA_ANNOTATION_FILE = 'feedback_pyta.json' #TODO: don't hardcode this
 
 class MarkusPyTAReporter(PositionReporter):
 
@@ -88,5 +90,9 @@ class MarkusPyTATester(MarkusTester):
         self.annotations.extend(test.annotations)
 
     def after_tester_run(self):
+        #TODO: make writing to the file conditional on whether we want to
+        #      send annotations back to MarkUs
+        with open(PYTA_ANNOTATION_FILE, 'w') as f:
+            json.dump(self.annotations)
         if self.devnull:
             self.devnull.close()
