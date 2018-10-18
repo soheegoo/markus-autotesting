@@ -472,6 +472,10 @@ def kill_without_reaper(test_username):
     subprocess.run(kill_cmd, shell=True)
 
 def load_hooks(hook_script_path):
+    """
+    Return module loaded from hook_script_path. Also return any error
+    messages that were raised when trying to import the module
+    """
     dirpath = os.path.dirname(os.path.realpath(hook_script_path))
     basename = os.path.basename(hook_script_path)
     module_name, _ = os.path.splitext(basename)
@@ -482,40 +486,36 @@ def load_hooks(hook_script_path):
         return None, f'import error: {str(e)}\n'
     return hooks_module, ''
 
-def run_hook(hook_module, function_name, args=[], kwargs={}):
-    if hook_module is not None:
+def run_hook(hooks_module, function_name, kwargs={}):
+    """
+    Run the function named function_name in the module
+    hooks_module with the arguments in kwargs.  If an 
+    error occurs, return the error message. 
+    """
+    if hooks_module is not None:
         try:
-            hook = getattr(hook_module, function_name)
-            hook(*args, **kwargs)
+            hook = getattr(hooks_module, function_name)
+            hook(**kwargs)
         except BaseException as e:  # we want to catch ALL possible exceptions so that hook
                                     # code will not stop the execution of further scripts
             return f'{function_name}: {str(e)}\n'
     return ''
 
-def get_hook_arguments():
-    return [], {}
-
-def run_test_scripts(cmd, test_scripts, tests_path, test_username, hook_script_path=None,
-                     hook_args=[], hook_kwargs={}):
+def run_test_scripts(cmd, test_scripts, tests_path, test_username, hooks_module, hook_kwargs={}):
     """
     Run each test script in test_scripts in the tests_path directory using the 
     command cmd. Return the results. 
     """
     results = []
     preexec_fn = get_test_preexec_fn()
-    all_hooks_error = ''
 
-    hooks, hooks_import_error = load_hooks(hook_script_path) if hook_script_path else (None, None)
-    all_hooks_error += hooks_import_error
-
-    all_hooks_error += run_hook(hooks, HOOK_NAMES['before_all'], args=hook_args, kwargs=hook_kwargs)
     for file_name, timeout in test_scripts.items():
         out, err = '', '' 
         start = time.time()
         timeout_expired = None
         hooks_stderr = ''
 
-        hooks_stderr += run_hook(hooks, HOOK_NAMES['before_each'], args=hook_args, kwargs=hook_kwargs)
+        hooks_stderr += run_hook(hooks_module, HOOK_NAMES['before_each'], kwargs=hook_kwargs)
         try:
             args = cmd.format(file_name)
             proc = subprocess.Popen(args, start_new_session=True, cwd=tests_path, shell=True, 
@@ -534,12 +534,12 @@ def run_test_scripts(cmd, test_scripts, tests_path, test_username, hook_script_p
         except Exception as e:
             err += '\n\n{}'.format(e)
         finally:
-            hooks_stderr += run_hook(hooks, HOOK_NAMES['after_each'], args=hook_args, kwargs=hook_kwargs)
+            hooks_stderr += run_hook(hooks_module, HOOK_NAMES['after_each'], kwargs=hook_kwargs)
             out = decode_if_bytes(out)
             err = decode_if_bytes(err)
             duration = int(round(time.time()-start, 3) * 1000)
             results.append(create_test_script_result(file_name, out, err, duration, hooks_stderr, timeout_expired))
-    return results, all_hooks_error
+    return results
 
 def store_results(results_data, markus_address, assignment_id, group_id, submission_id):
     """
@@ -602,36 +602,41 @@ def run_test(markus_address, server_api_key, test_scripts, hook_script, files_pa
     results = []
     error = None
     time_to_service = int(round(time.time() - enqueue_time, 3) * 1000)
+
     hook_script_path = os.path.join(files_path, hook_script) if hook_script else None
-    all_hooks_error = ''
+    hooks_module, all_hooks_error = load_hooks(hook_script_path) if hook_script_path else (None, '')
+    api = Markus(server_api_key, markus_address)
     try:
         job = rq.get_current_job()
         update_pop_interval_stat(job.origin)
-        hook_args, hook_kwargs = get_hook_arguments()
         with tester_user() as user_data:
             test_username = user_data.get('username')
             tests_path = user_data['worker_dir']
+            hook_kwargs = {'api': api, 
+                           'tests_path': tests_path, 
+                           'assignment_id': assignment_id, 
+                           'group_id': group_id, 
+                           'group_repo_name' : group_repo_name}
+            all_hooks_error += run_hook(hooks_module, HOOK_NAMES['before_all'], kwargs=hook_kwargs)
             try:
                 setup_files(files_path, tests_path, test_scripts, hook_script,
                             markus_address, assignment_id)
                 cmd = test_run_command(test_username=test_username)
-                results, all_hooks_error = run_test_scripts(cmd,
-                                                            test_scripts,
-                                                            tests_path,
-                                                            test_username,
-                                                            hook_script_path,
-                                                            hook_args=hook_args,
-                                                            hook_kwargs=hook_kwargs)
+                results = run_test_scripts(cmd,
+                                           test_scripts,
+                                           tests_path,
+                                           test_username,
+                                           hooks_module,
+                                           hook_kwargs=hook_kwargs)
             finally:
                 stop_tester_processes(test_username)
-                all_hooks_error += run_hook(hooks, HOOK_NAMES['after_all'], args=hook_args, kwargs=hook_kwargs)
+                all_hooks_error += run_hook(hooks_module, HOOK_NAMES['after_all'], kwargs=hook_kwargs)
                 clear_working_directory(tests_path, test_username)
     except Exception as e:
         error = str(e)
     finally:
         results_data = finalize_results_data(results, error, all_hooks_error, time_to_service)
         store_results(results_data, markus_address, assignment_id, group_id, submission_id)
-        api = Markus(server_api_key, markus_address)
         report(results_data, api, assignment_id, group_id, run_id)
 
 ### UPDATE TEST SCRIPTS ### 
