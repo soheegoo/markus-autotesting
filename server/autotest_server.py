@@ -592,7 +592,7 @@ def report(results_data, api, assignment_id, group_id, run_id):
     api.upload_test_script_results(assignment_id, group_id, run_id, json.dumps(results_data))
 
 @clean_after
-def run_test(markus_address, server_api_key, test_scripts, hook_script, files_path,
+def run_test(markus_address, server_api_key, test_scripts, hooks_script, files_path,
              assignment_id, group_id, group_repo_name, submission_id, run_id, enqueue_time):
     """
     Run autotesting tests using the tests in test_scripts on the files in files_path. 
@@ -603,7 +603,7 @@ def run_test(markus_address, server_api_key, test_scripts, hook_script, files_pa
     error = None
     time_to_service = int(round(time.time() - enqueue_time, 3) * 1000)
 
-    hook_script_path = os.path.join(files_path, hook_script) if hook_script else None
+    hook_script_path = os.path.join(files_path, hooks_script) if hooks_script else None
     hooks_module, all_hooks_error = load_hooks(hook_script_path) if hook_script_path else (None, '')
     api = Markus(server_api_key, markus_address)
     try:
@@ -619,7 +619,7 @@ def run_test(markus_address, server_api_key, test_scripts, hook_script, files_pa
                            'group_repo_name' : group_repo_name}
             all_hooks_error += run_hook(hooks_module, HOOK_NAMES['before_all'], kwargs=hook_kwargs)
             try:
-                setup_files(files_path, tests_path, test_scripts, hook_script,
+                setup_files(files_path, tests_path, test_scripts, hooks_script,
                             markus_address, assignment_id)
                 cmd = test_run_command(test_username=test_username)
                 results = run_test_scripts(cmd,
