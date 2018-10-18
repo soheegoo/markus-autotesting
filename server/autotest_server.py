@@ -31,6 +31,11 @@ REDIS_POP_HASH = '{}:{}'.format(config.REDIS_PREFIX, config.REDIS_POP_HASH)
 # have at least n=(value) resources more than tester processes 
 RLIMIT_ADJUSTMENTS = {'RLIMIT_NPROC': 10}
 
+HOOK_NAMES = {'before_all' : 'before_all',
+              'after_all'  : 'after_all',
+              'before_each': 'before_each',
+              'after_each' : 'after_each'}
+
 ### CUSTOM EXCEPTION CLASSES ###
 
 class AutotestError(Exception): pass
@@ -109,14 +114,18 @@ def redis_connection():
     rq.use_connection(redis=redis.Redis(**kwargs))
     return rq.get_current_connection()
 
-def copy_tree(src, dst):
+def copy_tree(src, dst, exclude=[]):
     """
     Recursively copy all files and subdirectories in the path 
     indicated by src to the path indicated by dst. If directories
-    don't exist, they are created. 
+    don't exist, they are created. Do not copy files or directories
+    in the exclude list.
     """
     for fd, file_or_dir in recursive_iglob(src):
-        target = os.path.join(dst, os.path.relpath(file_or_dir, src))
+        src_path = os.path.relpath(file_or_dir, src)
+        if src_path in exclude:
+            continue
+        target = os.path.join(dst, src_path)
         if fd == 'd':
             os.makedirs(target, exist_ok=True)
         else:
@@ -134,7 +143,7 @@ def move_tree(src, dst):
     """
     Recursively move all files and subdirectories in the path 
     indicated by src to the path indicated by dst. If directories
-    don't exist, they are created. 
+    don't exist, they are created.
     """
     os.makedirs(dst, exist_ok=True)
     copy_tree(src, dst)
@@ -177,8 +186,10 @@ def fd_open(path, flags=os.O_RDONLY, *args, **kwargs):
     flags, *args and **kwargs are passed on to os.open.
     """
     fd = os.open(path, flags, *args, **kwargs)
-    yield fd
-    os.close(fd)
+    try:
+        yield fd
+    finally:
+        os.close(fd)
 
 @contextmanager
 def fd_lock(file_descriptor, exclusive=True):
@@ -188,8 +199,10 @@ def fd_lock(file_descriptor, exclusive=True):
     setting the exclusive keyword argument to True or False.
     """
     fcntl.flock(file_descriptor, fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH)
-    yield
-    fcntl.flock(file_descriptor, fcntl.LOCK_UN)
+    try:
+        yield
+    finally:
+        fcntl.flock(file_descriptor, fcntl.LOCK_UN)
 
 @contextmanager
 def tester_user():
@@ -207,6 +220,26 @@ def tester_user():
         yield json.loads(decode_if_bytes(user_data))
     finally:
         r.rpush(REDIS_WORKERS_LIST, user_data)
+
+@contextmanager
+def add_path(path, prepend=True):
+    """
+    Context manager that temporarily adds a path to sys.path.
+    If prepend is True, the path will be prepended otherwise
+    it will be appended.
+    """
+    if prepend:
+        sys.path.insert(0, path)
+    else:
+        sys.path.append(path)
+    try:
+        yield
+    finally:
+        try:
+            i = (sys.path if prepend else sys.path[::-1]).index(path)
+            sys.path.pop(i)
+        except ValueError:
+            pass
 
 ### MAINTENANCE FUNCTIONS ###
 
@@ -291,18 +324,19 @@ def clean_after(func):
 
 ### RUN TESTS ###
 
-def copy_test_script_files(markus_address, assignment_id, tests_path):
+def copy_test_script_files(markus_address, assignment_id, tests_path, exclude):
     """
     Copy test script files for a given assignment to the tests_path
     directory. tests_path may already exist and contain files and 
-    subdirectories.
+    subdirectories. Do not copy the files in the exclude list
     """
     test_script_dir = test_script_directory(markus_address, assignment_id)
     with fd_open(test_script_dir) as fd:
         with fd_lock(fd, exclusive=False):
-            copy_tree(test_script_dir, tests_path)
+            copy_tree(test_script_dir, tests_path, exclude=exclude)
 
-def setup_files(files_path, tests_path, test_scripts, markus_address, assignment_id):
+def setup_files(files_path, tests_path, test_scripts, hook_script,
+                markus_address, assignment_id):
     """
     Copy test script files and student files to the working directory tests_path. 
     The following permissions are also set:
@@ -313,7 +347,7 @@ def setup_files(files_path, tests_path, test_scripts, markus_address, assignment
     """
     if files_path != tests_path:
         move_tree(files_path, tests_path)
-        copy_test_script_files(markus_address, assignment_id, tests_path)
+        copy_test_script_files(markus_address, assignment_id, tests_path, hook_script or [])
         os.chmod(tests_path, 0o1770)
     for fd, file_or_dir in recursive_iglob(tests_path):
         permissions = 0o755 
@@ -323,29 +357,27 @@ def setup_files(files_path, tests_path, test_scripts, markus_address, assignment
 
 
 
-def test_run_command(markus_address, user_api_key, assignment_id, 
-                     group_id, group_repo_name, test_username=None):
+def test_run_command(test_username=None):
     """
     Return a command used to run test scripts as a the test_username
     user, with the correct arguments. Set test_username to None to 
     run as the current user.
 
     >>> test_script = 'mysscript.py'
-    >>> test_run_command('a', 'b', 'c', 'd', 'e', 'f').format(test_script)
-    'sudo -u f -- bash -c "./myscript.py a b c d e"'
+    >>> test_run_command('f').format(test_script)
+    'sudo -u f -- bash -c "./myscript.py"'
 
-    >>> test_run_command('a', 'b', 'c', 'd', 'e', None).format(test_script)
-    './myscript.py a b c d e'
+    >>> test_run_command().format(test_script)
+    './myscript.py'
     """
-    cmd = ' '.join(stringify('./{}', markus_address, user_api_key, assignment_id, group_id, group_repo_name))
-
+    cmd = './{}'
     if test_username is not None:
         cmd = ' '.join(('sudo', '-u', test_username, '--', 'bash', '-c', 
                         '"{}"'.format(cmd)))
 
     return cmd
 
-def create_test_script_result(file_name, stdout, stderr, run_time, timeout=None):
+def create_test_script_result(file_name, stdout, stderr, run_time, hooks_stderr, timeout=None):
     """
     Return the arguments passed to this function in a dictionary. If stderr is 
     falsy, change it to None. Load the json string in stdout as a dictionary.
@@ -356,7 +388,8 @@ def create_test_script_result(file_name, stdout, stderr, run_time, timeout=None)
             'timeout' : timeout,
             'tests' : test_results, 
             'stderr' : stderr or None,
-            'malformed' :  stdout if malformed else None}
+            'malformed' :  stdout if malformed else None,
+            'hooks_stderr': hooks_stderr or None}
 
 def get_test_preexec_fn():
     """
@@ -439,17 +472,51 @@ def kill_without_reaper(test_username):
     kill_cmd = f"sudo -u {test_username} -- bash -c 'kill -KILL -1'"
     subprocess.run(kill_cmd, shell=True)
 
-def run_test_scripts(cmd, test_scripts, tests_path, test_username):
+def load_hooks(hook_script_path):
+    dirpath = os.path.dirname(os.path.realpath(hook_script_path))
+    basename = os.path.basename(hook_script_path)
+    module_name, _ = os.path.splitext(basename)
+    try:
+        with add_path(dirname):
+            hooks_module = __import__(module_name)
+    except Exception as e:
+        return None, f'import error: {str(e)}\n'
+    return hooks_module, ''
+
+def run_hook(hook_module, function_name, args=[], kwargs={}):
+    if hook_module is not None:
+        try:
+            hook = getattr(hooks_module, function_name)
+            result['return_value'] = hook(*args, **kwargs)
+        except BaseException as e:  # we want to catch ALL possible exceptions so that hook
+                                    # code will not stop the execution of further scripts
+            return f'{function_name}: {str(e)}\n'
+    return ''
+
+def get_hook_arguments():
+    return [], {}
+
+def run_test_scripts(cmd, test_scripts, tests_path, test_username, hook_script_path=None,
+                     hook_args=[], hook_kwargs={}):
     """
     Run each test script in test_scripts in the tests_path directory using the 
     command cmd. Return the results. 
     """
     results = []
     preexec_fn = get_test_preexec_fn()
+    all_hooks_error = ''
+
+    hooks, hooks_import_error = load_hooks(hook_script_path) if hook_script_path else (None, None)
+    all_hooks_error += hooks_import_error
+
+    all_hooks_error += run_hook(hooks, HOOK_NAMES['before_all'], args=hook_args, kwargs=hook_kwargs)
     for file_name, timeout in test_scripts.items():
         out, err = '', '' 
         start = time.time()
         timeout_expired = None
+        hooks_stderr = ''
+
+        hooks_stderr += run_hook(hooks, HOOK_NAMES['before_each'], args=hook_args, kwargs=hook_kwargs)
         try:
             args = cmd.format(file_name)
             proc = subprocess.Popen(args, start_new_session=True, cwd=tests_path, shell=True, 
@@ -468,13 +535,14 @@ def run_test_scripts(cmd, test_scripts, tests_path, test_username):
         except Exception as e:
             err += '\n\n{}'.format(e)
         finally:
+            hooks_stderr += run_hook(hooks, HOOK_NAMES['after_each'], args=hook_args, kwargs=hook_kwargs)
             out = decode_if_bytes(out)
             err = decode_if_bytes(err)
             duration = int(round(time.time()-start, 3) * 1000)
-            results.append(create_test_script_result(file_name, out, err, duration, timeout_expired))
-    return results
+            results.append(create_test_script_result(file_name, out, err, duration, hooks_stderr, timeout_expired))
+    return results, all_hooks_error
 
-def store_results(results, markus_address, assignment_id, group_id, submission_id):
+def store_results(results_data, markus_address, assignment_id, group_id, submission_id):
     """
     Write the results of multiple test script runs to an output file as a json string.
     The output file is located at:
@@ -485,19 +553,13 @@ def store_results(results, markus_address, assignment_id, group_id, submission_i
     destination = os.path.join(*stringify(TEST_RESULT_DIR, clean_markus_address, assignment_id, group_id, 's{}'.format(submission_id or ''), run_time))
     os.makedirs(destination, exist_ok=True)
     with open(os.path.join(destination, 'output.json'), 'w') as f:
-        json.dump(results, f, indent=4)
+        json.dump(results_data, f, indent=4)
 
-
-def clean_up_tests(tests_path, test_username):
+def clear_working_directory(tests_path, test_username):
     """
-    Run a command that kills all tester processes either by killing all 
-    user processes or killing with a reaper user (see https://lwn.net/Articles/754980/
-    for reference). 
     Run commands that clear the tests_path working directory
-    """ 
+    """
     if test_username != current_user():
-        if not kill_with_reaper(test_username):
-            kill_without_reaper(test_username)
         chmod_cmd = "sudo -u {} -- bash -c 'chmod -Rf ugo+rwX {}'".format(test_username, tests_path)
     else:
         chmod_cmd = 'chmod -Rf ugo+rwX {}'.format(tests_path)
@@ -509,8 +571,24 @@ def clean_up_tests(tests_path, test_username):
     clean_cmd = 'rm -rf {0}/.[!.]* {0}/*'.format(tests_path)
     subprocess.run(clean_cmd, shell=True)
 
-def report(results, markus_address, assignment_id, group_id, 
-           server_api_key, run_id, error, time_to_service):
+def stop_tester_processes(test_username):
+    """
+    Run a command that kills all tester processes either by killing all
+    user processes or killing with a reaper user (see https://lwn.net/Articles/754980/
+    for reference).
+    """
+    if test_username != current_user():
+        if not kill_with_reaper(test_username):
+            kill_without_reaper(test_username)
+
+def finalize_results_data(results, error, all_hooks_error, time_to_service):
+    """ Return a dictionary of test script results combined with test run info """
+    return  {'test_scripts'       : results,
+             'error'              : error,
+             'hooks_error'        : all_hooks_error,
+             'time_to_service'    : time_to_service}
+
+def report(results_data, markus_address, assignment_id, group_id, server_api_key, run_id):
     """ Post the results of running test scripts to the markus api """
     markus_url = urllib.parse.urlparse(markus_address)
 
@@ -520,17 +598,13 @@ def report(results, markus_address, assignment_id, group_id,
     
     headers = {'Authorization' : 'MarkUsAuth {}'.format(server_api_key),
                'Accept'     : 'application/json'}
-    
-    data = {'test_scripts'       : results,
-            'error'              : error, 
-            'time_to_service'    : time_to_service} 
 
-    data = {'test_run_id' : run_id, 'test_output' : json.dumps(data)}
+    data = {'test_run_id' : run_id, 'test_output' : json.dumps(results_data)}
 
     requests.post(url, headers=headers, data=data)
 
 @clean_after
-def run_test(markus_address, user_api_key, server_api_key, test_scripts, files_path, 
+def run_test(markus_address, server_api_key, test_scripts, hook_script, files_path,
              assignment_id, group_id, group_repo_name, submission_id, run_id, enqueue_time):
     """
     Run autotesting tests using the tests in test_scripts on the files in files_path. 
@@ -540,25 +614,36 @@ def run_test(markus_address, user_api_key, server_api_key, test_scripts, files_p
     results = []
     error = None
     time_to_service = int(round(time.time() - enqueue_time, 3) * 1000)
+    hook_script_path = os.path.join(files_path, hook_script) if hook_script else None
     try:
         job = rq.get_current_job()
         update_pop_interval_stat(job.origin)
+        hook_args, hook_kwargs = get_hook_arguments()
+        all_hooks_error = ''
         with tester_user() as user_data:
             test_username = user_data.get('username')
             tests_path = user_data['worker_dir']
             try:
-                setup_files(files_path, tests_path, test_scripts, markus_address, assignment_id)
-                cmd = test_run_command(markus_address, user_api_key, assignment_id, 
-                                       group_id, group_repo_name, test_username)
-                results = run_test_scripts(cmd, test_scripts, tests_path, test_username)
-                store_results(results, markus_address, assignment_id, group_id, submission_id)
+                setup_files(files_path, tests_path, test_scripts, hook_script,
+                            markus_address, assignment_id)
+                cmd = test_run_command(test_username=test_username)
+                results, all_hooks_error = run_test_scripts(cmd,
+                                                            test_scripts,
+                                                            tests_path,
+                                                            test_username,
+                                                            hook_script_path,
+                                                            hook_args=hook_args,
+                                                            hook_kwargs=hook_kwargs)
             finally:
-                clean_up_tests(tests_path, test_username)
+                stop_tester_processes(test_username)
+                all_hooks_error += run_hook(hooks, HOOK_NAMES['after_all'], args=hook_args, kwargs=hook_kwargs)
+                clear_working_directory(tests_path, test_username)
     except Exception as e:
         error = str(e)
     finally:
-        report(results, markus_address, assignment_id, group_id,
-               server_api_key, run_id, error, time_to_service)
+        results_data = finalize_results_data(results, error, all_hooks_error, time_to_service)
+        store_results(result_data, markus_address, assignment_id, group_id, submission_id)
+        report(result_data, markus_address, assignment_id, group_id, server_api_key, run_id)
 
 ### UPDATE TEST SCRIPTS ### 
 
