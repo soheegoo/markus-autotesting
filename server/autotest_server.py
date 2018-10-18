@@ -3,12 +3,11 @@
 import os
 import fcntl
 import shutil
+import sys
 import time
 import json 
-import requests
 import subprocess
 import signal
-import urllib
 import redis
 import rq
 import pwd
@@ -18,7 +17,7 @@ import resource
 import uuid
 import tempfile
 import config
-
+from markusapi import Markus
 
 CURRENT_TEST_SCRIPT_FORMAT = '{}_{}'
 TEST_SCRIPT_DIR = os.path.join(config.WORKSPACE_DIR, config.SCRIPTS_DIR_NAME)
@@ -370,7 +369,7 @@ def test_run_command(test_username=None):
     >>> test_run_command().format(test_script)
     './myscript.py'
     """
-    cmd = './{}'
+    cmd = './{} 1 2 3 4 5'  # TODO: Remove the bogus parameters once everyone has migrated
     if test_username is not None:
         cmd = ' '.join(('sudo', '-u', test_username, '--', 'bash', '-c', 
                         '"{}"'.format(cmd)))
@@ -477,7 +476,7 @@ def load_hooks(hook_script_path):
     basename = os.path.basename(hook_script_path)
     module_name, _ = os.path.splitext(basename)
     try:
-        with add_path(dirname):
+        with add_path(dirpath):
             hooks_module = __import__(module_name)
     except Exception as e:
         return None, f'import error: {str(e)}\n'
@@ -486,8 +485,8 @@ def load_hooks(hook_script_path):
 def run_hook(hook_module, function_name, args=[], kwargs={}):
     if hook_module is not None:
         try:
-            hook = getattr(hooks_module, function_name)
-            result['return_value'] = hook(*args, **kwargs)
+            hook = getattr(hook_module, function_name)
+            hook(*args, **kwargs)
         except BaseException as e:  # we want to catch ALL possible exceptions so that hook
                                     # code will not stop the execution of further scripts
             return f'{function_name}: {str(e)}\n'
@@ -588,20 +587,9 @@ def finalize_results_data(results, error, all_hooks_error, time_to_service):
              'hooks_error'        : all_hooks_error,
              'time_to_service'    : time_to_service}
 
-def report(results_data, markus_address, assignment_id, group_id, server_api_key, run_id):
+def report(results_data, api, assignment_id, group_id, run_id):
     """ Post the results of running test scripts to the markus api """
-    markus_url = urllib.parse.urlparse(markus_address)
-
-    url = '/'.join(stringify(markus_url.path, 'api', 'assignments', assignment_id, 
-                                    'groups', group_id, 'test_script_results'))
-    url = urllib.parse.urljoin(markus_address, url)
-    
-    headers = {'Authorization' : 'MarkUsAuth {}'.format(server_api_key),
-               'Accept'     : 'application/json'}
-
-    data = {'test_run_id' : run_id, 'test_output' : json.dumps(results_data)}
-
-    requests.post(url, headers=headers, data=data)
+    api.upload_test_script_results(assignment_id, group_id, run_id, json.dumps(results_data))
 
 @clean_after
 def run_test(markus_address, server_api_key, test_scripts, hook_script, files_path,
@@ -615,11 +603,11 @@ def run_test(markus_address, server_api_key, test_scripts, hook_script, files_pa
     error = None
     time_to_service = int(round(time.time() - enqueue_time, 3) * 1000)
     hook_script_path = os.path.join(files_path, hook_script) if hook_script else None
+    all_hooks_error = ''
     try:
         job = rq.get_current_job()
         update_pop_interval_stat(job.origin)
         hook_args, hook_kwargs = get_hook_arguments()
-        all_hooks_error = ''
         with tester_user() as user_data:
             test_username = user_data.get('username')
             tests_path = user_data['worker_dir']
@@ -642,8 +630,9 @@ def run_test(markus_address, server_api_key, test_scripts, hook_script, files_pa
         error = str(e)
     finally:
         results_data = finalize_results_data(results, error, all_hooks_error, time_to_service)
-        store_results(result_data, markus_address, assignment_id, group_id, submission_id)
-        report(result_data, markus_address, assignment_id, group_id, server_api_key, run_id)
+        store_results(results_data, markus_address, assignment_id, group_id, submission_id)
+        api = Markus(server_api_key, markus_address)
+        report(results_data, api, assignment_id, group_id, run_id)
 
 ### UPDATE TEST SCRIPTS ### 
 

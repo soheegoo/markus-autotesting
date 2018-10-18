@@ -1,23 +1,12 @@
 #!/usr/bin/env python3
 
-import os
 import sys
 
 from markus_pyta_tester import MarkusPyTATester
 from markus_tester import MarkusTestSpecs
-from markusapi import Markus
-
 
 if __name__ == '__main__':
 
-    """
-    MarkUs identifiers.
-    """
-    root_url = sys.argv[1]
-    api_key = sys.argv[2]
-    assignment_id = sys.argv[3]
-    group_id = sys.argv[4]
-    repo_name = sys.argv[5]
     SPECS = MarkusTestSpecs()
 
     """
