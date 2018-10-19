@@ -9,7 +9,6 @@ from python_ta.reporters import PositionReporter, PlainReporter
 
 from markus_tester import MarkusTester, MarkusTest
 
-PYTA_ANNOTATION_FILE = 'feedback_pyta.json' #TODO: don't hardcode this
 
 class MarkusPyTAReporter(PositionReporter):
 
@@ -90,9 +89,9 @@ class MarkusPyTATester(MarkusTester):
         self.annotations.extend(test.annotations)
 
     def after_tester_run(self):
-        #TODO: make writing to the file conditional on whether we want to
-        #      send annotations back to MarkUs
-        with open(PYTA_ANNOTATION_FILE, 'w') as f:
-            json.dump(self.annotations)
+        if self.specs.feedback_file is not None and self.annotations:
+            annotations_file = f'{os.path.splitext(self.specs.feedback_file)[0]}.json'
+            with open(annotations_file, 'w') as annotations_open:
+                json.dump(self.annotations, annotations_open)
         if self.devnull:
             self.devnull.close()

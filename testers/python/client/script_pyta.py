@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 
-import sys
-
 from markus_pyta_tester import MarkusPyTATester
 from markus_tester import MarkusTestSpecs
 
@@ -28,13 +26,3 @@ if __name__ == '__main__':
 
     tester = MarkusPyTATester(specs=SPECS)
     tester.run()
-
-    """
-    Use MarkUs apis if needed.
-    """
-    # api = Markus(api_key, root_url)
-    # if tester.annotations:
-    #     api.upload_annotations(assignment_id, group_id, tester.annotations)
-    # if os.path.isfile(SPECS['feedback_file']):
-    #     with open(SPECS['feedback_file']) as feedback_open:
-    #         api.upload_feedback_file(assignment_id, group_id, SPECS['feedback_file'], feedback_open.read())
