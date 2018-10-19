@@ -618,10 +618,10 @@ def run_test(markus_address, server_api_key, test_scripts, hooks_script, files_p
                             'assignment_id': assignment_id,
                             'group_id': group_id,
                             'group_repo_name' : group_repo_name}
-            all_hooks_error += run_hooks(hooks_module, HOOK_NAMES['before_all'], kwargs=hooks_kwargs)
             try:
                 setup_files(files_path, tests_path, test_scripts, hooks_script,
                             markus_address, assignment_id)
+                all_hooks_error += run_hooks(hooks_module, HOOK_NAMES['before_all'], kwargs=hooks_kwargs)
                 cmd = test_run_command(test_username=test_username)
                 results = run_test_scripts(cmd,
                                            test_scripts,
