@@ -334,7 +334,7 @@ def copy_test_script_files(markus_address, assignment_id, tests_path, exclude):
         with fd_lock(fd, exclusive=False):
             copy_tree(test_script_dir, tests_path, exclude=exclude)
 
-def setup_files(files_path, tests_path, test_scripts, hook_script,
+def setup_files(files_path, tests_path, test_scripts, hooks_script,
                 markus_address, assignment_id):
     """
     Copy test script files and student files to the working directory tests_path. 
@@ -346,7 +346,7 @@ def setup_files(files_path, tests_path, test_scripts, hook_script,
     """
     if files_path != tests_path:
         move_tree(files_path, tests_path)
-        copy_test_script_files(markus_address, assignment_id, tests_path, hook_script or [])
+        copy_test_script_files(markus_address, assignment_id, tests_path, hooks_script or [])
         os.chmod(tests_path, 0o1770)
     for fd, file_or_dir in recursive_iglob(tests_path):
         permissions = 0o755 
@@ -471,13 +471,13 @@ def kill_without_reaper(test_username):
     kill_cmd = f"sudo -u {test_username} -- bash -c 'kill -KILL -1'"
     subprocess.run(kill_cmd, shell=True)
 
-def load_hooks(hook_script_path):
+def load_hooks(hooks_script_path):
     """
     Return module loaded from hook_script_path. Also return any error
     messages that were raised when trying to import the module
     """
-    dirpath = os.path.dirname(os.path.realpath(hook_script_path))
-    basename = os.path.basename(hook_script_path)
+    dirpath = os.path.dirname(os.path.realpath(hooks_script_path))
+    basename = os.path.basename(hooks_script_path)
     module_name, _ = os.path.splitext(basename)
     try:
         with add_path(dirpath):
@@ -486,7 +486,7 @@ def load_hooks(hook_script_path):
         return None, f'import error: {str(e)}\n'
     return hooks_module, ''
 
-def run_hook(hooks_module, function_name, kwargs={}):
+def run_hooks(hooks_module, function_name, kwargs={}):
     """
     Run the function named function_name in the module
     hooks_module with the arguments in kwargs.  If an 
@@ -498,7 +498,7 @@ def run_hook(hooks_module, function_name, kwargs={}):
             hook(**kwargs)
         except BaseException as e:  # we want to catch ALL possible exceptions so that hook
                                     # code will not stop the execution of further scripts
-            return f'{function_name}: {str(e)}\n'
+            return f'{function_name} hook: {str(e)}\n'
     return ''
 
 def run_test_scripts(cmd, test_scripts, tests_path, test_username, hooks_module, hook_kwargs={}):
@@ -515,7 +515,7 @@ def run_test_scripts(cmd, test_scripts, tests_path, test_username, hooks_module,
         timeout_expired = None
         hooks_stderr = ''
 
-        hooks_stderr += run_hook(hooks_module, HOOK_NAMES['before_each'], kwargs=hook_kwargs)
+        hooks_stderr += run_hooks(hooks_module, HOOK_NAMES['before_each'], kwargs=hook_kwargs)
         try:
             args = cmd.format(file_name)
             proc = subprocess.Popen(args, start_new_session=True, cwd=tests_path, shell=True, 
@@ -534,7 +534,7 @@ def run_test_scripts(cmd, test_scripts, tests_path, test_username, hooks_module,
         except Exception as e:
             err += '\n\n{}'.format(e)
         finally:
-            hooks_stderr += run_hook(hooks_module, HOOK_NAMES['after_each'], kwargs=hook_kwargs)
+            hooks_stderr += run_hooks(hooks_module, HOOK_NAMES['after_each'], kwargs=hook_kwargs)
             out = decode_if_bytes(out)
             err = decode_if_bytes(err)
             duration = int(round(time.time()-start, 3) * 1000)
@@ -603,8 +603,9 @@ def run_test(markus_address, server_api_key, test_scripts, hooks_script, files_p
     error = None
     time_to_service = int(round(time.time() - enqueue_time, 3) * 1000)
 
-    hook_script_path = os.path.join(files_path, hooks_script) if hooks_script else None
-    hooks_module, all_hooks_error = load_hooks(hook_script_path) if hook_script_path else (None, '')
+    test_script_path = test_script_directory(markus_address, assignment_id)
+    hooks_script_path = os.path.join(test_script_path, hooks_script) if hooks_script else None
+    hooks_module, all_hooks_error = load_hooks(hooks_script_path) if hooks_script_path else (None, '')
     api = Markus(server_api_key, markus_address)
     try:
         job = rq.get_current_job()
@@ -612,12 +613,12 @@ def run_test(markus_address, server_api_key, test_scripts, hooks_script, files_p
         with tester_user() as user_data:
             test_username = user_data.get('username')
             tests_path = user_data['worker_dir']
-            hook_kwargs = {'api': api, 
-                           'tests_path': tests_path, 
-                           'assignment_id': assignment_id, 
-                           'group_id': group_id, 
-                           'group_repo_name' : group_repo_name}
-            all_hooks_error += run_hook(hooks_module, HOOK_NAMES['before_all'], kwargs=hook_kwargs)
+            hooks_kwargs = {'api': api,
+                            'tests_path': tests_path,
+                            'assignment_id': assignment_id,
+                            'group_id': group_id,
+                            'group_repo_name' : group_repo_name}
+            all_hooks_error += run_hooks(hooks_module, HOOK_NAMES['before_all'], kwargs=hooks_kwargs)
             try:
                 setup_files(files_path, tests_path, test_scripts, hooks_script,
                             markus_address, assignment_id)
@@ -627,10 +628,10 @@ def run_test(markus_address, server_api_key, test_scripts, hooks_script, files_p
                                            tests_path,
                                            test_username,
                                            hooks_module,
-                                           hook_kwargs=hook_kwargs)
+                                           hook_kwargs=hooks_kwargs)
             finally:
                 stop_tester_processes(test_username)
-                all_hooks_error += run_hook(hooks_module, HOOK_NAMES['after_all'], kwargs=hook_kwargs)
+                all_hooks_error += run_hooks(hooks_module, HOOK_NAMES['after_all'], kwargs=hooks_kwargs)
                 clear_working_directory(tests_path, test_username)
     except Exception as e:
         error = str(e)
