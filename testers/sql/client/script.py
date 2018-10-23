@@ -1,22 +1,10 @@
 #!/usr/bin/env python3
 
-import sys
-
-import os
-
 from markus_sql_tester import MarkusSQLTester
 from markus_tester import MarkusTestSpecs
-from markusapi import Markus
-
 
 if __name__ == '__main__':
 
-    # Markus identifiers
-    root_url = sys.argv[1]
-    api_key = sys.argv[2]
-    assignment_id = sys.argv[3]
-    group_id = sys.argv[4]
-    repo_name = sys.argv[5]
     SPECS = MarkusTestSpecs()
 
     # Students are required to create a solution table in their submission, named as the sql file without the file
@@ -43,8 +31,3 @@ if __name__ == '__main__':
 
     tester = MarkusSQLTester(specs=SPECS)
     tester.run()
-    # Use markus apis if needed
-    # if os.path.isfile(SPECS['feedback_file']):
-    #     api = Markus(api_key, root_url)
-    #     with open(SPECS['feedback_file']) as feedback_open:
-    #         api.upload_feedback_file(assignment_id, group_id, SPECS['feedback_file'], feedback_open.read())
