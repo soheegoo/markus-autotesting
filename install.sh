@@ -18,7 +18,7 @@ create_server_user() {
         fi
         sudo mkdir -p ${WORKSPACEDIR}
         sudo chown ${SERVERUSER}:${SERVERUSER} ${WORKSPACEDIR}
-        sudo chmod u=rwx,go= ${WORKSPACEDIR}
+        sudo chmod u=rwx,go=rx ${WORKSPACEDIR}
     fi
 }
 
@@ -73,7 +73,8 @@ create_workspace_dirs() {
     sudo mkdir -p ${VENVSDIR}
     sudo mkdir -p ${WORKERSSDIR}
     sudo chown ${SERVERUSEREFFECTIVE}:${SERVERUSEREFFECTIVE} ${RESULTSDIR} ${SCRIPTSDIR} ${SPECSDIR} ${VENVSDIR} ${WORKERSSDIR}
-    sudo chmod u=rwx,go= ${RESULTSDIR} ${SCRIPTSDIR} ${SPECSDIR} ${VENVSDIR} ${WORKERSSDIR}
+    sudo chmod u=rwx,go= ${RESULTSDIR} ${SCRIPTSDIR}
+    sudo chmod u=rwx,go=rx ${SPECSDIR} ${VENVSDIR} ${WORKERSSDIR}
 }
 
 install_venv() {
