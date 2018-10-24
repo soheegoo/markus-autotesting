@@ -17,14 +17,13 @@
     ...))
   
 ; struct containing the required values from running a single test
-(struct markus-result (name status actual expected))
+(struct markus-result (name status message))
 
 ; convert a markus-result struct to hash
 (define (markus-result->hash r) 
   (hasheq 'name (markus-result-name r)
           'status (markus-result-status r)
-          'actual (markus-result-actual r)
-          'expected (markus-result-expected r)))
+          'message (markus-result-message r)))
 
 ; convert test result info to hash
 (define (check-infos->hash stack)
@@ -34,7 +33,7 @@
 ; create result hash from a successful markus test
 (define (make-success test-case-name result)
   (markus-result->hash 
-    (markus-result test-case-name "pass" "" "")))
+    (markus-result test-case-name "pass" "")))
 
 ; create result hash from a failed markus test
 (define (make-failure test-case-name result)
@@ -42,19 +41,17 @@
             (if (exn:test:check? result)
               (check-infos->hash (exn:test:check-stack result))
               (hash))]
-          [actual (hash-ref failure-data 'actual "<void>")]
-          [expected (hash-ref failure-data 'expected "<void>")])
+          [message (hash-ref failure-data 'message "")])
         (markus-result->hash
           (markus-result 
             test-case-name 
             "fail" 
-            (format "~s" actual)
-            (format "~s" expected)))))
+            (format "~s" message)))))
 
 ; create result hash from a markus test that caused an error
 (define (make-error test-case-name result)
   (markus-result->hash 
-    (markus-result test-case-name "error" (format "~s" (exn-message result)) "")))
+    (markus-result test-case-name "error" (format "~s" (exn-message result)))))
 
 ; create result hash depending for a markus test depending on whether it was a
 ; success, failure, or caused an error (see above)
