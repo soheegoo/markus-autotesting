@@ -476,14 +476,16 @@ def load_hooks(hooks_script_path):
     Return module loaded from hook_script_path. Also return any error
     messages that were raised when trying to import the module
     """
-    dirpath = os.path.dirname(os.path.realpath(hooks_script_path))
-    basename = os.path.basename(hooks_script_path)
-    module_name, _ = os.path.splitext(basename)
-    try:
-        with add_path(dirpath):
-            hooks_module = __import__(module_name)
-    except Exception as e:
-        return None, f'import error: {str(e)}\n'
+    hooks_script_path = os.path.realpath(hooks_script_path)
+    if os.path.isfile(hooks_script_path):
+        dirpath = os.path.dirname(hooks_script_path)
+        basename = os.path.basename(hooks_script_path)
+        module_name, _ = os.path.splitext(basename)
+        try:
+            with add_path(dirpath):
+                hooks_module = __import__(module_name)
+        except Exception as e:
+            return None, f'import error: {str(e)}\n'
     return hooks_module, ''
 
 def run_hooks(hooks_module, function_name, kwargs={}):
@@ -492,7 +494,7 @@ def run_hooks(hooks_module, function_name, kwargs={}):
     hooks_module with the arguments in kwargs.  If an 
     error occurs, return the error message. 
     """
-    if hooks_module is not None:
+    if hooks_module is not None and function_name in dir(hooks_module):
         try:
             hook = getattr(hooks_module, function_name)
             hook(**kwargs)
