@@ -22,7 +22,7 @@ class MarkusRacketTest(MarkusTest):
         return self._test_name
 
     def format_message(self, result):
-        return f'expected: {result["expected"]}\nactual: {result["actual"]}'
+        return result['message']
 
     def run(self):
         if self.status == "pass":
