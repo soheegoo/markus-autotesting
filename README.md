@@ -33,7 +33,7 @@ Instructors can create and submit arbitrary scripts through MarkUs to run tests.
 line, and output results according to the specifications (see [this section](#tester-scripts-output-format) for
 the details).
 
-Alternatively, we come with a set of ready-to-use testers for: python (https://github.com/ProjectAT/uam), java, sql,
+Alternatively, we come with a set of ready-to-use testers for: python, java, sql, haskell, racket,
 jdbc, xquery. To install one of these testers, run the `install.sh` script in the respective tester directory.
 
 If you use one of our testers, you should create a dedicated environment for each course (or even each assignment if you
