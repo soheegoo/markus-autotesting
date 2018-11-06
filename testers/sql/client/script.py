@@ -23,8 +23,8 @@ if __name__ == '__main__':
     # If you don't specify some tests/datasets from the solution, they are assigned a default of 1 point.
     SPECS['data_points'] = {'data1.sql': 1, 'data2.sql': 2}
 
-    # The schema name
-    SPECS['schema_name'] = 'ate'
+    # The schema name (defaults to no schema if commented out).
+    SPECS['schema_name'] = 'autotest'
 
     # The feedback file name (defaults to no feedback file if commented out).
     # SPECS['feedback_file'] = 'feedback_sql.txt'
