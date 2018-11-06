@@ -126,7 +126,7 @@ class MarkusPythonTester(MarkusTester):
         test_suite = self._load_unittest_tests(test_file)
         with open(os.devnull, 'w') as nullstream:    
             test_runner = unittest.TextTestRunner(
-                verbosity=2, # TODO: don't hardcode this
+                verbosity=self.specs.get('unittest_verbosity', 2),
                 stream=nullstream,
                 resultclass=MarkusTextTestResults)
             test_result = test_runner.run(test_suite)
@@ -143,39 +143,23 @@ class MarkusPythonTester(MarkusTester):
             try:
                 sys.stdout = null_out
                 legacy_venv_dir = self.specs.get('legacy_virtualenv')
+                verbosity=self.specs.get('pytest_tb_format', 'short')
                 if legacy_venv_dir is None:
                     with tempfile.NamedTemporaryFile(mode="w+", dir=this_dir) as sf:
-                        pytest.main([test_file, '--junitxml', sf.name], plugins=[AddDocstringToJunitXMLPlugin()])
+                        pytest.main([test_file, '--junitxml', f'--tb={verbosity}', sf.name], plugins=[AddDocstringToJunitXMLPlugin()])
                         results = list(self._parse_junitxml(sf))
                 else:
                     try:
                         with tempfile.NamedTemporaryFile(dir=this_dir, delete=False) as sf:
                             tmp_file_path = sf.name
                         pytest_exec = os.path.join(legacy_venv_dir, 'bin', 'pytest')
-                        subprocess.run([pytest_exec, '--junitxml', tmp_file_path, test_file])
+                        subprocess.run([pytest_exec, '--junitxml', f'--tb={verbosity}', tmp_file_path, test_file])
                         results = list(self._parse_junitxml(tmp_file_path))
                     finally:
                         os.unlink(tmp_file_path)
             finally:
                 sys.stdout = sys.__stdout__
         return results
-
-    def _detect_test_tool_function(self, test_file):
-        """
-        Return the function used to run the tests in 
-        test_file. Run as unittest if the file imports
-        unittests, run as pytest if the file imports 
-        pytest. Otherwise run as pytest
-        """
-        if self.specs.get('legacy_virtualenv') is None:
-            with open(test_file) as f:
-                for line in f:
-                    if 'import' in line:
-                        if 'unittest' in line:
-                            return self._run_unittest_tests
-                        if 'pytest' in line:
-                            return self._run_pytest_tests
-        return self._run_pytest_tests
 
 
     def run_python_tests(self):
@@ -185,7 +169,10 @@ class MarkusPythonTester(MarkusTester):
         results = {}
         for test_file in self.specs.tests:
             func = self._detect_test_tool_function(test_file)
-            result = func(test_file)
+            if specs.get('tester', 'pytest') == 'unittest':
+                result = self._run_unittest_tests(test_file)
+            else:
+                result = self._run_pytest_tests(test_file)
             results[test_file] = result
         return results
 
