@@ -26,8 +26,8 @@ if __name__ == '__main__':
                        'BadInsert.insert':        {'data2j.sql': {'JAVA': 2, 'table1': 2}},
                        'ExceptionInsert.insert':  {'data2j.sql': {'JAVA': 2, 'table1': 2}}}
 
-    # The schema name
-    SPECS['schema_name'] = 'ate'
+    # The schema name (defaults to no schema if commented out).
+    SPECS['schema_name'] = 'autotest'
 
     # The feedback file name (defaults to no feedback file if commented out).
     # SPECS['feedback_file'] = 'feedback_jdbc.txt'
