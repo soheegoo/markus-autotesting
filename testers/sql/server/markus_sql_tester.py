@@ -227,6 +227,8 @@ class MarkusSQLTester(MarkusTester):
         self.oracle_cursor = None
         self.test_connection = None
         self.test_cursor = None
+        self.path_to_solution = specs['path_to_solution']
+        self.schema_name = specs.get('schema_name', 'autotest')
 
     def before_tester_run(self):
         self.oracle_connection = psycopg2.connect(database=self.oracle_database, user=self.user_name,
