@@ -25,7 +25,7 @@ else
 fi
 ln -s ${TESTERDIR}/../sql/server/markus_sql_tester.py ${TESTERDIR}/server/markus_sql_tester.py
 echo "[JDBC] Installing system packages"
-sudo apt-get install python3 openjdk-9-jre jq
+sudo apt-get install python3 openjdk-11-jre jq
 echo "[JDBC] Updating json specs file"
 ORACLEDB=$(awk "/oracle_database/" ${TESTERDIR}/../sql/specs.json) # copy sql oracle_database line
 sed -i -e "\#oracle_database#c\\${ORACLEDB}" ${SPECS}

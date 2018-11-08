@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 from collections import defaultdict
 
 import python_ta
@@ -88,5 +89,9 @@ class MarkusPyTATester(MarkusTester):
         self.annotations.extend(test.annotations)
 
     def after_tester_run(self):
+        if self.specs.feedback_file is not None and self.annotations:
+            annotations_file = f'{os.path.splitext(self.specs.feedback_file)[0]}.json'
+            with open(annotations_file, 'w') as annotations_open:
+                json.dump(self.annotations, annotations_open)
         if self.devnull:
             self.devnull.close()

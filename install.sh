@@ -18,6 +18,7 @@ create_server_user() {
         fi
         sudo mkdir -p ${WORKSPACEDIR}
         sudo chown ${SERVERUSER}:${SERVERUSER} ${WORKSPACEDIR}
+        sudo chmod u=rwx,go=rx ${WORKSPACEDIR}
     fi
 }
 
@@ -46,6 +47,7 @@ create_worker_dir() {
 }
 
 create_worker_and_reaper_users() {
+    # TODO: Make a better distinction between users and parallelism
     redis-cli DEL ${REDISWORKERS} > /dev/null
     if [[ -z ${WORKERUSERS} ]]; then
         echo "[AUTOTEST] No dedicated worker user, using '${SERVERUSEREFFECTIVE}'"
@@ -65,13 +67,14 @@ create_worker_and_reaper_users() {
 
 create_workspace_dirs() {
     echo "[AUTOTEST] Creating workspace directories"
-    sudo mkdir -p ${SPECSDIR}
-    sudo mkdir -p ${VENVSDIR}
     sudo mkdir -p ${RESULTSDIR}
     sudo mkdir -p ${SCRIPTSDIR}
+    sudo mkdir -p ${SPECSDIR}
+    sudo mkdir -p ${VENVSDIR}
     sudo mkdir -p ${WORKERSSDIR}
+    sudo chown ${SERVERUSEREFFECTIVE}:${SERVERUSEREFFECTIVE} ${RESULTSDIR} ${SCRIPTSDIR} ${SPECSDIR} ${VENVSDIR} ${WORKERSSDIR}
     sudo chmod u=rwx,go= ${RESULTSDIR} ${SCRIPTSDIR}
-    sudo chown ${SERVERUSEREFFECTIVE}:${SERVERUSEREFFECTIVE} ${SPECSDIR} ${VENVSDIR} ${RESULTSDIR} ${SCRIPTSDIR} ${WORKERSSDIR}
+    sudo chmod u=rwx,go=rx ${SPECSDIR} ${VENVSDIR} ${WORKERSSDIR}
 }
 
 install_venv() {

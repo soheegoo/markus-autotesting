@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import sys
+import os
 import argparse
 import rq
 import json
@@ -121,6 +122,28 @@ def cancel_test(markus_address, run_ids, **kw):
             job_id = format_job_id(markus_address, run_id)
             rq.cancel_job(job_id)
 
+def parse_arg_file(arg_file):
+    """
+    Load arg_file as a json and return a dictionary
+    containing the keyword arguments to be pased to
+    one of the commands.
+    The file is them immediately removed if remove
+    is True.
+
+    Note: passing arguments in a file like this makes
+    is more secure because it means the (potentially
+    sensitive) arguments are not passed through a terminal
+    or with stdin, both of which are potentially
+    accessible using tools like `ps`
+    """
+
+    with open(arg_file) as f:
+        kwargs = json.load(f)
+        if 'files_path' not in kwargs:
+            kwargs['files_path'] = os.path.dirname(os.path.realpath(f.name))
+    os.remove(arg_file)
+    return kwargs
+
 COMMANDS = {'run'       : run_test,
             'scripts'   : update_scripts,
             'cancel'    : cancel_test}
@@ -129,8 +152,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument('command', choices=COMMANDS)
-    parser.add_argument('json', type=json.loads)
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('-f', '--arg_file', type=parse_arg_file)
+    group.add_argument('-j', '--arg_json', type=json.loads)
 
     args = parser.parse_args()
 
-    COMMANDS[args.command](**args.json)
+    kwargs = args.arg_file or args.arg_json
+
+    COMMANDS[args.command](**kwargs)
