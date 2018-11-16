@@ -35,7 +35,7 @@ class TestExecutable(unittest.TestCase):
     executable_name = ''
     make = False
     make_targets = []
-
+    
     @classmethod
     def setUpClass(cls) -> None:
         """Compile the program, storing stdout and stderr of compilation.
