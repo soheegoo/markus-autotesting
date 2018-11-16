@@ -35,7 +35,8 @@ class TestExecutable(unittest.TestCase):
     executable_name = ''
     make = False
     make_targets = []
-
+    make_args = ['--silent']
+    
     @classmethod
     def setUpClass(cls) -> None:
         """Compile the program, storing stdout and stderr of compilation.
@@ -62,7 +63,7 @@ class TestExecutable(unittest.TestCase):
         try:
             if cls.make:
                 # Tuple (stdoutdata, stderrdata) is returned
-                cls.compile_out, cls.compile_err, _ = _make(cls.make_targets)
+                cls.compile_out, cls.compile_err, _ = _make(cls.make_targets, cls.make_args)
             else:
                 cls.compile_out, cls.compile_err, _ = _compile(cls.source_files, cls.executable_name)
         except subprocess.CalledProcessError:
@@ -423,9 +424,9 @@ def _compile(files, exec_name=None, gcc_flags=DEFAULT_GCC_FLAGS, **kwargs):
     return _exec(args + files, **kwargs)
 
 
-def _make(targets=None, **kwargs):
+def _make(targets=None, make_args=['--silent'], **kwargs):
     """Run make on the given targets."""
-    return _exec(['make', '--silent'] + (targets or []), timeout=60, **kwargs)
+    return _exec(['make'] + make_args + (targets or []), timeout=60, **kwargs)
 
 
 def _exec(args, *, input_=None, timeout=10, check=True, shell=False):
