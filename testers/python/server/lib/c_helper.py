@@ -231,7 +231,10 @@ class Trace:
 
     def __init__(self, command: List[str], ltrace_flags: Optional[List[str]] = None, **kwargs):
         ltrace_flags = ltrace_flags or []
-        _exec(['ltrace'] + ltrace_flags + command, **kwargs)
+        try:
+            _exec(['ltrace'] + ltrace_flags + command, **kwargs)
+        except subprocess.TimeoutExpired: # allow for partial results to be reported
+            pass
 
         with open(DEFAULT_LTRACE_LOG_FILE, 'rb') as f:
             f_bytes = f.read()
