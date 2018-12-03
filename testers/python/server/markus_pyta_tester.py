@@ -59,10 +59,15 @@ class MarkusPyTATest(MarkusTest):
             sys.stdout = self.feedback_open if self.feedback_open is not None else self.tester.devnull
             sys.stderr = self.tester.devnull
             reporter = python_ta.check_all(self.test_file, config=self.tester.pyta_config)
-            self.add_annotations(reporter)
-            # deduct 1 point per message occurrence (not type)
-            num_messages = len(self.annotations)
-            points_earned = max(0, self.points_total - num_messages)
+            if reporter.current_file_linted is None:
+                # No files were checked. The mark is set to 0.
+                num_messages = 0
+                points_earned = 0
+            else:
+                self.add_annotations(reporter)
+                # deduct 1 point per message occurrence (not type)
+                num_messages = len(self.annotations)
+                points_earned = max(0, self.points_total - num_messages)
             message = self.ERROR_MSGS['reported'].format(num_messages) if num_messages > 0 else ''
             return self.done(points_earned, message)
         except Exception as e:
