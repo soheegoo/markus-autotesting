@@ -500,18 +500,18 @@ def load_hooks(hooks_script_path):
             return None, f'import error: {str(e)}\n'
     return hooks_module, ''
 
-def run_hooks(hooks_module, function_name, working_path, kwargs={}):
+def run_hooks(hooks_module, function_name, tests_path, kwargs={}):
     """
     Run the function named function_name in the module
     hooks_module with the arguments in kwargs.  If an 
     error occurs, return the error message. 
     The function is run with the current working directory
-    temporarily set to working_path. 
+    temporarily set to tests_path.
     """
     if hooks_module is not None and function_name in dir(hooks_module):
         try:
             hook = getattr(hooks_module, function_name)
-            with current_directory(working_path):
+            with current_directory(tests_path):
                 hook(**kwargs)
         except BaseException as e:  # we want to catch ALL possible exceptions so that hook
                                     # code will not stop the execution of further scripts
