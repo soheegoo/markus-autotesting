@@ -371,7 +371,7 @@ def test_run_command(test_username=None):
     >>> test_run_command().format(test_script)
     './myscript.py'
     """
-    cmd = './{} 1 2 3 4 5'  # TODO: Remove the bogus parameters once everyone has migrated
+    cmd = './{}'
     if test_username is not None:
         cmd = ' '.join(('sudo', '-u', test_username, '--', 'bash', '-c', 
                         '"{}"'.format(cmd)))
