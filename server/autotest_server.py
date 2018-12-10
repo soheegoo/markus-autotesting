@@ -240,6 +240,19 @@ def add_path(path, prepend=True):
         except ValueError:
             pass
 
+@contextmanager
+def current_directory(path):
+    """
+    Context manager that temporarily changes the working directory
+    to the path argument.
+    """
+    current_dir = os.getcwd()
+    os.chdir(path)
+    try:
+        yield
+    finally:
+        os.chdir(current_dir)
+
 ### MAINTENANCE FUNCTIONS ###
 
 def update_pop_interval_stat(queue_name):
@@ -337,7 +350,8 @@ def copy_test_script_files(markus_address, assignment_id, tests_path, exclude):
 def setup_files(files_path, tests_path, test_scripts, hooks_script,
                 markus_address, assignment_id):
     """
-    Copy test script files and student files to the working directory tests_path. 
+    Copy test script files and student files to the working directory tests_path,
+    then make it the current working directory.
     The following permissions are also set:
         - tests_path directory:     rwxrwx--T
         - subdirectories:           rwxr-xr-x
@@ -354,8 +368,6 @@ def setup_files(files_path, tests_path, test_scripts, hooks_script,
             permissions -= 0o111
         os.chmod(file_or_dir, permissions)
 
-
-
 def test_run_command(test_username=None):
     """
     Return a command used to run test scripts as a the test_username
@@ -369,7 +381,7 @@ def test_run_command(test_username=None):
     >>> test_run_command().format(test_script)
     './myscript.py'
     """
-    cmd = './{} 1 2 3 4 5'  # TODO: Remove the bogus parameters once everyone has migrated
+    cmd = './{}'
     if test_username is not None:
         cmd = ' '.join(('sudo', '-u', test_username, '--', 'bash', '-c', 
                         '"{}"'.format(cmd)))
@@ -488,16 +500,19 @@ def load_hooks(hooks_script_path):
             return None, f'import error: {str(e)}\n'
     return hooks_module, ''
 
-def run_hooks(hooks_module, function_name, kwargs={}):
+def run_hooks(hooks_module, function_name, tests_path, kwargs={}):
     """
     Run the function named function_name in the module
     hooks_module with the arguments in kwargs.  If an 
     error occurs, return the error message. 
+    The function is run with the current working directory
+    temporarily set to tests_path.
     """
     if hooks_module is not None and function_name in dir(hooks_module):
         try:
             hook = getattr(hooks_module, function_name)
-            hook(**kwargs)
+            with current_directory(tests_path):
+                hook(**kwargs)
         except BaseException as e:  # we want to catch ALL possible exceptions so that hook
                                     # code will not stop the execution of further scripts
             return f'{function_name} hook: {str(e)}\n'
@@ -517,7 +532,7 @@ def run_test_scripts(cmd, test_scripts, tests_path, test_username, hooks_module,
         timeout_expired = None
         hooks_stderr = ''
 
-        hooks_stderr += run_hooks(hooks_module, HOOK_NAMES['before_each'], kwargs=hook_kwargs)
+        hooks_stderr += run_hooks(hooks_module, HOOK_NAMES['before_each'], tests_path, kwargs=hook_kwargs)
         try:
             args = cmd.format(file_name)
             proc = subprocess.Popen(args, start_new_session=True, cwd=tests_path, shell=True, 
@@ -536,7 +551,7 @@ def run_test_scripts(cmd, test_scripts, tests_path, test_username, hooks_module,
         except Exception as e:
             err += '\n\n{}'.format(e)
         finally:
-            hooks_stderr += run_hooks(hooks_module, HOOK_NAMES['after_each'], kwargs=hook_kwargs)
+            hooks_stderr += run_hooks(hooks_module, HOOK_NAMES['after_each'], tests_path, kwargs=hook_kwargs)
             out = decode_if_bytes(out)
             err = decode_if_bytes(err)
             duration = int(round(time.time()-start, 3) * 1000)
@@ -616,14 +631,13 @@ def run_test(markus_address, server_api_key, test_scripts, hooks_script, files_p
             test_username = user_data.get('username')
             tests_path = user_data['worker_dir']
             hooks_kwargs = {'api': api,
-                            'tests_path': tests_path,
                             'assignment_id': assignment_id,
                             'group_id': group_id,
                             'group_repo_name' : group_repo_name}
             try:
                 setup_files(files_path, tests_path, test_scripts, hooks_script,
                             markus_address, assignment_id)
-                all_hooks_error += run_hooks(hooks_module, HOOK_NAMES['before_all'], kwargs=hooks_kwargs)
+                all_hooks_error += run_hooks(hooks_module, HOOK_NAMES['before_all'], tests_path, kwargs=hooks_kwargs)
                 cmd = test_run_command(test_username=test_username)
                 results = run_test_scripts(cmd,
                                            test_scripts,
@@ -633,7 +647,7 @@ def run_test(markus_address, server_api_key, test_scripts, hooks_script, files_p
                                            hook_kwargs=hooks_kwargs)
             finally:
                 stop_tester_processes(test_username)
-                all_hooks_error += run_hooks(hooks_module, HOOK_NAMES['after_all'], kwargs=hooks_kwargs)
+                all_hooks_error += run_hooks(hooks_module, HOOK_NAMES['after_all'], tests_path, kwargs=hooks_kwargs)
                 clear_working_directory(tests_path, test_username)
     except Exception as e:
         error = str(e)
