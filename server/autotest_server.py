@@ -337,7 +337,8 @@ def copy_test_script_files(markus_address, assignment_id, tests_path, exclude):
 def setup_files(files_path, tests_path, test_scripts, hooks_script,
                 markus_address, assignment_id):
     """
-    Copy test script files and student files to the working directory tests_path. 
+    Copy test script files and student files to the working directory tests_path,
+    then make it the current working directory.
     The following permissions are also set:
         - tests_path directory:     rwxrwx--T
         - subdirectories:           rwxr-xr-x
@@ -353,6 +354,7 @@ def setup_files(files_path, tests_path, test_scripts, hooks_script,
         if fd == 'f' and os.path.relpath(file_or_dir, tests_path) not in test_scripts:
             permissions -= 0o111
         os.chmod(file_or_dir, permissions)
+    os.chdir(tests_path)
 
 
 
