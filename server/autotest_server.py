@@ -631,7 +631,6 @@ def run_test(markus_address, server_api_key, test_scripts, hooks_script, files_p
             test_username = user_data.get('username')
             tests_path = user_data['worker_dir']
             hooks_kwargs = {'api': api,
-                            'tests_path': tests_path,
                             'assignment_id': assignment_id,
                             'group_id': group_id,
                             'group_repo_name' : group_repo_name}
