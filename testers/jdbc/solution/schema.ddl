@@ -1,1 +1,0 @@
-../../sql/solution/schema.ddl
