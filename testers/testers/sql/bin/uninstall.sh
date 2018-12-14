@@ -3,6 +3,7 @@
 reset_specs() {
     echo "[SQL-UNINSTALL] Resetting specs"
     rm -f ${SPECSDIR}/install_settings.json
+
 }
 
 get_test_users() {
@@ -18,6 +19,7 @@ EOPY
 
 drop_oracle() {
     sudo -u postgres psql <<-EOF
+
 		DROP DATABASE IF EXISTS ${ORACLEDB};
 		DROP ROLE IF EXISTS ${ORACLEUSER};
 	EOF
@@ -43,6 +45,7 @@ if [[ $# -ne 0 ]]; then
 fi
 
 # vars
+
 THISSCRIPT=$(readlink -f ${BASH_SOURCE})
 TESTERDIR=$(dirname $(dirname ${THISSCRIPT}))
 SPECSDIR=${TESTERDIR}/specs
@@ -57,3 +60,4 @@ drop_tests
 reset_specs
 echo "[SQL-UNINSTALL] The following system packages have not been uninstalled: python3 postgresql. You may uninstall them if you wish."
 rm -f ${SPECSDIR}/.installed
+

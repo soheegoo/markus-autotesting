@@ -18,6 +18,7 @@ if [[ $# -ne 0 ]]; then
 fi
 
 # vars
+
 THISSCRIPT=$(readlink -f ${BASH_SOURCE})
 TESTERDIR=$(dirname $(dirname ${THISSCRIPT}))
 SPECSDIR=${TESTERDIR}/specs
@@ -28,3 +29,4 @@ remove_tester
 reset_specs
 echo "[JAVA-UNINSTALL] The following system packages have not been uninstalled: python3 openjdk-8-jdk. You may uninstall them if you wish."
 rm -f ${SPECSDIR}/.installed
+

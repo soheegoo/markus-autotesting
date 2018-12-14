@@ -12,6 +12,7 @@ if [[ $# -ne 0 ]]; then
 fi
 
 # vars
+
 THISSCRIPT=$(readlink -f ${BASH_SOURCE})
 TESTERDIR=$(dirname $(dirname ${THISSCRIPT}))
 SPECSDIR=${TESTERDIR}/specs
@@ -21,3 +22,4 @@ reset_specs
 echo "[JDBC-UNINSTALL] The following system packages have not been uninstalled: python3 openjdk-8-jdk. You may uninstall them if you wish."
 echo "[JDBC-UNINSTALL] The JDBC tester also installs the SQL tester. To remove the SQL tester as well run the uninstall.sh script in the sql/bin directory."
 rm -f ${SPECSDIR}/.installed
+

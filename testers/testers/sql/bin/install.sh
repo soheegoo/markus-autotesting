@@ -86,4 +86,5 @@ install_packages
 create_db_and_users
 create_test_users
 update_specs
+
 touch ${SPECSDIR}/.installed
