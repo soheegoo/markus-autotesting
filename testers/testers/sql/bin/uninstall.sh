@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+
 reset_specs() {
     echo "[SQL-UNINSTALL] Resetting specs"
     rm -f ${SPECSDIR}/install_settings.json
@@ -17,6 +18,7 @@ EOPY
 }
 
 drop_oracle() {
+
     sudo -u postgres psql <<-EOF
 		DROP DATABASE IF EXISTS ${ORACLEDB};
 		DROP ROLE IF EXISTS ${ORACLEUSER};
@@ -24,6 +26,7 @@ drop_oracle() {
 }
 
 drop_tests() {
+
     for tester in $(get_test_users); do
         sudo -u postgres psql <<-EOF
 			DROP DATABASE IF EXISTS ${tester};
@@ -50,6 +53,7 @@ INSTALLSETTINGS=${SPECSDIR}/install_settings.json
 ORACLEDB=$(get_install_setting oracle_database)
 TESTUSER=$2
 ORACLEUSER=${ORACLEDB}
+
 
 # main
 drop_oracle

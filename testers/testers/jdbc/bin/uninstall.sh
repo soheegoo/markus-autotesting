@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+
 reset_specs() {
     echo "[JDBC-UNINSTALL] Resetting specs"
     rm -f ${SPECSDIR}/install_settings.json
@@ -15,6 +16,7 @@ fi
 THISSCRIPT=$(readlink -f ${BASH_SOURCE})
 TESTERDIR=$(dirname $(dirname ${THISSCRIPT}))
 SPECSDIR=${TESTERDIR}/specs
+
 
 # main
 reset_specs
