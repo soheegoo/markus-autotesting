@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 
+set -e
+
 install_packages() {
     echo "[JAVA] Installing system packages"
-    sudo apt-get install python3 openjdk-8-jre
+    sudo apt-get install python3 openjdk-8-jdk openjdk-8-jre
 }
 
 compile_tester() {
@@ -14,7 +16,8 @@ compile_tester() {
 
 update_specs() {
     echo "[JAVA] Updating json specs file"
-    sed -i -e "s#/path/to/tester/jars#${JAVADIR}/build/install/MarkusJavaTester/lib#g" ${TESTERDIR}/specs.json
+    cp ${TESTERDIR}/specs/default_install_settings.json ${TESTERDIR}/specs/install_settings.json
+    sed -i -e "s#/path/to/tester/jars#${JAVADIR}/build/install/MarkusJavaTester/lib#g" ${TESTERDIR}/specs/install_settings.json
 }
 
 # script starts here
@@ -25,8 +28,9 @@ fi
 
 # vars
 THISSCRIPT=$(readlink -f ${BASH_SOURCE})
-TESTERDIR=$(dirname ${THISSCRIPT})
-JAVADIR=${TESTERDIR}/server
+TESTERDIR=$(dirname $(dirname ${THISSCRIPT}))
+SPECSDIR=${TESTERDIR}/specs
+JAVADIR=${TESTERDIR}/lib
 
 # main
 install_packages

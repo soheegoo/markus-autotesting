@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 
+set -e
+
 install_packages() {
     echo "[AUTOTEST] Installing system packages"
-    sudo apt-get install python3.7 python3.7-venv redis-server
+    sudo apt-get install "python${PYTHONVERSION}" "python${PYTHONVERSION}-venv" redis-server
 }
 
 create_server_user() {
@@ -70,11 +72,11 @@ create_workspace_dirs() {
     sudo mkdir -p ${RESULTSDIR}
     sudo mkdir -p ${SCRIPTSDIR}
     sudo mkdir -p ${SPECSDIR}
-    sudo mkdir -p ${VENVSDIR}
     sudo mkdir -p ${WORKERSSDIR}
-    sudo chown ${SERVERUSEREFFECTIVE}:${SERVERUSEREFFECTIVE} ${RESULTSDIR} ${SCRIPTSDIR} ${SPECSDIR} ${VENVSDIR} ${WORKERSSDIR}
-    sudo chmod u=rwx,go= ${RESULTSDIR} ${SCRIPTSDIR}
-    sudo chmod u=rwx,go=rx ${SPECSDIR} ${VENVSDIR} ${WORKERSSDIR}
+    sudo mkdir -p ${LOGSDIR}
+    sudo chown ${SERVERUSEREFFECTIVE}:${SERVERUSEREFFECTIVE} ${RESULTSDIR} ${SCRIPTSDIR} ${SPECSDIR} ${WORKERSSDIR} ${LOGSDIR}
+    sudo chmod u=rwx,go= ${RESULTSDIR} ${SCRIPTSDIR} ${LOGSDIR}
+    sudo chmod u=rwx,go=rx ${SPECSDIR} ${WORKERSSDIR}
 }
 
 install_venv() {
@@ -82,35 +84,43 @@ install_venv() {
 
     echo "[AUTOTEST] Installing server virtual environment in '${servervenv}'"
     rm -rf ${servervenv}
-    python3.7 -m venv ${servervenv}
+    "python${PYTHONVERSION}" -m venv ${servervenv}
     source ${servervenv}/bin/activate
     pip install wheel # must be installed before requirements
-    pip install -r ${SERVERDIR}/requirements.txt
+    pip install -r ${BINDIR}/requirements.txt
     deactivate
+}
+
+install_default_tester_venv() {
+    local defaultvenv=${SPECSDIR}/$(get_config_param DEFAULT_VENV_NAME)/venv
+    local pth_file=${defaultvenv}/lib/python${PYTHONVERSION}/site-packages/testers.pth
+
+    echo "[AUTOTEST] Installing default tester virtual environment in '${defaultvenv}'"
+    rm -rf ${defaultvenv}
+    "python${PYTHONVERSION}" -m venv ${defaultvenv}
+    echo ${TESTERSDIR} >> ${pth_file}
+    source ${defaultvenv}/bin/activate
+    pip install wheel
+    pip install -r ${BINDIR}/default_tester_requirements.txt
+    deactivate    
 }
 
 start_queues() {
     local servervenv=${SERVERDIR}/venv/bin/activate
-    local supervisorconf=${SERVERDIR}/supervisord.conf
+    local supervisorconf=${LOGSDIR}/supervisord.conf
 
     echo "[AUTOTEST] Generating supervisor config in '${supervisorconf}' and starting rq workers"
-    source ${servervenv}
-    ${SERVERDIR}/generate_supervisord_conf.py ${supervisorconf}
-    pushd ${WORKSPACEDIR} > /dev/null
-    if [[ -z ${SERVERUSER} ]]; then
-        supervisord -c ${supervisorconf}
-    else
-        # an extra venv sourcing is needed because sudo loses it
-        sudo -u ${SERVERUSER} -- bash -c "source ${servervenv} &&
-                                          supervisord -c ${supervisorconf} &&
-                                          deactivate"
-    fi
-    popd > /dev/null
-    deactivate
+    sudo bash -c "source ${servervenv} && 
+                  ${SERVERDIR}/generate_supervisord_conf.py ${supervisorconf}
+                  deactivate"
+    sudo -u ${SERVERUSEREFFECTIVE} -- bash -c "cd ${LOGSDIR} &&
+                                               source ${servervenv} &&
+                                               supervisord -c ${supervisorconf} &&
+                                               deactivate"
 }
 
 compile_reaper_script() {
-    local reaperexe="${SERVERDIR}/kill_worker_procs"
+    local reaperexe="${BINDIR}/kill_worker_procs"
 
     echo "[AUTOTEST] Compiling reaper script"
     gcc "${reaperexe}.c" -o  ${reaperexe}
@@ -161,7 +171,7 @@ suggest_next_steps() {
 }
 
 get_config_param() {
-    grep -Po "^$1\s*=\s*([\'\"])\K.*(?=\1)" ${CONFIGFILE}
+    echo $(cd ${SERVERDIR} && python3 -c "import config; print(config.$1)")
 }
 
 # script starts here
@@ -172,10 +182,15 @@ fi
 
 # vars
 THISSCRIPT=$(readlink -f ${BASH_SOURCE})
-THISSCRIPTDIR=$(dirname ${THISSCRIPT})
-SERVERDIR=${THISSCRIPTDIR}/server
-CONFIGFILE=${THISSCRIPTDIR}/server/config.py
+BINDIR=$(dirname ${THISSCRIPT})
+SERVERDIR=$(dirname ${BINDIR})
+TESTERSDIR=$(dirname ${SERVERDIR})/testers
 THISUSER=$(whoami)
+PYTHONVERSION="3.7"
+
+# install python here so we can parse arguments from the config file more easily
+install_packages
+
 SERVERUSER=$(get_config_param SERVER_USER)
 if [[ -n ${SERVERUSER} ]]; then
     SERVERUSEREFFECTIVE=${SERVERUSER}
@@ -185,20 +200,20 @@ fi
 WORKERUSERS=$(get_config_param WORKER_USERS)
 WORKSPACEDIR=$(get_config_param WORKSPACE_DIR)
 SPECSDIR=${WORKSPACEDIR}/$(get_config_param SPECS_DIR_NAME)
-VENVSDIR=${WORKSPACEDIR}/$(get_config_param VENVS_DIR_NAME)
 RESULTSDIR=${WORKSPACEDIR}/$(get_config_param RESULTS_DIR_NAME)
 SCRIPTSDIR=${WORKSPACEDIR}/$(get_config_param SCRIPTS_DIR_NAME)
 WORKERSSDIR=${WORKSPACEDIR}/$(get_config_param WORKERS_DIR_NAME)
+LOGSDIR=${WORKSPACEDIR}/$(get_config_param LOGS_DIR_NAME)
 REDISPREFIX=$(get_config_param REDIS_PREFIX)
 REDISWORKERS=${REDISPREFIX}:$(get_config_param REDIS_WORKERS_LIST)
 REAPERPREFIX=$(get_config_param REAPER_USER_PREFIX)
 
 # main
-install_packages
 create_server_user
 create_worker_and_reaper_users
 create_workspace_dirs
 install_venv
+install_default_tester_venv
 start_queues
 compile_reaper_script
 create_enqueuer_wrapper

@@ -12,5 +12,9 @@ if [ $# -ne 0 ]; then
 	exit 1
 fi
 
+THISSCRIPT=$(readlink -f ${BASH_SOURCE})
+TESTERDIR=$(dirname $(dirname ${THISSCRIPT}))
+SPECSDIR=${TESTERDIR}/specs
+
 # main
 install_packages

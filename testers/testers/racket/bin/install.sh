@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 
+set -e
+
 install_packages() {
     echo "[RACKET] Installing system packages"
-    sudo apt-get install racket
+    sudo apt-get install racket python3
 }
 
 # script starts here
@@ -11,5 +13,10 @@ if [ $# -ne 0 ]; then
     exit 1
 fi
 
+THISSCRIPT=$(readlink -f ${BASH_SOURCE})
+TESTERDIR=$(dirname $(dirname ${THISSCRIPT}))
+SPECSDIR=${TESTERDIR}/specs
+
 # main
 install_packages
+
