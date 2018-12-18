@@ -1,0 +1,5 @@
+{
+	"path_to_jdbc_jar": "/path/to/jdbc/jar",
+	"oracle_database": "oracle_db",
+	"tests": [{"database": "test_db", "user": "test_user", "password": "test_password"}]
+}

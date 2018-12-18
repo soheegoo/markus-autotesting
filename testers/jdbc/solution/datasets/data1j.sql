@@ -1,1 +1,0 @@
-../../../sql/solution/datasets/data1.sql
