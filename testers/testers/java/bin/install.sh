@@ -4,7 +4,7 @@ set -e
 
 install_packages() {
     echo "[JAVA] Installing system packages"
-    sudo apt-get install python3 openjdk-8-jdk openjdk-8-jre
+    sudo apt-get install python3 openjdk-8-jdk
 }
 
 compile_tester() {

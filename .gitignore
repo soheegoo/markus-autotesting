@@ -6,16 +6,15 @@ __pycache__
 # server
 server/venv
 server/workspace
-server/supervisord.*
-server/kill_worker_procs
+server/bin/kill_worker_procs
 markus_config.rb
 
 #java
-testers/java/server/.gradle
-testers/java/server/build
+testers/testers/java/lib/.gradle
+testers/testers/java/lib/build
 
 #racket
-testers/racket/**/compiled/
+testers/testers/racket/**/compiled/
 
 #haskell
 markus_cabal

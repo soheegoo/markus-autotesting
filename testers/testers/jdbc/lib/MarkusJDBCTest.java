@@ -277,8 +277,8 @@ public class MarkusJDBCTest {
 
         JDBCSubmission solution = null;
         try {
-            java.io.Console console = System.console();
-            String userPassword = new String(MessageFormat.format("Password for user {0}: ", userName)); // avoids logging it
+            String userPassword = new String(System.console().readPassword(
+                MessageFormat.format("Password for user {0}: ", userName))); // avoids logging it
             System.out.println(MessageFormat.format("[JDBC-Java] Running method ''{0}.{1}()''", className, methodName));
             solution = (JDBCSubmission) Class.forName(className).newInstance();
             solution.connectDB(JDBC_PREAMBLE + oracleDatabase, userName, userPassword);

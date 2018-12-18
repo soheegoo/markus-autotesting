@@ -98,7 +98,7 @@ install_default_tester_venv() {
     echo "[AUTOTEST] Installing default tester virtual environment in '${defaultvenv}'"
     rm -rf ${defaultvenv}
     "python${PYTHONVERSION}" -m venv ${defaultvenv}
-    echo ${TESTERSDIR} >> ${pth_file}
+    echo ${TESTERSDIR} >| ${pth_file}
     source ${defaultvenv}/bin/activate
     pip install wheel
     pip install -r ${BINDIR}/default_tester_requirements.txt
@@ -110,11 +110,9 @@ start_queues() {
     local supervisorconf=${LOGSDIR}/supervisord.conf
 
     echo "[AUTOTEST] Generating supervisor config in '${supervisorconf}' and starting rq workers"
-    sudo bash -c "source ${servervenv} && 
-                  ${SERVERDIR}/generate_supervisord_conf.py ${supervisorconf}
-                  deactivate"
-    sudo -u ${SERVERUSEREFFECTIVE} -- bash -c "cd ${LOGSDIR} &&
-                                               source ${servervenv} &&
+    sudo -u ${SERVERUSEREFFECTIVE} -- bash -c "source ${servervenv} &&
+                                               ${SERVERDIR}/generate_supervisord_conf.py ${supervisorconf} &&
+                                               cd ${LOGSDIR} &&
                                                supervisord -c ${supervisorconf} &&
                                                deactivate"
 }
