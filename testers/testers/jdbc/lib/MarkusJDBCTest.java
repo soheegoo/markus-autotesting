@@ -282,7 +282,6 @@ public class MarkusJDBCTest {
             System.out.println(MessageFormat.format("[JDBC-Java] Running method ''{0}.{1}()''", className, methodName));
             solution = (JDBCSubmission) Class.forName(className).newInstance();
             solution.connectDB(JDBC_PREAMBLE + oracleDatabase, userName, userPassword);
-            System.out.println(solution.connection);
             MarkusJDBCTest.setSchema(solution.connection, dataName);
             Object javaOutput = MarkusJDBCTest.runMethod(solution.getClass(), solution, methodName, dataName);
             System.out.println("[JDBC-Java] Storing output into solution table");
