@@ -174,8 +174,8 @@ get_config_param() {
 
 # script starts here
 if [ $# -gt 0 ]; then
-	echo "Usage: $0"
-	exit 1
+    echo "Usage: $0"
+    exit 1
 fi
 
 # vars

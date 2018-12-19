@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 
 archive() {
-	local archivename="$(basename ${WORKSPACEDIR}).tar.gz"
-	local archivefile="${ARCHIVEDIR}/${archivename}"
-	echo "[AUTOTEST-ARCHIVE] archiving ${WORKSPACEDIR} as ${archivefile}"
-	if [[ -f ${archivefile} ]] {
-		echo "${archivefile} already exists, cannot ovewrite existing archive"
-		exit
-	}
-	tar cJf ${ARCHIVEDIR} ${WORKSPACEDIR}
+    local archivename="$(basename ${WORKSPACEDIR}).tar.gz"
+    local archivefile="${ARCHIVEDIR}/${archivename}"
+    echo "[AUTOTEST-ARCHIVE] archiving ${WORKSPACEDIR} as ${archivefile}"
+    if [[ -f ${archivefile} ]] {
+        echo "${archivefile} already exists, cannot ovewrite existing archive"
+        exit
+    }
+    tar cJf ${ARCHIVEDIR} ${WORKSPACEDIR}
 }
 
 get_config_param() {
@@ -17,8 +17,8 @@ get_config_param() {
 
 # script starts here
 if [ $# -lt 1 ]; then
-	echo "Usage: $0 archive_dir"
-	exit 1
+    echo "Usage: $0 archive_dir"
+    exit 1
 fi
 
 # vars

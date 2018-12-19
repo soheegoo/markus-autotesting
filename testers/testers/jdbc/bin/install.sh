@@ -38,8 +38,8 @@ update_install_settings() {
 }
 
 if [[ $# -lt 1 || $# -gt 4 || $# -eq 2 ]]; then
-	echo "Usage: $0 jdbc_jar_path [oracle_user] [test_user] [num_users]"
-	exit 1
+    echo "Usage: $0 jdbc_jar_path [oracle_user] [test_user] [num_users]"
+    exit 1
 fi
 
 THISSCRIPT=$(readlink -f ${BASH_SOURCE})
