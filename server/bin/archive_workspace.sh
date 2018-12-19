@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 
-archive() {
-    local archivename="$(basename ${WORKSPACEDIR}).tar.gz"
+set -e
+
+archive_workspace() {
+    local archivename="$(basename ${WORKSPACEDIR}).tar.xz"
     local archivefile="${ARCHIVEDIR}/${archivename}"
-    echo "[AUTOTEST-ARCHIVE] archiving ${WORKSPACEDIR} as ${archivefile}"
-    if [[ -f ${archivefile} ]] {
-        echo "${archivefile} already exists, cannot ovewrite existing archive"
-        exit
-    }
-    tar cJf ${ARCHIVEDIR} ${WORKSPACEDIR}
+
+    echo "[AUTOTEST-ARCHIVE] Archiving '${WORKSPACEDIR}' at '${archivefile}'"
+    pushd ${WORKSPACEDIR} > /dev/null
+    tar cJf ${archivefile} .
+    popd > /dev/null
 }
 
 get_config_param() {
@@ -16,7 +17,7 @@ get_config_param() {
 }
 
 # script starts here
-if [ $# -lt 1 ]; then
+if [[ $# -lt 1 ]]; then
     echo "Usage: $0 archive_dir"
     exit 1
 fi
@@ -26,6 +27,6 @@ THISSCRIPT=$(readlink -f ${BASH_SOURCE})
 BINDIR=$(dirname ${THISSCRIPT})
 SERVERDIR=$(dirname ${BINDIR})
 WORKSPACEDIR=$(get_config_param WORKSPACE_DIR)
-ARCHIVEDIR=$1
+ARCHIVEDIR=$(readlink -f $1)
 
-archive
+archive_workspace

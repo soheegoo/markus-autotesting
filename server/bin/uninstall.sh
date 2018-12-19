@@ -1,42 +1,58 @@
 #!/usr/bin/env bash
 
+set -e
+
 remove_enqueuer_wrapper() {
     local enqueuer=/usr/local/bin/autotest_enqueuer
-    echo "[AUTOTEST-UNINSTALL] removing enqueuer wrapper at ${enqueuer}"
-    sudo rm ${enqueuer}
+
+    echo "[AUTOTEST-UNINSTALL] Removing enqueuer wrapper at '${enqueuer}'"
+    sudo rm -f ${enqueuer}
 }
 
 remove_reaper_script() {
     local reaperexe="${BINDIR}/kill_worker_procs"
 
-    echo "[AUTOTEST-UNINSTALL] removing reaper executable at ${reaperexe}"
-    sudo rm ${reaperexe}
+    echo "[AUTOTEST-UNINSTALL] Removing reaper executable at '${reaperexe}'"
+    sudo rm -f ${reaperexe}
 }
 
 stop_workers() {
     local servervenv=${SERVERDIR}/venv/bin/activate
     local supervisorconf=${LOGSDIR}/supervisord.conf
 
-    echo "[AUTOTEST-UNINSTALL] stopping rq workers"    
-    # an extra venv sourcing is needed because sudo loses it
+    echo "[AUTOTEST-UNINSTALL] Stopping rq workers (supervisor is left running as it may be running other programs)"
     sudo -u ${SERVERUSEREFFECTIVE} -- bash -c "source ${servervenv} &&
-                                               supervisord -c ${supervisorconf} stop all &&
+                                               supervisorctl -c ${supervisorconf} stop all &&
                                                deactivate"
-    echo "[AUTOTEST-UNINSTALL] rq workers are stopped but supervisor may be running other progams so it is left running"
+}
+
+remove_default_tester_venv() {
+    local defaultvenv=${SPECSDIR}/$(get_config_param DEFAULT_VENV_NAME)/venv
+
+    echo "[AUTOTEST-UNINSTALL] Removing default tester virtual environment at '${defaultvenv}'"
+    rm -rf ${defaultvenv}
 }
 
 remove_venv() {
     local servervenv=${SERVERDIR}/venv
-    echo "[AUTOTEST-UNINSTALL] removing virtual environment at ${servervenv}"
+
+    echo "[AUTOTEST-UNINSTALL] Removing server virtual environment at '${servervenv}'"
     rm -rf ${servervenv}
 }
 
+remove_workspace_dirs() {
+    echo "[AUTOTEST-UNINSTALL] Removing workspace directories at '${WORKSPACEDIR}'"
+    sudo rm -rf ${WORKSPACEDIR}
+}
+
 remove_unprivileged_user() {
-    local workeruser=$1
-    read -p "Are you sure you want to remove the user: ${workeruser} [y/N]" -n 1 -r
-    echo    # (optional) move to a new line
+    local username=$1
+    local usertype=$2
+
+    read -p "[AUTOTEST-INSTALL] Do you want to remove the ${usertype} user '${username}'? [Y/N]" -n 1 -r
+    echo # (optional) move to a new line
     if [[ $REPLY =~ ^[Yy]$ ]]; then
-        sudo userdel ${workeruser}
+        sudo deluser ${username}
         sudo iptables -D OUTPUT -p tcp --dport 6379 -m owner --uid-owner ${username} -j REJECT
     fi
 }
@@ -47,49 +63,38 @@ remove_worker_and_reaper_users() {
     else
         for workeruser in ${WORKERUSERS}; do
             if id ${workeruser} &> /dev/null; then
-                remove_unprivileged_user ${workeruser}
+                remove_unprivileged_user ${workeruser} worker
             fi
             if id "${REAPERPREFIX}${workeruser}" &> /dev/null; then
-                remove_unprivileged_user "${REAPERPREFIX}${workeruser}"
+                remove_unprivileged_user "${REAPERPREFIX}${workeruser}" reaper
             fi
         done
     fi
 }
 
-
 remove_server_user() {
     if [[ -z ${SERVERUSER} ]]; then 
         echo "[AUTOTEST] No dedicated server user to remove"
     else
-        read -p "Are you sure you want to remove the server user: ${SERVERUSER} [y/N]" -n 1 -r
-        echo    # (optional) move to a new line
+        read -p "[AUTOTEST-INSTALL] Do you want to remove the server user '${SERVERUSER}'? [Y/N]" -n 1 -r
+        echo # (optional) move to a new line
         if [[ $REPLY =~ ^[Yy]$ ]]; then
-            sudo userdel ${SERVERUSER}
+            sudo deluser ${SERVERUSER}
         fi
     fi
 }
 
 delete_redis_keys() {
-    echo "[AUTOTEST-UNINSTALL] clearing all ${REDISPREFIX}:* keys from the redis database"
-    redis-cli DEL "${REDISPREFIX}:*" > /dev/null
-}
-
-remove_working_directory() {
-    echo "[AUTOTEST-UNINSTALL] removing working directory at: ${WORKSPACEDIR}"
-    echo "You may want to archive the working directory first by running: ./archive_workspace.sh "
-    read -p "Do you want to continue removing the working directory without archiving it first? [y/N]" -n 1 -r
-    echo    # (optional) move to a new line
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        sudo rm -rf ${WORKSPACEDIR}
-    fi
+    echo "[AUTOTEST-UNINSTALL] Deleting all ${REDISPREFIX}:* keys from the redis database"
+    redis-cli KEYS "${REDISPREFIX}:*" | xargs redis-cli DEL
 }
 
 uninstall_testers() {
     for installed in $(ls "${TESTERSDIR}/*/specs/.installed"); do
         local uninstall_script="$(dirname $(dirname ${installed}))/bin/uninstall.sh"
         local tester=$(basename $(dirname $(dirname ${installed})))
-        read -p "Do you want to uninstall the installed tester: ${tester} [y/N]" -n 1 -r
-        echo    # (optional) move to a new line
+        read -p "[AUTOTEST-UNINSTALL] Do you want to uninstall the '${tester}' tester? [Y/N]" -n 1 -r
+        echo # (optional) move to a new line
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             ${uninstall_script}
         fi
@@ -97,8 +102,8 @@ uninstall_testers() {
 }
 
 suggest_next_steps() {
-    echo "[AUTOTEST-UNINSTALL] server, worker and reaper users uninstalled but the sudoers file was not edited to reflect this. Please update your sudoers file"
-    echo "[AUTOTEST-UNINSTALL] the following packages have not been uninstalled: python${PYTHONVERSION} python${PYTHONVERSION}-venv redis-server. You may now uninstall them if you wish"
+    echo "[AUTOTEST-UNINSTALL] The sudoers file was not edited to reflect the removal of autotesting users. Please update it."
+    echo "[AUTOTEST-UNINSTALL] The following packages have not been uninstalled: python${PYTHONVERSION} python${PYTHONVERSION}-venv redis-server. You may uninstall them if you wish."
 }
 
 get_config_param() {
@@ -106,7 +111,7 @@ get_config_param() {
 }
 
 # script starts here
-if [ $# -gt 0 ]; then
+if [[ $# -gt 0 ]]; then
     echo "Usage: $0"
     exit 1
 fi
@@ -129,17 +134,18 @@ fi
 WORKERUSERS=$(get_config_param WORKER_USERS)
 WORKSPACEDIR=$(get_config_param WORKSPACE_DIR)
 LOGSDIR=${WORKSPACEDIR}/$(get_config_param LOGS_DIR_NAME)
+SPECSDIR=${WORKSPACEDIR}/$(get_config_param SPECS_DIR_NAME)
 REDISPREFIX=$(get_config_param REDIS_PREFIX)
 REAPERPREFIX=$(get_config_param REAPER_USER_PREFIX)
 
 remove_enqueuer_wrapper
 remove_reaper_script
 stop_workers
+remove_default_tester_venv
 remove_venv
+remove_workspace_dirs
 remove_worker_and_reaper_users
 remove_server_user
 delete_redis_keys
-remove_working_directory
 uninstall_testers
 suggest_next_steps
-
