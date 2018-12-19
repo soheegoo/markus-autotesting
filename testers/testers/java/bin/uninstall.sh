@@ -1,24 +1,30 @@
 #!/usr/bin/env bash
 
-echo "[JAVA-UNINSTALL] the following system packages have not been uninstalled: python3 openjdk-11-jre. You may now uninstall them if you wish"
-
 remove_tester() {
-    echo "[JAVA-UNINSTALL] removing tester build directories at: ${JAVADIR}/build and ${JAVADIR}/.gradle"
+    echo "[JAVA-UNINSTALL] Removing compiled tester"
     rm -rf ${JAVADIR}/build
     rm -rf ${JAVADIR}/.gradle
 }
 
-update_specs() {
-    echo "[JAVA-UNINSTALL] resetting settings"
-    rm ${TESTERDIR}/specs/install_settings.json
+reset_specs() {
+    echo "[JAVA-UNINSTALL] Resetting specs"
+    rm -f ${TESTERDIR}/specs/install_settings.json
 }
 
+# script starts here
+if [[ $# -ne 0 ]]; then
+    echo "Usage: $0"
+    exit 1
+fi
+
+# vars
 THISSCRIPT=$(readlink -f ${BASH_SOURCE})
 TESTERDIR=$(dirname $(dirname ${THISSCRIPT}))
 SPECSDIR=${TESTERDIR}/specs
 JAVADIR=${TESTERDIR}/lib
 
+# main
 remove_tester
-update_specs
-
-rm ${SPECSDIR}/.installed
+reset_specs
+echo "[JAVA-UNINSTALL] The following system packages have not been uninstalled: python3 openjdk-8-jdk. You may uninstall them if you wish."
+rm -f ${SPECSDIR}/.installed

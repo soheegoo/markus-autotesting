@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-set -e
-
 remove_enqueuer_wrapper() {
     local enqueuer=/usr/local/bin/autotest_enqueuer
 

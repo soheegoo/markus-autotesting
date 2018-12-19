@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
 
-echo "[SQL-UNINSTALL] the following system packages have not been uninstalled: python3 postgresql. You may now uninstall them if you wish"
-
-update_specs() {
-    echo "[SQL-UNINSTALL] resetting settings"
-    rm ${SPECSDIR}/install_settings.json
+reset_specs() {
+    echo "[SQL-UNINSTALL] Resetting specs"
+    rm -f ${SPECSDIR}/install_settings.json
 }
 
 get_test_users() {
@@ -38,6 +36,13 @@ get_install_setting() {
     cat ${INSTALLSETTINGS} | python3 -c "import sys, json; print(json.load(sys.stdin)['$1'])"
 }
 
+# script starts here
+if [[ $# -ne 0 ]]; then
+    echo "Usage: $0"
+    exit 1
+fi
+
+# vars
 THISSCRIPT=$(readlink -f ${BASH_SOURCE})
 TESTERDIR=$(dirname $(dirname ${THISSCRIPT}))
 SPECSDIR=${TESTERDIR}/specs
@@ -46,8 +51,9 @@ ORACLEDB=$(get_install_setting oracle_database)
 TESTUSER=$2
 ORACLEUSER=${ORACLEDB}
 
+# main
 drop_oracle
 drop_tests
-update_specs
-
-rm ${SPECSDIR}/.installed
+reset_specs
+echo "[SQL-UNINSTALL] The following system packages have not been uninstalled: python3 postgresql. You may uninstall them if you wish."
+rm -f ${SPECSDIR}/.installed

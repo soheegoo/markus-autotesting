@@ -2,7 +2,7 @@
 
 set -e
 
-install_system_packages() {
+install_packages() {
     echo "[SQL] Installing system packages"
     sudo apt-get install python3 postgresql
 }
@@ -46,7 +46,7 @@ create_test_users() {
     done
 }
 
-update_install_settings() {
+update_specs() {
     TESTS="${TESTS}],"
     echo "[SQL] Updating installation settings file"
     cp ${SPECSDIR}/default_install_settings.json ${SPECSDIR}/install_settings.json
@@ -54,11 +54,13 @@ update_install_settings() {
     sed -i -e "\#tests#c\\${TESTS}" ${SPECSDIR}/install_settings.json
 }
 
+# script starts here
 if [[ $# -lt 2 || $# -gt 3 ]]; then
     echo "Usage: $0 oracle_user test_user [num_users]"
     exit 1
 fi
 
+# vars
 THISSCRIPT=$(readlink -f ${BASH_SOURCE})
 TESTERDIR=$(dirname $(dirname ${THISSCRIPT}))
 SPECSDIR=${TESTERDIR}/specs
@@ -79,8 +81,9 @@ else
     TESTUSERS[0]=${TESTUSER}
 fi
 
-install_system_packages
+# main
+install_packages
 create_db_and_users
 create_test_users
-update_install_settings
+update_specs
 touch ${SPECSDIR}/.installed
