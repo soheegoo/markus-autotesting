@@ -3,18 +3,18 @@
 set -e
 
 install_packages() {
-    echo "[SQL] Installing system packages"
+    echo "[SQL-INSTALL] Installing system packages"
     sudo apt-get install python3 postgresql
 }
 
 create_db_and_users() {
-    echo "[SQL] Creating databases and users"
-    echo "[SQL] Creating oracle user '${ORACLEUSER}' with database '${ORACLEDB}'"
+    echo "[SQL-INSTALL] Creating databases and users"
+    echo "[SQL-INSTALL] Creating oracle user '${ORACLEUSER}' with database '${ORACLEDB}'"
     sudo -u postgres psql <<-EOF
 		DROP DATABASE IF EXISTS ${ORACLEDB};
 		DROP ROLE IF EXISTS ${ORACLEUSER};
 	EOF
-    echo "[SQL] Create password for oracle user '${ORACLEUSER}'"
+    echo "[SQL-INSTALL] Create password for oracle user '${ORACLEUSER}'"
     sudo -u postgres createuser -P ${ORACLEUSER} # secure, password is not logged
     sudo -u postgres psql <<-EOF
 		CREATE DATABASE ${ORACLEDB} OWNER ${ORACLEUSER};
@@ -27,8 +27,8 @@ create_db_and_users() {
 create_test_users() {
     TESTS="  \"tests\": ["
     for i in "${!TESTDBS[@]}"; do
-        echo "[SQL] Creating test user '${TESTUSERS[$i]}' with database '${TESTDBS[$i]}'"
-        read -s -p "[SQL] Create password for test user '${TESTUSERS[$i]}': " TESTPWDS[$i]
+        echo "[SQL-INSTALL] Creating test user '${TESTUSERS[$i]}' with database '${TESTDBS[$i]}'"
+        read -s -p "[SQL-INSTALL] Create password for test user '${TESTUSERS[$i]}': " TESTPWDS[$i]
         sudo -u postgres psql <<-EOF
 			DROP DATABASE IF EXISTS ${TESTDBS[$i]};
 			DROP ROLE IF EXISTS ${TESTUSERS[$i]};
@@ -48,7 +48,7 @@ create_test_users() {
 
 update_specs() {
     TESTS="${TESTS}],"
-    echo "[SQL] Updating installation settings file"
+    echo "[SQL-INSTALL] Updating installation settings file"
     cp ${SPECSDIR}/default_install_settings.json ${SPECSDIR}/install_settings.json
     sed -i -e "s#oracle_db#${ORACLEDB}#g" ${SPECSDIR}/install_settings.json
     sed -i -e "\#tests#c\\${TESTS}" ${SPECSDIR}/install_settings.json
