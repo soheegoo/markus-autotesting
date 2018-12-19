@@ -3,19 +3,19 @@
 set -e
 
 install_packages() {
-    echo "[AUTOTEST] Installing system packages"
+    echo "[AUTOTEST-INSTALL] Installing system packages"
     sudo apt-get install "python${PYTHONVERSION}" "python${PYTHONVERSION}-venv" redis-server
 }
 
 create_server_user() {
     if [[ -z ${SERVERUSER} ]]; then 
-        echo "[AUTOTEST] No dedicated server user, using '${THISUSER}'"
+        echo "[AUTOTEST-INSTALL] No dedicated server user, using '${THISUSER}'"
         mkdir -p ${WORKSPACEDIR}
     else
         if id ${SERVERUSER} &> /dev/null; then
-            echo "[AUTOTEST] Using existing server user '${SERVERUSER}'"
+            echo "[AUTOTEST-INSTALL] Using existing server user '${SERVERUSER}'"
         else
-            echo "[AUTOTEST] Creating server user '${SERVERUSER}'"
+            echo "[AUTOTEST-INSTALL] Creating server user '${SERVERUSER}'"
             sudo adduser --disabled-password ${SERVERUSER}
         fi
         sudo mkdir -p ${WORKSPACEDIR}
@@ -29,9 +29,9 @@ create_unprivileged_user() {
     local usertype=$2
 
     if id ${username} &> /dev/null; then
-        echo "[AUTOTEST] Reusing existing ${usertype} user '${username}'"
+        echo "[AUTOTEST-INSTALL] Reusing existing ${usertype} user '${username}'"
     else
-        echo "[AUTOTEST] Creating ${usertype} user '${username}'"
+        echo "[AUTOTEST-INSTALL] Creating ${usertype} user '${username}'"
         sudo adduser --disabled-login --no-create-home ${username}
     fi
     sudo iptables -I OUTPUT -p tcp --dport 6379 -m owner --uid-owner ${username} -j REJECT
@@ -52,7 +52,7 @@ create_worker_and_reaper_users() {
     # TODO: Make a better distinction between users and parallelism
     redis-cli DEL ${REDISWORKERS} > /dev/null
     if [[ -z ${WORKERUSERS} ]]; then
-        echo "[AUTOTEST] No dedicated worker user, using '${SERVERUSEREFFECTIVE}'"
+        echo "[AUTOTEST-INSTALL] No dedicated worker user, using '${SERVERUSEREFFECTIVE}'"
         create_worker_dir ${SERVERUSEREFFECTIVE}
     else
         for workeruser in ${WORKERUSERS}; do
@@ -68,7 +68,7 @@ create_worker_and_reaper_users() {
 }
 
 create_workspace_dirs() {
-    echo "[AUTOTEST] Creating workspace directories"
+    echo "[AUTOTEST-INSTALL] Creating workspace directories at '${WORKSPACEDIR}'"
     sudo mkdir -p ${RESULTSDIR}
     sudo mkdir -p ${SCRIPTSDIR}
     sudo mkdir -p ${SPECSDIR}
@@ -82,7 +82,7 @@ create_workspace_dirs() {
 install_venv() {
     local servervenv=${SERVERDIR}/venv
 
-    echo "[AUTOTEST] Installing server virtual environment in '${servervenv}'"
+    echo "[AUTOTEST-INSTALL] Installing server virtual environment at '${servervenv}'"
     rm -rf ${servervenv}
     "python${PYTHONVERSION}" -m venv ${servervenv}
     source ${servervenv}/bin/activate
@@ -95,7 +95,7 @@ install_default_tester_venv() {
     local defaultvenv=${SPECSDIR}/$(get_config_param DEFAULT_VENV_NAME)/venv
     local pth_file=${defaultvenv}/lib/python${PYTHONVERSION}/site-packages/testers.pth
 
-    echo "[AUTOTEST] Installing default tester virtual environment in '${defaultvenv}'"
+    echo "[AUTOTEST-INSTALL] Installing default tester virtual environment at '${defaultvenv}'"
     rm -rf ${defaultvenv}
     "python${PYTHONVERSION}" -m venv ${defaultvenv}
     echo ${TESTERSDIR} >| ${pth_file}
@@ -105,11 +105,11 @@ install_default_tester_venv() {
     deactivate    
 }
 
-start_queues() {
+start_workers() {
     local servervenv=${SERVERDIR}/venv/bin/activate
     local supervisorconf=${LOGSDIR}/supervisord.conf
 
-    echo "[AUTOTEST] Generating supervisor config in '${supervisorconf}' and starting rq workers"
+    echo "[AUTOTEST-INSTALL] Generating supervisor config at '${supervisorconf}' and starting rq workers"
     sudo -u ${SERVERUSEREFFECTIVE} -- bash -c "source ${servervenv} &&
                                                ${SERVERDIR}/generate_supervisord_conf.py ${supervisorconf} &&
                                                cd ${LOGSDIR} &&
@@ -120,7 +120,7 @@ start_queues() {
 compile_reaper_script() {
     local reaperexe="${BINDIR}/kill_worker_procs"
 
-    echo "[AUTOTEST] Compiling reaper script"
+    echo "[AUTOTEST-INSTALL] Compiling reaper script at '${reaperexe}'"
     gcc "${reaperexe}.c" -o  ${reaperexe}
     chmod ugo=r ${reaperexe}
 }
@@ -128,6 +128,7 @@ compile_reaper_script() {
 create_enqueuer_wrapper() {
     local enqueuer=/usr/local/bin/autotest_enqueuer
 
+    echo "[AUTOTEST-INSTALL] Creating enqueuer wrapper at '${enqueuer}'"
     # this heredoc requires actual tabs
     cat <<-EOF | sudo tee ${enqueuer} > /dev/null
 		#!/usr/bin/env bash
@@ -147,7 +148,7 @@ create_markus_config() {
         serverconf="nil"
     fi
 
-    echo "[AUTOTEST] Creating Markus web server config snippet in 'markus_config.rb'"
+    echo "[AUTOTEST-INSTALL] Creating Markus web server config snippet at 'markus_config.rb'"
     echo "
         AUTOTEST_ON = true
         AUTOTEST_STUDENT_TESTS_ON = false
@@ -162,10 +163,10 @@ create_markus_config() {
 
 suggest_next_steps() {
     if [[ -n ${SERVERUSER} ]]; then
-        echo "[AUTOTEST] (You must add MarkUs web server's public key to ${SERVERUSER}'s '~/.ssh/authorized_keys')"
+        echo "[AUTOTEST-INSTALL] You must add MarkUs web server's public key to ${SERVERUSER}'s '~/.ssh/authorized_keys'"
     fi
-    echo "[AUTOTEST] (You may want to add 'source ${SERVERDIR}/venv/bin/activate && cd ${WORKSPACEDIR} && supervisord -c ${SERVERDIR}/supervisord.conf && deactivate' to ${SERVERUSEREFFECTIVE}'s crontab with a @reboot time)"
-    echo "[AUTOTEST] (You should install the individual testers you plan to use)"
+    echo "[AUTOTEST-INSTALL] You may want to add 'source ${SERVERDIR}/venv/bin/activate && cd ${WORKSPACEDIR} && supervisord -c ${SERVERDIR}/supervisord.conf && deactivate' to ${SERVERUSEREFFECTIVE}'s crontab with a @reboot time"
+    echo "[AUTOTEST-INSTALL] You should install the individual testers you plan to use"
 }
 
 get_config_param() {
@@ -173,9 +174,9 @@ get_config_param() {
 }
 
 # script starts here
-if [ $# -gt 0 ]; then
-	echo "Usage: $0"
-	exit 1
+if [[ $# -gt 0 ]]; then
+    echo "Usage: $0"
+    exit 1
 fi
 
 # vars
@@ -212,7 +213,7 @@ create_worker_and_reaper_users
 create_workspace_dirs
 install_venv
 install_default_tester_venv
-start_queues
+start_workers
 compile_reaper_script
 create_enqueuer_wrapper
 create_markus_config
