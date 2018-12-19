@@ -165,12 +165,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument('command', choices=COMMANDS)
-    group = parser.add_mutually_exclusive_group(required=True)
+    group = parser.add_mutually_exclusive_group(required=False)
     group.add_argument('-f', '--arg_file', type=parse_arg_file)
     group.add_argument('-j', '--arg_json', type=json.loads)
 
     args = parser.parse_args()
 
-    kwargs = args.arg_file or args.arg_json
+    kwargs = args.arg_file or args.arg_json or {}
 
     COMMANDS[args.command](**kwargs)
