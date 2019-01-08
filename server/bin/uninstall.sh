@@ -5,7 +5,6 @@ remove_enqueuer_wrapper() {
 
     echo "[AUTOTEST-UNINSTALL] Removing enqueuer wrapper at '${enqueuer}'"
     sudo rm -f ${enqueuer}
-
 }
 
 remove_reaper_script() {
@@ -54,7 +53,6 @@ remove_unprivileged_user() {
         sudo deluser ${username}
         sudo iptables -D OUTPUT -p tcp --dport 6379 -m owner --uid-owner ${username} -j REJECT
     fi
-
 }
 
 remove_worker_and_reaper_users() {
@@ -68,11 +66,9 @@ remove_worker_and_reaper_users() {
             if id "${REAPERPREFIX}${workeruser}" &> /dev/null; then
                 remove_unprivileged_user "${REAPERPREFIX}${workeruser}" reaper
             fi
-
         done
     fi
 }
-
 
 remove_server_user() {
     if [[ -z ${SERVERUSER} ]]; then 
@@ -83,7 +79,6 @@ remove_server_user() {
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             sudo deluser ${SERVERUSER}
         fi
-
     fi
 }
 
@@ -107,7 +102,6 @@ uninstall_testers() {
 suggest_next_steps() {
     echo "[AUTOTEST-UNINSTALL] The sudoers file was not edited to reflect the removal of autotesting users. Please update it."
     echo "[AUTOTEST-UNINSTALL] The following packages have not been uninstalled: python${PYTHONVERSION} python${PYTHONVERSION}-venv redis-server. You may uninstall them if you wish."
-
 }
 
 get_config_param() {
@@ -118,7 +112,6 @@ get_config_param() {
 if [[ $# -gt 0 ]]; then
     echo "Usage: $0"
     exit 1
-
 fi
 
 # vars

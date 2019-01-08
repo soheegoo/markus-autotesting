@@ -7,7 +7,6 @@ if [[ $# -ne 0 ]]; then
 fi
 
 # vars
-
 THISSCRIPT=$(readlink -f ${BASH_SOURCE})
 TESTERDIR=$(dirname $(dirname ${THISSCRIPT}))
 SPECSDIR=${TESTERDIR}/specs
@@ -16,4 +15,3 @@ SPECSDIR=${TESTERDIR}/specs
 echo "[HASKELL-UNINSTALL] The following system packages have not been uninstalled: ghc cabal-install python3. You may uninstall them if you wish."
 echo "[HASKELL-UNINSTALL] The following cabal packages have not been uninstalled: tasty-stats tasty-discover tasty-quickcheck. You may uninstall them if you can figure out how."
 rm -f ${SPECSDIR}/.installed
-

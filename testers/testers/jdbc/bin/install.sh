@@ -56,5 +56,4 @@ JARPATH=$(readlink -f $1)
 install_packages
 install_sql_tester $@
 update_specs
-
 touch ${SPECSDIR}/.installed
