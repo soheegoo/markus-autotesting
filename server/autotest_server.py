@@ -821,7 +821,6 @@ def manage_tester_environment(markus_address, tester_type, tester_name, env_sett
         if os.path.isfile(error_file):
             os.remove(error_file)
     except Exception as e:
-        raise
         os.makedirs(env_dir, exist_ok=True)
         with open(error_file, 'a') as f:
             f.write(f'{str(e)}\n')
