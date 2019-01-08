@@ -72,7 +72,7 @@ remove_worker_and_reaper_users() {
 
 remove_server_user() {
     if [[ -z ${SERVERUSER} ]]; then 
-        echo "[AUTOTEST] No dedicated server user to remove"
+        echo "[AUTOTEST-UNINSTALL] No dedicated server user to remove"
     else
         read -p "[AUTOTEST-INSTALL] Do you want to remove the server user '${SERVERUSER}'? [Y/N]" -n 1 -r
         echo # (optional) move to a new line
@@ -88,7 +88,7 @@ delete_redis_keys() {
 }
 
 uninstall_testers() {
-    for installed in $(ls "${TESTERSDIR}/*/specs/.installed"); do
+    for installed in $(ls "${TESTERSDIR}"/testers/*/specs/.installed); do
         local uninstall_script="$(dirname $(dirname ${installed}))/bin/uninstall.sh"
         local tester=$(basename $(dirname $(dirname ${installed})))
         read -p "[AUTOTEST-UNINSTALL] Do you want to uninstall the '${tester}' tester? [Y/N]" -n 1 -r
