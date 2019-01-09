@@ -32,7 +32,7 @@ def check_args(func, *args, **kwargs):
     except TypeError as e:
         raise type(e)('{}\nWith args: {}\nWith kwargs:{}'.format(e, args, tuple(kwargs))).with_traceback(sys.exc_info()[2])
 
-def check_for_environment_errors(markus_address, tester_type, tester_name):
+def check_for_environment_errors(markus_address, tester_type, tester_name, **kw):
     env_dir = ats.get_unique_env_name(markus_address, tester_type, tester_name)
     error_file = os.path.join(env_dir, 'env_creation_errors.txt')
     if os.path.isfile(error_file):
