@@ -72,7 +72,7 @@ remove_worker_and_reaper_users() {
 
 remove_server_user() {
     if [[ -z ${SERVERUSER} ]]; then 
-        echo "[AUTOTEST] No dedicated server user to remove"
+        echo "[AUTOTEST-UNINSTALL] No dedicated server user to remove"
     else
         read -p "[AUTOTEST-INSTALL] Do you want to remove the server user '${SERVERUSER}'? [Y/N]" -n 1 -r
         echo # (optional) move to a new line
@@ -88,7 +88,7 @@ delete_redis_keys() {
 }
 
 uninstall_testers() {
-    for installed in $(ls "${TESTERSDIR}/*/specs/.installed"); do
+    for installed in $(ls "${TESTERSDIR}"/testers/*/specs/.installed); do
         local uninstall_script="$(dirname $(dirname ${installed}))/bin/uninstall.sh"
         local tester=$(basename $(dirname $(dirname ${installed})))
         read -p "[AUTOTEST-UNINSTALL] Do you want to uninstall the '${tester}' tester? [Y/N]" -n 1 -r
@@ -133,6 +133,7 @@ WORKERUSERS=$(get_config_param WORKER_USERS)
 WORKSPACEDIR=$(get_config_param WORKSPACE_DIR)
 LOGSDIR=${WORKSPACEDIR}/$(get_config_param LOGS_DIR_NAME)
 SPECSDIR=${WORKSPACEDIR}/$(get_config_param SPECS_DIR_NAME)
+
 REDISPREFIX=$(get_config_param REDIS_PREFIX)
 REAPERPREFIX=$(get_config_param REAPER_USER_PREFIX)
 
@@ -147,3 +148,4 @@ remove_server_user
 delete_redis_keys
 uninstall_testers
 suggest_next_steps
+
