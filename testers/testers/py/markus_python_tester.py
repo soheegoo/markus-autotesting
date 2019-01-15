@@ -144,7 +144,7 @@ class MarkusPythonTester(MarkusTester):
                 sys.stdout = null_out
                 verbosity=self.specs.get('pytest_tb_format', 'short')
                 with tempfile.NamedTemporaryFile(mode="w+", dir=this_dir) as sf:
-                    pytest.main([test_file, '--junitxml', f'--tb={verbosity}', sf.name], plugins=[AddDocstringToJunitXMLPlugin()])
+                    pytest.main([test_file, f'--junitxml={sf.name}', f'--tb={verbosity}'], plugins=[AddDocstringToJunitXMLPlugin()])
                     results = list(self._parse_junitxml(sf))
             finally:
                 sys.stdout = sys.__stdout__
