@@ -38,7 +38,8 @@ HOOK_NAMES = {'before_all' : 'before_all',
               'before_each': 'before_each',
               'after_each' : 'after_each'}
 
-TESTER_CLASS_NAMES = {'haskell' : 'HaskellTester',
+TESTER_CLASS_NAMES = {'custom' : 'CustomTester',
+                      'haskell' : 'HaskellTester',
                       'java' : 'JavaTester',
                       'jdbc' : 'JDBCTester',
                       'py' : 'PythonTester',
