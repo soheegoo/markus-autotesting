@@ -38,6 +38,14 @@ HOOK_NAMES = {'before_all' : 'before_all',
               'before_each': 'before_each',
               'after_each' : 'after_each'}
 
+TESTER_CLASS_NAMES = {'haskell' : 'HaskellTester',
+                      'java' : 'JavaTester',
+                      'jdbc' : 'JDBCTester',
+                      'py' : 'PythonTester',
+                      'pyta' : 'PyTATester',
+                      'racket' : 'RacketTester',
+                      'sql' : 'SQLTester'}
+
 ### CUSTOM EXCEPTION CLASSES ###
 
 class AutotestError(Exception): pass
@@ -350,16 +358,15 @@ def copy_test_script_files(markus_address, assignment_id, tests_path, exclude):
         with fd_lock(fd, exclusive=False):
             copy_tree(test_script_dir, tests_path, exclude=exclude)
 
-def setup_files(files_path, tests_path, test_scripts, hooks_script,
-                markus_address, assignment_id):
+def setup_files(files_path, tests_path, hooks_script, markus_address,
+                assignment_id):
     """
     Copy test script files and student files to the working directory tests_path,
     then make it the current working directory.
     The following permissions are also set:
         - tests_path directory:     rwxrwx--T
         - subdirectories:           rwxr-xr-x
-        - test script files:        rwxr-xr-x
-        - other files:              rw-r--r--
+        - files:                    rw-r--r--
     """
     if files_path != tests_path:
         move_tree(files_path, tests_path)
@@ -368,7 +375,7 @@ def setup_files(files_path, tests_path, test_scripts, hooks_script,
         os.chmod(tests_path, 0o1770)
     for fd, file_or_dir in recursive_iglob(tests_path):
         permissions = 0o755 
-        if fd == 'f' and os.path.relpath(file_or_dir, tests_path) not in test_scripts:
+        if fd == 'f':
             permissions -= 0o111
         os.chmod(file_or_dir, permissions)
 
@@ -385,10 +392,10 @@ def test_run_command(test_username=None):
     >>> test_run_command().format(test_script)
     './myscript.py'
     """
-    cmd = './{}'
+    cmd = '{}'
     if test_username is not None:
         cmd = ' '.join(('sudo', '-u', test_username, '--', 'bash', '-c', 
-                        '"{}"'.format(cmd)))
+                        "'{}'".format(cmd)))
 
     return cmd
 
@@ -522,7 +529,18 @@ def run_hooks(hooks_module, function_name, tests_path, kwargs={}):
             return f'{function_name} hook: {str(e)}\n'
     return ''
 
-def run_test_scripts(cmd, markus_address, test_scripts, tests_path, test_username, hooks_module, hook_kwargs={}):
+def create_test_script_command(env_dir, tester_type):
+    class_name = TESTER_CLASS_NAMES[tester_type]
+    python_lines = [ 'import sys, json',
+                    f'from testers import {class_name}',
+                     'from markus_test_specs import MarkusTestSpecs',
+                    f'{class_name}(specs=MarkusTestSpecs.from_json(sys.stdin.read())).run()']
+    venv_activate = os.path.join(os.path.abspath(env_dir), 'venv', 'bin', 'activate')
+    python_str = '; '.join(python_lines)
+    venv_str = f'source {venv_activate}'
+    return ' && '.join([venv_str, f'python -c "{python_str}"'])
+
+def run_test_scripts(cmd, markus_address, test_specs, tests_path, test_username, hooks_module, hook_kwargs={}):
     """
     Run each test script in test_scripts in the tests_path directory using the 
     command cmd. Return the results. 
@@ -530,20 +548,37 @@ def run_test_scripts(cmd, markus_address, test_scripts, tests_path, test_usernam
     results = []
     preexec_fn = get_test_preexec_fn()
 
-    for file_name, settings in test_scripts.items():
-        env_dir = get_unique_env_name(markus_address, tester_type, tester_name)
+    # get environment settings
+    tester_type = test_specs['tester_type']
+    tester_name = test_specs['tester_name']
+    env_name = get_unique_env_name(markus_address, tester_type, tester_name)
+    env_dir = os.path.join(config.WORKSPACE_DIR, config.SPECS_DIR_NAME, env_name)
+    env_settings_file = os.path.join(env_dir, 'environment_settings.json')
+    env_settings = {}
+
+    if os.path.isfile(env_settings_file):
+        with open(env_settings_file) as f:
+            env_settings = json.load(f)
+
+    script_settings = test_specs['script_data']
+
+    for settings in script_settings:
         out, err = '', '' 
         start = time.time()
         timeout_expired = None
         hooks_stderr = ''
+        timeout = settings.get('timeout', 30) #TODO: don't hardcode default timeout
 
         hooks_stderr += run_hooks(hooks_module, HOOK_NAMES['before_each'], tests_path, kwargs=hook_kwargs)
         try:
-            args = cmd.format(file_name)
+            cmd_str = create_test_script_command(env_dir, tester_type)
+            args = cmd.format(cmd_str)
             proc = subprocess.Popen(args, start_new_session=True, cwd=tests_path, shell=True, 
-                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=preexec_fn)
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE,
+                                    preexec_fn=preexec_fn)
             try:
-                out, err = proc.communicate(timeout=timeout)
+                settings_json = json.dumps({**env_settings, **settings}).encode='utf-8'
+                out, err = proc.communicate(input=settings_json, timeout=timeout)
             except subprocess.TimeoutExpired:
                 if test_username == current_user():
                     pgrp = os.getpgid(proc.pid)
@@ -614,10 +649,10 @@ def report(results_data, api, assignment_id, group_id, run_id):
     api.upload_test_script_results(assignment_id, group_id, run_id, json.dumps(results_data))
 
 @clean_after
-def run_test(markus_address, server_api_key, test_scripts, hooks_script, files_path, 
+def run_test(markus_address, server_api_key, test_specs, hooks_script, files_path,
              assignment_id, group_id, group_repo_name, submission_id, run_id, enqueue_time):
     """
-    Run autotesting tests using the tests in test_scripts on the files in files_path. 
+    Run autotesting tests using the tests in test_specs on the files in files_path.
 
     This function should be used by an rq worker.
     """
@@ -640,13 +675,13 @@ def run_test(markus_address, server_api_key, test_scripts, hooks_script, files_p
                             'group_id': group_id,
                             'group_repo_name' : group_repo_name}
             try:
-                setup_files(files_path, tests_path, test_scripts, hooks_script,
+                setup_files(files_path, tests_path, hooks_script,
                             markus_address, assignment_id)
                 all_hooks_error += run_hooks(hooks_module, HOOK_NAMES['before_all'], tests_path, kwargs=hooks_kwargs)
                 cmd = test_run_command(test_username=test_username)
                 results = run_test_scripts(cmd,
                                            markus_address,
-                                           test_scripts,
+                                           test_specs,
                                            tests_path,
                                            test_username,
                                            hooks_module,
@@ -761,6 +796,25 @@ def settings_changed(env_dir, env_settings, checksum, specs_dir):
         return deep_dict_equal(env_settings, current_settings, ignore=ignore_keys) 
     return False
 
+def update_env_settings(env_settings, specs_dir):
+    """
+    Return a dictionary containing all the default settings and the installation settings
+    contained in the tester's specs directory as well as the env_settings. The env_settings
+    will overwrite any duplicate keys in the default settings files.
+    """
+    full_env_settings = {}
+    specs_settings_files = [os.path.join(specs_dir, 'default_environment_settings.json'),
+                            os.path.join(specs_dir, 'default_install_settings.json'),
+                            os.path.join(specs_dir, 'default_settings.json'),
+                            os.path.join(specs_dir, 'install_settings.json')]
+    for settings_file in specs_settings_files:
+        if os.path.isfile(settings_file):
+            with open(settings_file) as f:
+                full_env_settings.update(json.load(f))
+    full_env_settings.update(env_settings)
+    return full_env_settings
+
+
 @clean_after
 def manage_tester_environment(markus_address, tester_type, tester_name, env_settings, files_path):
     """
@@ -777,6 +831,8 @@ def manage_tester_environment(markus_address, tester_type, tester_name, env_sett
         tester_dir = get_tester_root_dir(tester_type)
         specs_dir = os.path.join(tester_dir, 'specs')
         bin_dir = os.path.join(tester_dir, 'bin')
+        # update the env_settings to include installation settings and defaults
+        env_settings = update_env_settings(env_settings, specs_dir)
         # calculate a checksum for the uploaded files
         if files_path is not None:
             files = (fname for fd, fname in recursive_iglob(files_path) if fd == 'f')
