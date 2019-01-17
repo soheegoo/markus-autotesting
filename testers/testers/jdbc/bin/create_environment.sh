@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
 set -e
-shopt -s extglob
 
 move_files() {
 	rm -rf ${SOLUTIONDIR}
@@ -96,21 +95,28 @@ load_solutions_to_db() {
 	done
 }
 
-get_class_files_to_keep() {
+get_files_to_remove() {
 python3 - <<EOPY
-import json, os
+import json, os, glob
 settings = json.loads('${JSONSETTINGS}')
 java_class_files = settings['java_class_files']
 to_keep = {'MarkusJDBCTest.class'}
 for group in java_class_files:
 	if group['available_for_tests']:
 		to_keep.add(f'{os.path.splitext(group['dataset_file_path'])[0]}.class')
-print('|'.join(to_keep))
+for file_path in glob.glob('${SOLUTIONDIR}/*'):
+	if os.path.relpath(file_path, '${SOLUTIONDIR}') in to_keep:
+		continue
+	if os.path.splitext(file_path)[0] in ['.ddl', '.sql']:
+		continue
+	print(file_path)
 EOPY
 }
 
 clean_solutions_dir() {
-	rm -f ${SOLUTIONDIR}/!(@($(get_class_files_to_keep)|*.sql|*.ddl))
+	echo "$(get_files_to_remove)" | while read -r filename; do
+		rm -f ${filename}
+	done
 }
 
 get_setting() {
