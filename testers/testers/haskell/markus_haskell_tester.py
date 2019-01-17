@@ -4,21 +4,20 @@ import os
 import tempfile
 import csv
 
-from testers.markus_tester import MarkusTester, MarkusTest, MarkusTestSpecs
+from testers.markus_tester import MarkusTester, MarkusTest
 
 class MarkusHaskellTest(MarkusTest):
 
-    def __init__(self, tester, feedback_open, test_file, result):
+    def __init__(self, tester, test_file, result, feedback_open=None):
         self._test_name = result['name']
-        all_points = tester.specs.matrix[test_file][MarkusTestSpecs.MATRIX_NODATA_KEY]
-        points = all_points.get(self._test_name, 1)
+        self._file_name = test_file
         self.status = result['status']
         self.message = result['description']
-        super().__init__(tester, test_file, [MarkusTestSpecs.MATRIX_NODATA_KEY], points, {}, feedback_open)
+        super().__init__(tester, feedback_open)
 
     @property
     def test_name(self):
-        return self._test_name
+        return '.'.join([self._file_name, self._test_name])
 
     def run(self):
         if self.status == "OK":
@@ -76,7 +75,8 @@ class MarkusHaskellTester(MarkusTester):
         """
         results = {}
         this_dir = os.getcwd()
-        for test_file in self.specs.tests:
+        for group in self.specs['runnable_group']:
+            test_file = group.get('script_file_path')
             with tempfile.NamedTemporaryFile(dir=this_dir) as f:
                 cmd = ['tasty-discover', '.', '_', f.name] + self._test_run_flags(test_file)
                 discover_proc = subprocess.run(cmd, stdout=subprocess.DEVNULL, universal_newlines=True)
@@ -95,15 +95,14 @@ class MarkusHaskellTester(MarkusTester):
                 print(MarkusTester.error_all(message=msg), flush=True)
                 return
             with contextlib.ExitStack() as stack:
-                feedback_open = (stack.enter_context(open(self.specs.feedback_file, 'w'))
-                                 if self.specs.feedback_file is not None
+                feedback_open = (stack.enter_context(open(self.specs['feedback_file'], 'w'))
+                                 if self.specs.get('feedback_file') is not None
                                  else None)
                 for test_file, result in results.items():
                     if result['stderr']:
                         print(MarkusTester.error_all(message=result['stderr']), flush=True)
                     for res in result['results']:
-                        test = self.test_class(self, feedback_open, test_file, res)
+                        test = self.test_class(self, test_file, res, feedback_open)
                         print(test.run(), flush=True)
         except Exception as e:
             print(MarkusTester.error_all(message=str(e)), flush=True)
-            return

@@ -8,7 +8,7 @@ import sys
 import subprocess
 import xml.etree.ElementTree as eTree
 
-from testers.markus_tester import MarkusTester, MarkusTest, MarkusTestSpecs
+from testers.markus_tester import MarkusTester, MarkusTest
 
 class MarkusTextTestResults(unittest.TextTestResult):
     """
@@ -49,21 +49,20 @@ class AddDocstringToJunitXMLPlugin(object):
 
 class MarkusPythonTest(MarkusTest):
 
-    def __init__(self, tester, feedback_open, test_file, result):
+    def __init__(self, tester, test_file, result, feedback_open=None):
         self._test_name = result['name']
+        self._file_name = test_file
         self.description = result.get('description')
-        all_points = tester.specs.matrix[test_file][MarkusTestSpecs.MATRIX_NODATA_KEY]
-        points = all_points.get(self._test_name, 1)
         self.status = result['status']
         self.message = result['errors']
-        super().__init__(tester, test_file, [MarkusTestSpecs.MATRIX_NODATA_KEY], points, {}, feedback_open)
+        super().__init__(tester, feedback_open)
 
     @property
     def test_name(self):
+        name = '.'.join([self._file_name, self._test_name])
         if self.description:
-            return f'{self._test_name} ({self.description})'
-        else:
-            return self._test_name
+            return f'{name} ({self.description})'
+        return name
 
     def run(self):
         if self.status == "success":
@@ -156,7 +155,8 @@ class MarkusPythonTester(MarkusTester):
         Return a dict mapping each filename to its results
         """
         results = {}
-        for test_file in self.specs.tests:
+        for group in self.specs['runnable_group']:
+            test_file = group.get('script_file_path')
             if self.specs.get('tester', 'pytest') == 'unittest':
                 result = self._run_unittest_tests(test_file)
             else:
@@ -168,13 +168,12 @@ class MarkusPythonTester(MarkusTester):
         try:
             results = self.run_python_tests()
             with contextlib.ExitStack() as stack:
-                self.feedback_open = (stack.enter_context(open(self.specs.feedback_file, 'w'))
-                                 if self.specs.feedback_file is not None
-                                 else None)
+                self.feedback_open = (stack.enter_context(open(self.specs['feedback_file'], 'w'))
+                                      if self.specs.get('feedback_file') is not None
+                                      else None)
                 for test_file, result in results.items():
                     for res in result:
-                        test = self.test_class(self, self.feedback_open, test_file, res)
+                        test = self.test_class(self, test_file, res, self.feedback_open)
                         print(test.run(), flush=True)
         except Exception as e:
             print(MarkusTester.error_all(message=str(e)), flush=True)
-            return

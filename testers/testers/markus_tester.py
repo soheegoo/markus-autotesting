@@ -1,12 +1,10 @@
-import collections
 import contextlib
 import enum
 import json
 import os
-import subprocess
-import sys
+from abc import ABC, abstractmethod
 
-class MarkusTest:
+class MarkusTest(ABC):
 
     class Status(enum.Enum):
         PASS = 'pass'
@@ -15,35 +13,21 @@ class MarkusTest:
         ERROR = 'error'
         ERROR_ALL = 'error_all'
 
-    def __init__(self, tester, test_file, data_files, points, test_extra, feedback_open=None):
+    @abstractmethod
+    def __init__(self, tester, feedback_open=None):
         self.tester = tester
-        self.test_file = test_file  # TODO Is really a file or a more generic test the base unit here?
-        self.data_files = data_files
-        self.points = points  # TODO Use a default or disable if not set?
-        if isinstance(self.points, collections.abc.Mapping):
-            self.points_total = sum(self.points.values())
-        else:
-            self.points_total = self.points
+        self.points_total = self.tester.specs.get('points', {}).get(self.test_name, 1)
         if self.points_total <= 0:
             raise ValueError('The test total points must be > 0')
-        self.test_extra = test_extra
         self.feedback_open = feedback_open
 
     @property
+    @abstractmethod
     def test_name(self):
-        return os.path.splitext(self.test_file)[0]
-
-    @property
-    def data_name(self):
-        return MarkusTestSpecs.DATA_FILES_SEPARATOR.join([os.path.splitext(data_file)[0]
-                                                          for data_file in self.data_files])
-
-    @property
-    def test_data_name(self):
-        if self.data_name == MarkusTestSpecs.MATRIX_NODATA_KEY:
-            return self.test_name
-        else:
-            return '{} + {}'.format(self.test_name, self.data_name)
+        """
+        Returns a unique name for the test.
+        """
+        pass
 
     @staticmethod
     def format_result(test_name, status, output, points_earned, points_total, time=None):
@@ -85,7 +69,7 @@ class MarkusTest:
                               points when assigning bonus points).
         :return The formatted test result.
         """
-        return MarkusTest.format_result(self.test_data_name, status, output, points_earned, self.points_total)
+        return MarkusTest.format_result(self.test_name, status, output, points_earned, self.points_total)
 
     def add_feedback(self, status, feedback='', oracle_solution=None, test_solution=None):
         """
@@ -98,7 +82,7 @@ class MarkusTest:
         # TODO Reconcile with format: return both, or print both
         if self.feedback_open is None:
             raise ValueError('No feedback file enabled')
-        self.feedback_open.write('========== {}: {} ==========\n\n'.format(self.test_data_name, status.value.upper()))
+        self.feedback_open.write('========== {}: {} ==========\n\n'.format(self.test_name, status.value.upper()))
         if feedback:
             self.feedback_open.write('## Feedback: {}\n\n'.format(feedback))
         if status != self.Status.PASS:
@@ -202,16 +186,18 @@ class MarkusTest:
             self.add_feedback(status=self.Status.ERROR, feedback=message)
         return result
 
+    @abstractmethod
     def run(self):
         """
         Runs this test.
         :return The formatted test.
         """
-        raise NotImplementedError
+        pass
 
 
-class MarkusTester:
+class MarkusTester(ABC):
 
+    @abstractmethod
     def __init__(self, specs, test_class=MarkusTest):
         self.specs = specs
         self.test_class = test_class
@@ -257,38 +243,9 @@ class MarkusTester:
         """
         pass
 
+    @abstractmethod
     def run(self):
         """
         Runs this tester.
         """
-        try:
-            self.before_tester_run()
-            with contextlib.ExitStack() as stack:
-                feedback_open = (stack.enter_context(open(self.specs.feedback_file, 'w'))
-                                 if self.specs.feedback_file is not None
-                                 else None)
-                for test_file in sorted(self.specs.tests):
-                    test_extra = self.specs.matrix[test_file].get(MarkusTestSpecs.MATRIX_NONTEST_KEY, {})
-                    for data_files in sorted(self.specs.matrix[test_file].keys()):
-                        if data_files == MarkusTestSpecs.MATRIX_NONTEST_KEY:
-                            continue
-                        points = self.specs.matrix[test_file][data_files]
-                        if MarkusTestSpecs.DATA_FILES_SEPARATOR in data_files:
-                            data_files = data_files.split(MarkusTestSpecs.DATA_FILES_SEPARATOR)
-                        else:
-                            data_files = [data_files]
-                        test = self.test_class(self, test_file, data_files, points, test_extra, feedback_open)
-                        try:
-                            # if a test __init__ fails it should really stop the whole tester, we don't have enough
-                            # info to continue safely, e.g. the total points (which skews the student mark)
-                            self.before_test_run(test)
-                            xml = test.run()
-                            self.after_successful_test_run(test)
-                        except Exception as e:
-                            xml = test.error(message=str(e))
-                        finally:
-                            print(xml, flush=True)
-        except Exception as e:
-            print(MarkusTester.error_all(message=str(e)), flush=True)
-        finally:
-            self.after_tester_run()
+        pass

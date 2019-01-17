@@ -16,14 +16,15 @@ METADATA:
         REPEAT+:
           script_file_path: 
             TEXT_MATCHER: .+
+          test_suite_name:
+            TEXT_MATCHER: .+
+            DEFAULT: "all-tests"
       enable_feedback_file_hook:
         OPTIONS:
           - true
           - false 
       feedback_file:
         TEXT_MATCHER: .*
-      test_suite_name:
-        TEXT_MATCHER: .+
       script_timeout:
         TEXT_MATCHER: \d+
         DEFAULT: "30"

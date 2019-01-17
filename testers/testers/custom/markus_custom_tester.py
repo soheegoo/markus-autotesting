@@ -1,6 +1,6 @@
 import subprocess
 
-class MarkusHaskellTester:
+class MarkusCustomTester:
     def __init__(self, specs):
         self.specs = specs
 
