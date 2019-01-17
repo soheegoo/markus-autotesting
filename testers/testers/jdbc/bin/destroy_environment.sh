@@ -4,25 +4,28 @@ set -e
 
 get_method_names() {
 python3 - <<EOPY
-import sys, json
+import json
 with open('${ENVSETTINGS}') as f:
 	settings = json.load(f)
-matrix = settings['matrix']
-for x in matrix:
-	name = x['java_method_name']
-	if 'CONNECTION' not in name:
+solution_group = settings['solution_group']
+names = set()
+for group in solution_group:
+	name = group['java_method_name']
+	if 'CONNECTION' not in name and name not in names:
 		print(name)
+	names.add(name)
 EOPY
 }
 
 get_datasets_from_method_name() {
 python3 - <<EOPY
-import sys, json
+import json
 with open('${ENVSETTINGS}') as f:
 	settings = json.load(f)
-datasets = settings['matrix']['$1']['dataset_files']
-for x in datasets:
-	print(x['dataset_file_path'])
+solution_group = settings['solution_group']
+for group in solution_group:
+	if group['java_method_name'] == '$1'
+		print(group['dataset_file_path'])
 EOPY
 }
 

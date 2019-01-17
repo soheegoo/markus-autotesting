@@ -1,11 +1,14 @@
 {
-  	"runnable_group": [
+	"runnable_group": [
 		{
 			"solution_file_path": null,
-			"dataset_file_path": null
+			"dataset_file_path": null,
+			"order_on": null,
+			"points": 1
 		}
 	],
+	"schema_name": "autotest",
 	"enable_feedback_file_hook": false,
 	"feedback_file": null,
-	"points": {}
+	"script_timeout": 30
 }

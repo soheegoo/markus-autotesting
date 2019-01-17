@@ -14,6 +14,11 @@ METADATA:
             TEXT_MATCHER: .+
           dataset_file_path:
             TEXT_MATCHER: .*
+          order_on:
+            TEXT_MATCHER: .*
+          points:
+            TEXT_MATCHER: \d+
+            DEFAULT: '1'
       enable_feedback_file_hook:
         OPTIONS:
           - true
@@ -25,3 +30,4 @@ METADATA:
         DEFAULT: "30"
       hooks_file_path:
         TEXT_MATCHER: .*
+        

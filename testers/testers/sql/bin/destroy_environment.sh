@@ -7,9 +7,13 @@ python3 - <<EOPY
 import json
 with open('${ENVSETTINGS}') as f:
 	settings = json.load(f)
-matrix = settings['matrix']
-for x in matrix:
-	print(x['solution_file_path'])
+solution_group = settings['solution_group']
+files = set()
+for group in solution_group:
+	solution_file = group['solution_file_path']
+	if solution_file not in files:
+		print(solution_file)
+	files.add(solution_file)
 EOPY
 }
 
@@ -18,11 +22,10 @@ python3 - <<EOPY
 import json
 with open('${ENVSETTINGS}') as f:
 	settings = json.load(f)
-datasets = settings['matrix']
-for dataset in datasets:
-	if dataset['solution_file_path'] == '$1':
-		for x in dataset['dataset_files']:
-			print(x['dataset_file_path'])
+solution_group = settings['solution_group']
+for group in solution_group:
+	if group['solution_file_path'] == '$1':
+		print(group['dataset_file_path'])
 EOPY
 }
 

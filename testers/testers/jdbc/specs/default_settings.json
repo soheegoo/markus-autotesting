@@ -1,11 +1,13 @@
 {
-  	"runnable_group": [
+	"runnable_group": [
 		{
-			"solution_file_path": null,
-			"dataset_file_path": null
+			"java_method_name": null,
+			"dataset_file_path": null,
+			"table_name": null,
+			"order_on": null,
+			"points": 1
 		}
 	],
 	"enable_feedback_file_hook": false,
-	"feedback_file": null,
-	"points": {}
+	"feedback_file": null
 }

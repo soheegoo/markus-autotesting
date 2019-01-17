@@ -1,16 +1,9 @@
 {
-	"matrix":
-		[
-			{
-				"solution_file_path": null,
-				"order_by": null,
-				"dataset_files": [
-					{
-						"dataset_file_path": null,
-						"points": 1
-					}
-				]
-			}
-		],
+	"solution_group" : [
+		{
+			"solution_file_path" : null,
+			"dataset_file_path" : null
+		}
+	],
 	"schema_file_path": null
 }
