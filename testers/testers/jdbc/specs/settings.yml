@@ -14,8 +14,13 @@ METADATA:
             TEXT_MATCHER: .+
           dataset_file_path:
             TEXT_MATCHER: .+
-          table_name:
-            TEXT_MATCHER: .*
+          tables:
+            REPEAT*:
+              table_name:
+                TEXT_MATCHER: .+
+              points:
+                TEXT_MATCHER: \d+
+                DEFAULT: '1'
           order_on:
             TEXT_MATCHER: .*
           points:
