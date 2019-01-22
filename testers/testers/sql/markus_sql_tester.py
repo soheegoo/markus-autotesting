@@ -249,27 +249,3 @@ class MarkusSQLTester(MarkusTester):
             self.oracle_cursor.close()
         if self.oracle_connection:
             self.oracle_connection.close()
-
-    def run(self):
-        try:
-            self.before_tester_run()
-            with contextlib.ExitStack() as stack:
-                feedback_open = (stack.enter_context(open(self.specs['feedback_file'], 'w'))
-                                 if self.specs.get('feedback_file') is not None
-                                 else None)
-                for group in self.specs['runnable_group']:
-                    test = self.test_class(self, group, feedback_open=feedback_open)
-                    try:
-                        # if a test __init__ fails it should really stop the whole tester, we don't have enough
-                        # info to continue safely, e.g. the total points (which skews the student mark)
-                        self.before_test_run(test)
-                        result_json = test.run()
-                        self.after_successful_test_run(test)
-                    except Exception as e:
-                        result_json = test.error(message=str(e))
-                    finally:
-                        print(result_json, flush=True)
-        except Exception as e:
-            print(MarkusTester.error_all(message=str(e)), flush=True)
-        finally:
-            self.after_tester_run()
