@@ -109,7 +109,7 @@ def run_test(user_type, batch_id, **kw):
     queue = get_queue(user_type=user_type, batch_id=batch_id, **kw)
     check_args(ats.run_test, **kw)
     check_test_script_files_exist(**kw)
-    check_for_environment_errors(**kw)
+    check_for_environment_errors(kw['markus_address'], **kw['test_specs'])
     print_queue_info(queue)
     timeout = get_job_timeout(kw.get('test_scripts', {}))
     queue.enqueue_call(ats.run_test, kwargs=kw, job_id=format_job_id(**kw), timeout=timeout)
