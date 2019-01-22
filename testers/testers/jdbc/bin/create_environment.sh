@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
 set -e
-shopt -s extglob
 
 move_files() {
 	rm -rf ${SOLUTIONDIR}
@@ -17,11 +16,13 @@ get_method_names() {
 python3 - <<EOPY
 import json
 settings = json.loads('${JSONSETTINGS}')
-matrix = settings['matrix']
-for x in matrix:
-	name = x['java_method_name']
-	if 'CONNECTION' not in name:
+solution_group = settings['solution_group']
+names = set()
+for group in solution_group:
+	name = group['java_method_name']
+	if 'CONNECTION' not in name and name not in names:
 		print(name)
+	names.add(name)
 EOPY
 }
 
@@ -29,11 +30,10 @@ get_datasets_from_method_name() {
 python3 - <<EOPY
 import json
 settings = json.loads('${JSONSETTINGS}')
-datasets = settings['matrix']
-for dataset in datasets:
-	if dataset['java_method_name'] == '$1':
-		for x in dataset['dataset_files']:
-			print(x['dataset_file_path'])
+solution_group = settings['solution_group']
+for group in solution_group:
+	if group['java_method_name'] == '$1'
+		print(group['dataset_file_path'])
 EOPY
 }
 
@@ -95,8 +95,28 @@ load_solutions_to_db() {
 	done
 }
 
+get_files_to_remove() {
+python3 - <<EOPY
+import json, os, glob
+settings = json.loads('${JSONSETTINGS}')
+java_class_files = settings['java_class_files']
+to_keep = {'MarkusJDBCTest.class'}
+for group in java_class_files:
+	if group['available_for_tests']:
+		to_keep.add(f'{os.path.splitext(group['dataset_file_path'])[0]}.class')
+for file_path in glob.glob('${SOLUTIONDIR}/*'):
+	if os.path.relpath(file_path, '${SOLUTIONDIR}') in to_keep:
+		continue
+	if os.path.splitext(file_path)[0] in ['.ddl', '.sql']:
+		continue
+	print(file_path)
+EOPY
+}
+
 clean_solutions_dir() {
-	rm -f ${SOLUTIONDIR}/!(@(MarkusJDBCTest*.class|JDBCSubmission*.class|*.sql|*.ddl))
+	echo "$(get_files_to_remove)" | while read -r filename; do
+		rm -f ${filename}
+	done
 }
 
 get_setting() {

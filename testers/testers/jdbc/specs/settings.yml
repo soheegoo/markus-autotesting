@@ -10,10 +10,22 @@ METADATA:
     REPEAT+:
       runnable_group:
         REPEAT+:
-          solution_file_path: 
+          java_method_name: 
             TEXT_MATCHER: .+
           dataset_file_path:
             TEXT_MATCHER: .+
+          tables:
+            REPEAT*:
+              table_name:
+                TEXT_MATCHER: .+
+              points:
+                TEXT_MATCHER: \d+
+                DEFAULT: '1'
+          order_on:
+            TEXT_MATCHER: .*
+          points:
+            TEXT_MATCHER: \d+
+            DEFAULT: '1'
       enable_feedback_file_hook:
         OPTIONS:
           - true

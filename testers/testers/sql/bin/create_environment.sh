@@ -11,9 +11,13 @@ get_query_files() {
 python3 - <<EOPY
 import json
 settings = json.loads('${JSONSETTINGS}')
-matrix = settings['matrix']
-for x in matrix:
-	print(x['solution_file_path'])
+solution_group = settings['solution_group']
+files = set()
+for group in solution_group:
+	solution_file = group['solution_file_path']
+	if solution_file not in files:
+		print(solution_file)
+	files.add(solution_file)
 EOPY
 }
 
@@ -21,11 +25,10 @@ get_datasets_from_query_file() {
 python3 - <<EOPY
 import json
 settings = json.loads('${JSONSETTINGS}')
-datasets = settings['matrix']
-for dataset in datasets:
-	if dataset['solution_file_path'] == '$1':
-		for x in dataset['dataset_files']:
-			print(x['dataset_file_path'])
+solution_group = settings['solution_group']
+for group in solution_group:
+	if group['solution_file_path'] == '$1':
+		print(group['dataset_file_path'])
 EOPY
 }
 
