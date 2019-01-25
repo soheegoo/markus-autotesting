@@ -22,7 +22,7 @@ def format_job_id(markus_address, run_id, **kw):
     """
     return '{}_{}'.format(markus_address, run_id)
 
-def check_args(func, *args, **kwargs):
+def check_args(func, args=[], kwargs={}):
     """
     Raises an error if calling the function func with args and
     kwargs would raise an error.
@@ -107,7 +107,7 @@ def run_test(user_type, batch_id, **kw):
     """
     kw['enqueue_time'] = time.time()
     queue = get_queue(user_type=user_type, batch_id=batch_id, **kw)
-    check_args(ats.run_test, **kw)
+    check_args(ats.run_test, kwargs=kw)
     check_test_script_files_exist(**kw)
     check_for_environment_errors(**kw)
     print_queue_info(queue)
@@ -120,7 +120,7 @@ def update_scripts(**kw):
     Enqueue a test script update job with keyword arguments specified in **kw
     """
     queue = rq.Queue(config.SERVICE_QUEUE, connection=ats.redis_connection())
-    check_args(ats.update_test_scripts, **kw)
+    check_args(ats.update_test_scripts, kwargs=kw)
     queue.enqueue_call(ats.update_test_scripts, kwargs=kw)
  
 def cancel_test(markus_address, run_ids, **kw):
@@ -139,7 +139,7 @@ def manage_test_env(**kw):
     Create or update a test environment
     """
     queue = rq.Queue(config.SERVICE_QUEUE, connection=ats.redis_connection())
-    check_args(ats.manage_tester_environment, **kw)
+    check_args(ats.manage_tester_environment, kwargs=kw)
     queue.enqueue_call(ats.manage_tester_environment, kwargs=kw)
     
 
