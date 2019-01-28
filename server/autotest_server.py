@@ -359,8 +359,7 @@ def copy_test_script_files(markus_address, assignment_id, tests_path, exclude):
         with fd_lock(fd, exclusive=False):
             copy_tree(test_script_dir, tests_path, exclude=exclude)
 
-def setup_files(files_path, tests_path, hooks_script, markus_address,
-                assignment_id):
+def setup_files(files_path, tests_path, hooks_script, test_specs, markus_address, assignment_id):
     """
     Copy test script files and student files to the working directory tests_path,
     then make it the current working directory.
@@ -371,7 +370,7 @@ def setup_files(files_path, tests_path, hooks_script, markus_address,
     """
     if files_path != tests_path:
         move_tree(files_path, tests_path)
-        exclude = [hooks_script] if hooks_script else []
+        exclude = [e for e in (hooks_script, test_specs) if e]
         copy_test_script_files(markus_address, assignment_id, tests_path, exclude)
         os.chmod(tests_path, 0o1770)
     for fd, file_or_dir in recursive_iglob(tests_path):
@@ -549,54 +548,56 @@ def run_test_scripts(cmd, markus_address, test_specs, tests_path, test_username,
     results = []
     preexec_fn = get_test_preexec_fn()
 
-    # get environment settings
-    tester_type = test_specs['tester_type']
-    tester_name = test_specs['tester_name']
-    env_name = get_unique_env_name(markus_address, tester_type, tester_name)
-    env_dir = os.path.join(config.WORKSPACE_DIR, config.SPECS_DIR_NAME, env_name)
-    env_settings_file = os.path.join(env_dir, 'environment_settings.json')
-    env_settings = {}
+    for specs in test_specs:
+        # get environment settings
+        tester_type = specs['tester_type']
+        tester_name = specs['tester_name']
+        env_name = get_unique_env_name(markus_address, tester_type, tester_name)
+        env_dir = os.path.join(config.WORKSPACE_DIR, config.SPECS_DIR_NAME, env_name)
+        env_settings_file = os.path.join(env_dir, 'environment_settings.json')
+        env_settings = {}
 
-    if os.path.isfile(env_settings_file):
-        with open(env_settings_file) as f:
-            env_settings = json.load(f)
+        cmd_str = create_test_script_command(env_dir, tester_type)
+        args = cmd.format(cmd_str)
 
-    script_settings = test_specs['script_data']
+        if os.path.isfile(env_settings_file):
+            with open(env_settings_file) as f:
+                env_settings = json.load(f)
 
-    for settings in script_settings:
-        out, err = '', '' 
-        start = time.time()
-        timeout_expired = None
-        hooks_stderr = ''
-        timeout = settings.get('timeout', 30) #TODO: don't hardcode default timeout
+        script_settings = specs['script_data']
 
-        hooks_stderr += run_hooks(hooks_module, HOOK_NAMES['before_each'], tests_path, kwargs=hook_kwargs)
-        try:
-            cmd_str = create_test_script_command(env_dir, tester_type)
-            args = cmd.format(cmd_str)
-            proc = subprocess.Popen(args, start_new_session=True, cwd=tests_path, shell=True, 
-                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE,
-                                    preexec_fn=preexec_fn)
+        for settings in script_settings:
+            out, err = '', ''
+            start = time.time()
+            timeout_expired = None
+            hooks_stderr = ''
+            timeout = settings.get('timeout', 30) #TODO: don't hardcode default timeout
+
+            hooks_stderr += run_hooks(hooks_module, HOOK_NAMES['before_each'], tests_path, kwargs=hook_kwargs)
             try:
-                settings_json = json.dumps({**env_settings, **settings}).encode='utf-8'
-                out, err = proc.communicate(input=settings_json, timeout=timeout)
-            except subprocess.TimeoutExpired:
-                if test_username == current_user():
-                    pgrp = os.getpgid(proc.pid)
-                    os.killpg(pgrp, signal.SIGKILL)
-                else:
-                    if not kill_with_reaper(test_username):
-                        kill_without_reaper(test_username)
-                out, err = proc.communicate()
-                timeout_expired = timeout
-        except Exception as e:
-            err += '\n\n{}'.format(e)
-        finally:
-            hooks_stderr += run_hooks(hooks_module, HOOK_NAMES['after_each'], tests_path, kwargs=hook_kwargs)
-            out = decode_if_bytes(out)
-            err = decode_if_bytes(err)
-            duration = int(round(time.time()-start, 3) * 1000)
-            results.append(create_test_script_result(file_name, out, err, duration, hooks_stderr, timeout_expired))
+                proc = subprocess.Popen(args, start_new_session=True, cwd=tests_path, shell=True, 
+                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE,
+                                        preexec_fn=preexec_fn)
+                try:
+                    settings_json = json.dumps({**env_settings, **settings}).encode='utf-8'
+                    out, err = proc.communicate(input=settings_json, timeout=timeout)
+                except subprocess.TimeoutExpired:
+                    if test_username == current_user():
+                        pgrp = os.getpgid(proc.pid)
+                        os.killpg(pgrp, signal.SIGKILL)
+                    else:
+                        if not kill_with_reaper(test_username):
+                            kill_without_reaper(test_username)
+                    out, err = proc.communicate()
+                    timeout_expired = timeout
+            except Exception as e:
+                err += '\n\n{}'.format(e)
+            finally:
+                hooks_stderr += run_hooks(hooks_module, HOOK_NAMES['after_each'], tests_path, kwargs=hook_kwargs)
+                out = decode_if_bytes(out)
+                err = decode_if_bytes(err)
+                duration = int(round(time.time()-start, 3) * 1000)
+                results.append(create_test_script_result(file_name, out, err, duration, hooks_stderr, timeout_expired))
     return results
 
 def store_results(results_data, markus_address, assignment_id, group_id, submission_id):
@@ -653,7 +654,7 @@ def report(results_data, api, assignment_id, group_id, run_id):
 def run_test(markus_address, server_api_key, test_specs, hooks_script, files_path,
              assignment_id, group_id, group_repo_name, submission_id, run_id, enqueue_time):
     """
-    Run autotesting tests using the tests in test_specs on the files in files_path.
+    Run autotesting tests using the tests in the test_specs json file on the files in files_path.
 
     This function should be used by an rq worker.
     """
@@ -665,6 +666,10 @@ def run_test(markus_address, server_api_key, test_specs, hooks_script, files_pat
     hooks_script_path = os.path.join(test_script_path, hooks_script) if hooks_script else None
     hooks_module, all_hooks_error = load_hooks(hooks_script_path) if hooks_script_path else (None, '')
     api = Markus(server_api_key, markus_address)
+
+    with open(os.path.join(files_path, test_specs)) as f:
+        test_specs = json.load(f)
+
     try:
         job = rq.get_current_job()
         update_pop_interval_stat(job.origin)
@@ -676,8 +681,7 @@ def run_test(markus_address, server_api_key, test_specs, hooks_script, files_pat
                             'group_id': group_id,
                             'group_repo_name' : group_repo_name}
             try:
-                setup_files(files_path, tests_path, hooks_script,
-                            markus_address, assignment_id)
+                setup_files(files_path, tests_path, hooks_script, test_specs, markus_address, assignment_id)
                 all_hooks_error += run_hooks(hooks_module, HOOK_NAMES['before_all'], tests_path, kwargs=hooks_kwargs)
                 cmd = test_run_command(test_username=test_username)
                 results = run_test_scripts(cmd,
