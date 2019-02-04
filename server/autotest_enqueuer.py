@@ -123,7 +123,8 @@ def run_test(user_type, batch_id, **kw):
     queue = get_queue(user_type=user_type, batch_id=batch_id, **kw)
     check_args(ats.run_test, **kw)
     check_test_script_files_exist(**kw)
-    with open(os.path.join(kw['files_path'], kw['test_specs'])) as f:
+    test_files_dir = ats.test_script_directory(kw['markus_address'], kw['assignment_id'])
+    with open(os.path.join(test_files_dir, kw['test_specs'])) as f:
         test_specs = json.load(f)
     check_for_environment_errors(kw['markus_address'], test_specs)
     print_queue_info(queue)
@@ -131,13 +132,13 @@ def run_test(user_type, batch_id, **kw):
     queue.enqueue_call(ats.run_test, kwargs=kw, job_id=format_job_id(**kw), timeout=timeout)
 
 @clean_on_error
-def update_scripts(**kw):
+def update_specs(**kw):
     """
-    Enqueue a test script update job with keyword arguments specified in **kw
+    Enqueue a test specs update job with keyword arguments specified in **kw
     """
     queue = rq.Queue(config.SERVICE_QUEUE, connection=ats.redis_connection())
-    check_args(ats.update_test_scripts, **kw)
-    queue.enqueue_call(ats.update_test_scripts, kwargs=kw)
+    check_args(ats.update_test_specs, **kw)
+    queue.enqueue_call(ats.update_test_specs, kwargs=kw)
  
 def cancel_test(markus_address, run_ids, **kw):
     """
@@ -193,7 +194,7 @@ def parse_arg_file(arg_file):
     return kwargs
 
 COMMANDS = {'run'       : run_test,
-            'scripts'   : update_scripts,
+            'specs'     : update_specs,
             'cancel'    : cancel_test,
             'testers'   : get_available_testers,
             'env'       : manage_test_env}

@@ -399,13 +399,13 @@ def test_run_command(test_username=None):
 
     return cmd
 
-def create_test_script_result(file_name, stdout, stderr, run_time, hooks_stderr, timeout=None):
+def create_test_script_result(test_id, stdout, stderr, run_time, hooks_stderr, timeout=None):
     """
     Return the arguments passed to this function in a dictionary. If stderr is 
     falsy, change it to None. Load the json string in stdout as a dictionary.
     """
     test_results, malformed = loads_partial_json(stdout, dict)
-    return {'file_name' : file_name,
+    return {'test_group_id' : test_id,
             'time' : run_time,
             'timeout' : timeout,
             'tests' : test_results, 
@@ -540,7 +540,7 @@ def create_test_script_command(env_dir, tester_type):
     venv_str = f'source {venv_activate}'
     return ' && '.join([venv_str, f'python -c "{python_str}"'])
 
-def run_test_scripts(cmd, markus_address, test_specs, tests_path, test_username, hooks_module, hook_kwargs={}):
+def run_test_specs(cmd, markus_address, test_specs, test_ids, tests_path, test_username, hooks_module, hook_kwargs={}):
     """
     Run each test script in test_scripts in the tests_path directory using the 
     command cmd. Return the results. 
@@ -564,40 +564,40 @@ def run_test_scripts(cmd, markus_address, test_specs, tests_path, test_username,
             with open(env_settings_file) as f:
                 env_settings = json.load(f)
 
-        script_settings = specs['script_data']
+        for test_data in specs['test_data']:
+            test_id = test_data.get('id')
+            if test_id in test_ids:
+                out, err = '', ''
+                start = time.time()
+                timeout_expired = None
+                hooks_stderr = ''
+                timeout = test_data.get('timeout', 30) #TODO: don't hardcode default timeout
 
-        for settings in script_settings:
-            out, err = '', ''
-            start = time.time()
-            timeout_expired = None
-            hooks_stderr = ''
-            timeout = settings.get('timeout', 30) #TODO: don't hardcode default timeout
-
-            hooks_stderr += run_hooks(hooks_module, HOOK_NAMES['before_each'], tests_path, kwargs=hook_kwargs)
-            try:
-                proc = subprocess.Popen(args, start_new_session=True, cwd=tests_path, shell=True, 
-                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE,
-                                        preexec_fn=preexec_fn)
+                hooks_stderr += run_hooks(hooks_module, HOOK_NAMES['before_each'], tests_path, kwargs=hook_kwargs)
                 try:
-                    settings_json = json.dumps({**env_settings, **settings}).encode='utf-8'
-                    out, err = proc.communicate(input=settings_json, timeout=timeout)
-                except subprocess.TimeoutExpired:
-                    if test_username == current_user():
-                        pgrp = os.getpgid(proc.pid)
-                        os.killpg(pgrp, signal.SIGKILL)
-                    else:
-                        if not kill_with_reaper(test_username):
-                            kill_without_reaper(test_username)
-                    out, err = proc.communicate()
-                    timeout_expired = timeout
-            except Exception as e:
-                err += '\n\n{}'.format(e)
-            finally:
-                hooks_stderr += run_hooks(hooks_module, HOOK_NAMES['after_each'], tests_path, kwargs=hook_kwargs)
-                out = decode_if_bytes(out)
-                err = decode_if_bytes(err)
-                duration = int(round(time.time()-start, 3) * 1000)
-                results.append(create_test_script_result(file_name, out, err, duration, hooks_stderr, timeout_expired))
+                    proc = subprocess.Popen(args, start_new_session=True, cwd=tests_path, shell=True, 
+                                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE,
+                                            preexec_fn=preexec_fn)
+                    try:
+                        settings_json = json.dumps({**env_settings, **test_data}).encode='utf-8'
+                        out, err = proc.communicate(input=settings_json, timeout=timeout)
+                    except subprocess.TimeoutExpired:
+                        if test_username == current_user():
+                            pgrp = os.getpgid(proc.pid)
+                            os.killpg(pgrp, signal.SIGKILL)
+                        else:
+                            if not kill_with_reaper(test_username):
+                                kill_without_reaper(test_username)
+                        out, err = proc.communicate()
+                        timeout_expired = timeout
+                except Exception as e:
+                    err += '\n\n{}'.format(e)
+                finally:
+                    hooks_stderr += run_hooks(hooks_module, HOOK_NAMES['after_each'], tests_path, kwargs=hook_kwargs)
+                    out = decode_if_bytes(out)
+                    err = decode_if_bytes(err)
+                    duration = int(round(time.time()-start, 3) * 1000)
+                    results.append(create_test_script_result(test_id, out, err, duration, hooks_stderr, timeout_expired))
     return results
 
 def store_results(results_data, markus_address, assignment_id, group_id, submission_id):
@@ -651,7 +651,7 @@ def report(results_data, api, assignment_id, group_id, run_id):
     api.upload_test_script_results(assignment_id, group_id, run_id, json.dumps(results_data))
 
 @clean_after
-def run_test(markus_address, server_api_key, test_specs, hooks_script, files_path,
+def run_test(markus_address, server_api_key, test_specs, test_group_ids, hooks_script, files_path,
              assignment_id, group_id, group_repo_name, submission_id, run_id, enqueue_time):
     """
     Run autotesting tests using the tests in the test_specs json file on the files in files_path.
@@ -684,13 +684,14 @@ def run_test(markus_address, server_api_key, test_specs, hooks_script, files_pat
                 setup_files(files_path, tests_path, hooks_script, test_specs, markus_address, assignment_id)
                 all_hooks_error += run_hooks(hooks_module, HOOK_NAMES['before_all'], tests_path, kwargs=hooks_kwargs)
                 cmd = test_run_command(test_username=test_username)
-                results = run_test_scripts(cmd,
-                                           markus_address,
-                                           test_specs,
-                                           tests_path,
-                                           test_username,
-                                           hooks_module,
-                                           hook_kwargs=hooks_kwargs)
+                results = run_test_specs(cmd,
+                                         markus_address,
+                                         test_specs,
+                                         test_ids,
+                                         tests_path,
+                                         test_username,
+                                         hooks_module,
+                                         hook_kwargs=hooks_kwargs)
             finally:
                 stop_tester_processes(test_username)
                 all_hooks_error += run_hooks(hooks_module, HOOK_NAMES['after_all'], tests_path, kwargs=hooks_kwargs)
@@ -705,7 +706,7 @@ def run_test(markus_address, server_api_key, test_specs, hooks_script, files_pat
 ### UPDATE TEST SCRIPTS ### 
 
 @clean_after
-def update_test_scripts(files_path, assignment_id, markus_address):
+def update_test_specs(files_path, assignment_id, markus_address):
     """
     Copy new test scripts for a given assignment to from the files_path
     to a new location. Indicate that these new test scripts should be used instead of 
@@ -810,7 +811,6 @@ def update_env_settings(env_settings, specs_dir):
     full_env_settings = {}
     specs_settings_files = [os.path.join(specs_dir, 'default_environment_settings.json'),
                             os.path.join(specs_dir, 'default_install_settings.json'),
-                            os.path.join(specs_dir, 'default_settings.json'),
                             os.path.join(specs_dir, 'install_settings.json')]
     for settings_file in specs_settings_files:
         if os.path.isfile(settings_file):
