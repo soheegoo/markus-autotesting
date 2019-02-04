@@ -2,6 +2,9 @@
 .idea
 __pycache__
 .DS_Store
+.hypothesis/
+.pytest_cache/
+
 
 # server
 server/venv
