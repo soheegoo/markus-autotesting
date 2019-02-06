@@ -100,7 +100,7 @@ def clean_on_error(func):
 
     return wrapper
 
-def get_job_timeout(test_specs, test_ids, multiplier=1.5):
+def get_job_timeout(test_specs, test_group_ids, multiplier=1.5):
     """
     Return multiplier times the sum of all timeouts in the
     test_specs dictionary
@@ -109,7 +109,7 @@ def get_job_timeout(test_specs, test_ids, multiplier=1.5):
     for specs in test_specs:
         for test_data in specs['test_data']:
             test_id = test_data.get('id')
-            if test_id in test_ids:
+            if test_id in test_group_ids:
                 total_timeout += test_data.get('timeout', 30) #TODO: don't hardcode default timeout
 
     return int(total_timeout * multiplier)
@@ -130,7 +130,7 @@ def run_test(user_type, batch_id, **kw):
         test_specs = json.load(f)
     check_for_environment_errors(kw['markus_address'], test_specs)
     print_queue_info(queue)
-    timeout = get_job_timeout(test_specs, kw['test_ids'])
+    timeout = get_job_timeout(test_specs, kw['test_group_ids'])
     queue.enqueue_call(ats.run_test, kwargs=kw, job_id=format_job_id(**kw), timeout=timeout)
 
 @clean_on_error
