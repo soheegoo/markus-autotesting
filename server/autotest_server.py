@@ -668,7 +668,7 @@ def run_test(markus_address, server_api_key, test_specs, test_group_ids, hooks_s
     hooks_module, all_hooks_error = load_hooks(hooks_script_path) if hooks_script_path else (None, '')
     api = Markus(server_api_key, markus_address)
 
-    with open(os.path.join(files_path, test_specs)) as f:
+    with open(os.path.join(test_script_path, test_specs)) as f:
         test_specs = json.load(f)
 
     try:
