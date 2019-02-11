@@ -642,7 +642,7 @@ def stop_tester_processes(test_username):
 
 def finalize_results_data(results, error, all_hooks_error, time_to_service):
     """ Return a dictionary of test script results combined with test run info """
-    return  {'test_scripts'       : results,
+    return  {'test_groups'        : results,
              'error'              : error,
              'hooks_error'        : all_hooks_error,
              'time_to_service'    : time_to_service}
