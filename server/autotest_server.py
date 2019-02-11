@@ -649,7 +649,7 @@ def finalize_results_data(results, error, all_hooks_error, time_to_service):
 
 def report(results_data, api, assignment_id, group_id, run_id):
     """ Post the results of running test scripts to the markus api """
-    api.upload_test_script_results(assignment_id, group_id, run_id, json.dumps(results_data))
+    api.upload_test_group_results(assignment_id, group_id, run_id, json.dumps(results_data))
 
 @clean_after
 def run_test(markus_address, server_api_key, test_specs, test_group_ids, hooks_script, files_path,
