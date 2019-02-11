@@ -507,6 +507,7 @@ def load_hooks(hooks_script_path):
         try:
             with add_path(dirpath):
                 hooks_module = __import__(module_name)
+            return hooks_module, ''
         except Exception as e:
             return None, f'import error: {str(e)}\n'
     return hooks_module, ''
