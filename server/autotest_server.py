@@ -399,13 +399,13 @@ def test_run_command(test_username=None):
 
     return cmd
 
-def create_test_script_result(test_id, stdout, stderr, run_time, hooks_stderr, timeout=None):
+def create_test_script_result(test_group_id, stdout, stderr, run_time, hooks_stderr, timeout=None):
     """
     Return the arguments passed to this function in a dictionary. If stderr is 
     falsy, change it to None. Load the json string in stdout as a dictionary.
     """
     test_results, malformed = loads_partial_json(stdout, dict)
-    return {'test_group_id' : test_id,
+    return {'test_group_id' : test_group_id,
             'time' : run_time,
             'timeout' : timeout,
             'tests' : test_results, 
@@ -541,7 +541,7 @@ def create_test_script_command(env_dir, tester_type):
     venv_str = f'source {venv_activate}'
     return ' && '.join([venv_str, f'python -c "{python_str}"'])
 
-def run_test_specs(cmd, markus_address, test_specs, test_ids, tests_path, test_username, hooks_module, hook_kwargs={}):
+def run_test_specs(cmd, markus_address, test_specs, test_group_ids, tests_path, test_username, hooks_module, hook_kwargs={}):
     """
     Run each test script in test_scripts in the tests_path directory using the 
     command cmd. Return the results. 
@@ -566,8 +566,8 @@ def run_test_specs(cmd, markus_address, test_specs, test_ids, tests_path, test_u
                 env_settings = json.load(f)
 
         for test_data in specs['test_data']:
-            test_id = test_data.get('id')
-            if test_id in test_ids:
+            test_group_id = test_data.get('id')
+            if test_group_id in test_group_ids:
                 out, err = '', ''
                 start = time.time()
                 timeout_expired = None
@@ -598,7 +598,7 @@ def run_test_specs(cmd, markus_address, test_specs, test_ids, tests_path, test_u
                     out = decode_if_bytes(out)
                     err = decode_if_bytes(err)
                     duration = int(round(time.time()-start, 3) * 1000)
-                    results.append(create_test_script_result(test_id, out, err, duration, hooks_stderr, timeout_expired))
+                    results.append(create_test_script_result(test_group_id, out, err, duration, hooks_stderr, timeout_expired))
     return results
 
 def store_results(results_data, markus_address, assignment_id, group_id, submission_id):
@@ -688,7 +688,7 @@ def run_test(markus_address, server_api_key, test_specs, test_group_ids, hooks_s
                 results = run_test_specs(cmd,
                                          markus_address,
                                          test_specs,
-                                         test_ids,
+                                         test_group_ids,
                                          tests_path,
                                          test_username,
                                          hooks_module,
