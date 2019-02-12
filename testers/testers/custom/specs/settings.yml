@@ -10,6 +10,7 @@ METADATA:
   tester_type: custom
   tester_name:
     TEXT_MATCHER: .+
+  executable_scripts: true
   script_data:
     REPEAT+:
       runnable_group:
