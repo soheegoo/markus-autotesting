@@ -534,7 +534,7 @@ def create_test_script_command(env_dir, tester_type):
     class_name = TESTER_CLASS_NAMES[tester_type]
     python_lines = [ 'import sys, json',
                     f'from testers import {class_name}',
-                     'from markus_test_specs import MarkusTestSpecs',
+                     'from testers.markus_test_specs import MarkusTestSpecs',
                     f'{class_name}(specs=MarkusTestSpecs.from_json(sys.stdin.read())).run()']
     venv_activate = os.path.join(os.path.abspath(env_dir), 'venv', 'bin', 'activate')
     python_str = '; '.join(python_lines)
