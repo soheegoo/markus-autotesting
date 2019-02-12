@@ -368,16 +368,16 @@ def setup_files(files_path, tests_path, hooks_script, test_specs, markus_address
         - subdirectories:           rwxr-xr-x
         - files:                    rw-r--r--
     """
-    if files_path != tests_path:
-        move_tree(files_path, tests_path)
-        exclude = [e for e in (hooks_script, test_specs) if e]
-        copy_test_script_files(markus_address, assignment_id, tests_path, exclude)
-        os.chmod(tests_path, 0o1770)
+    student_files = move_tree(files_path, tests_path)
+    exclude = [e for e in (hooks_script, test_specs) if e]
+    script_files = copy_test_script_files(markus_address, assignment_id, tests_path, exclude)
+    os.chmod(tests_path, 0o1770)
     for fd, file_or_dir in recursive_iglob(tests_path):
         permissions = 0o755 
         if fd == 'f':
             permissions -= 0o111
         os.chmod(file_or_dir, permissions)
+    return student_files, script_files
 
 def test_run_command(test_username=None):
     """
@@ -541,7 +541,13 @@ def create_test_script_command(env_dir, tester_type):
     venv_str = f'source {venv_activate}'
     return ' && '.join([venv_str, f'python -c "{python_str}"'])
 
-def run_test_specs(cmd, markus_address, test_specs, test_group_ids, tests_path, test_username, hooks_module, hook_kwargs={}):
+def make_scripts_executable(script_files):
+    """ Make script files executable """
+    for fd, file_or_dir in script_files:
+        if fd=='f':
+            os.chmod(file_or_dir, 0o755)
+
+def run_test_specs(cmd, markus_address, test_specs, test_group_ids, tests_path, test_username, hooks_module, script_files, hook_kwargs={}):
     """
     Run each test script in test_scripts in the tests_path directory using the 
     command cmd. Return the results. 
@@ -553,6 +559,9 @@ def run_test_specs(cmd, markus_address, test_specs, test_group_ids, tests_path, 
         # get environment settings
         tester_type = specs['tester_type']
         tester_name = specs['tester_name']
+        if specs.get('executable_scripts'):
+            update_script_permissions(script_files)
+
         env_name = get_unique_env_name(markus_address, tester_type, tester_name)
         env_dir = os.path.join(config.WORKSPACE_DIR, config.SPECS_DIR_NAME, env_name)
         env_settings_file = os.path.join(env_dir, 'environment_settings.json')
@@ -682,7 +691,7 @@ def run_test(markus_address, server_api_key, test_specs, test_group_ids, hooks_s
                             'group_id': group_id,
                             'group_repo_name' : group_repo_name}
             try:
-                setup_files(files_path, tests_path, hooks_script, test_specs, markus_address, assignment_id)
+                _, script_files = setup_files(files_path, tests_path, hooks_script, test_specs, markus_address, assignment_id)
                 all_hooks_error += run_hooks(hooks_module, HOOK_NAMES['before_all'], tests_path, kwargs=hooks_kwargs)
                 cmd = test_run_command(test_username=test_username)
                 results = run_test_specs(cmd,
@@ -692,6 +701,7 @@ def run_test(markus_address, server_api_key, test_specs, test_group_ids, hooks_s
                                          tests_path,
                                          test_username,
                                          hooks_module,
+                                         script_files,
                                          hook_kwargs=hooks_kwargs)
             finally:
                 stop_tester_processes(test_username)
