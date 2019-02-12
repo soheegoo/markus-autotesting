@@ -38,14 +38,14 @@ HOOK_NAMES = {'before_all' : 'before_all',
               'before_each': 'before_each',
               'after_each' : 'after_each'}
 
-TESTER_CLASS_NAMES = {'custom' : 'CustomTester',
-                      'haskell' : 'HaskellTester',
-                      'java' : 'JavaTester',
-                      'jdbc' : 'JDBCTester',
-                      'py' : 'PythonTester',
-                      'pyta' : 'PyTATester',
-                      'racket' : 'RacketTester',
-                      'sql' : 'SQLTester'}
+TESTER_IMPORT_LINE = {'custom' : 'from testers.custom.markus_custom_tester import MarkusCustomTester',
+                      'haskell' : 'from testers.haskell.markus_haskell_tester import MarkusHaskellTester',
+                      'java' : 'from testers.java.markus_java_tester import MarkusJavaTester',
+                      'jdbc' : 'from testers.jdbc.markus_jdbc_tester import MarkusJDBCTester',
+                      'py' : 'from testers.py.markus_python_tester import MarkusPythonTester',
+                      'pyta' : 'from testers.pyta.markus_pyta_tester import MarkusPyTATester',
+                      'racket' : 'from testers.racket.markus_racket_tester import MarkusRacketTester',
+                      'sql' : 'from testers.sql.markus_sql_tester import MarkusSQLTester'}
 
 ### CUSTOM EXCEPTION CLASSES ###
 
@@ -531,9 +531,9 @@ def run_hooks(hooks_module, function_name, tests_path, kwargs={}):
     return ''
 
 def create_test_script_command(env_dir, tester_type):
-    class_name = TESTER_CLASS_NAMES[tester_type]
+    import_line = TESTER_IMPORT_LINE[tester_type]
     python_lines = [ 'import sys, json',
-                    f'from testers import {class_name}',
+                      import_line,
                      'from testers.markus_test_specs import MarkusTestSpecs',
                     f'{class_name}(specs=MarkusTestSpecs.from_json(sys.stdin.read())).run()']
     venv_activate = os.path.join(os.path.abspath(env_dir), 'venv', 'bin', 'activate')
