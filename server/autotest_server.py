@@ -143,7 +143,7 @@ def copy_tree(src, dst, exclude=[]):
         else:
             os.makedirs(os.path.dirname(target), exist_ok=True)
             shutil.copy2(file_or_dir, target)
-        copied.append((fd, file_or_dir))
+        copied.append((fd, target))
     return copied
 
 def ignore_missing_dir_error(_func, _path, excinfo):
@@ -563,6 +563,7 @@ def run_test_specs(cmd, markus_address, test_specs, test_group_ids, tests_path, 
         # get environment settings
         tester_type = specs['tester_type']
         tester_name = specs['tester_name']
+
         if specs.get('executable_scripts'):
             make_scripts_executable(script_files)
 
