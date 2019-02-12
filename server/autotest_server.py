@@ -132,6 +132,7 @@ def copy_tree(src, dst, exclude=[]):
     don't exist, they are created. Do not copy files or directories
     in the exclude list.
     """
+    copied = []
     for fd, file_or_dir in recursive_iglob(src):
         src_path = os.path.relpath(file_or_dir, src)
         if src_path in exclude:
@@ -142,6 +143,8 @@ def copy_tree(src, dst, exclude=[]):
         else:
             os.makedirs(os.path.dirname(target), exist_ok=True)
             shutil.copy2(file_or_dir, target)
+        copied.append((fd, file_or_dir))
+    return copied
 
 def ignore_missing_dir_error(_func, _path, excinfo):
     """ Used by shutil.rmtree to ignore a FileNotFoundError """
@@ -157,8 +160,9 @@ def move_tree(src, dst):
     don't exist, they are created.
     """
     os.makedirs(dst, exist_ok=True)
-    copy_tree(src, dst)
+    moved = copy_tree(src, dst)
     shutil.rmtree(src, onerror=ignore_missing_dir_error)
+    return moved
 
 def loads_partial_json(json_string, expected_type=None):
     """
@@ -357,7 +361,7 @@ def copy_test_script_files(markus_address, assignment_id, tests_path, exclude):
     test_script_dir = test_script_directory(markus_address, assignment_id)
     with fd_open(test_script_dir) as fd:
         with fd_lock(fd, exclusive=False):
-            copy_tree(test_script_dir, tests_path, exclude=exclude)
+            return copy_tree(test_script_dir, tests_path, exclude=exclude)
 
 def setup_files(files_path, tests_path, hooks_script, test_specs, markus_address, assignment_id):
     """
