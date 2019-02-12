@@ -580,7 +580,7 @@ def run_test_specs(cmd, markus_address, test_specs, test_group_ids, tests_path, 
                                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE,
                                             preexec_fn=preexec_fn)
                     try:
-                        settings_json = json.dumps({**env_settings, **test_data}).encode='utf-8'
+                        settings_json = json.dumps({**env_settings, **test_data}).encode('utf-8')
                         out, err = proc.communicate(input=settings_json, timeout=timeout)
                     except subprocess.TimeoutExpired:
                         if test_username == current_user():
@@ -735,7 +735,7 @@ def get_unique_env_name(markus_address, tester_type, tester_name, sha_length=10)
     Return a unique hash based on the markus_address, tester_type and tester_name. 
     The hash length is set by sha_length and is 10 bytes by default. 
     """
-    return clean_dir_name(hashlib.sha256(f'{markus_address}{tester_type}{tester_name}'.encode()).hexdigest()[:sha_length])
+    return clean_dir_name(hashlib.sha256(f'{markus_address}{tester_type}{tester_name}'.encode('utf-8')).hexdigest()[:sha_length])
  
 def get_tester_root_dir(tester_type):
     """
