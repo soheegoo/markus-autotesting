@@ -38,14 +38,14 @@ HOOK_NAMES = {'before_all' : 'before_all',
               'before_each': 'before_each',
               'after_each' : 'after_each'}
 
-TESTER_IMPORT_LINE = {'custom' : 'from testers.custom.markus_custom_tester import MarkusCustomTester',
-                      'haskell' : 'from testers.haskell.markus_haskell_tester import MarkusHaskellTester',
-                      'java' : 'from testers.java.markus_java_tester import MarkusJavaTester',
-                      'jdbc' : 'from testers.jdbc.markus_jdbc_tester import MarkusJDBCTester',
-                      'py' : 'from testers.py.markus_python_tester import MarkusPythonTester',
-                      'pyta' : 'from testers.pyta.markus_pyta_tester import MarkusPyTATester',
-                      'racket' : 'from testers.racket.markus_racket_tester import MarkusRacketTester',
-                      'sql' : 'from testers.sql.markus_sql_tester import MarkusSQLTester'}
+TESTER_IMPORT_LINE = {'custom' : 'from testers.custom.markus_custom_tester import MarkusCustomTester as Tester',
+                      'haskell' : 'from testers.haskell.markus_haskell_tester import MarkusHaskellTester as Tester',
+                      'java' : 'from testers.java.markus_java_tester import MarkusJavaTester as Tester',
+                      'jdbc' : 'from testers.jdbc.markus_jdbc_tester import MarkusJDBCTester as Tester',
+                      'py' : 'from testers.py.markus_python_tester import MarkusPythonTester as Tester',
+                      'pyta' : 'from testers.pyta.markus_pyta_tester import MarkusPyTATester as Tester',
+                      'racket' : 'from testers.racket.markus_racket_tester import MarkusRacketTester as Tester',
+                      'sql' : 'from testers.sql.markus_sql_tester import MarkusSQLTester as Tester'}
 
 ### CUSTOM EXCEPTION CLASSES ###
 
@@ -535,7 +535,7 @@ def create_test_script_command(env_dir, tester_type):
     python_lines = [ 'import sys, json',
                       import_line,
                      'from testers.markus_test_specs import MarkusTestSpecs',
-                    f'{class_name}(specs=MarkusTestSpecs.from_json(sys.stdin.read())).run()']
+                    f'Tester(specs=MarkusTestSpecs.from_json(sys.stdin.read())).run()']
     venv_activate = os.path.join(os.path.abspath(env_dir), 'venv', 'bin', 'activate')
     python_str = '; '.join(python_lines)
     venv_str = f'source {venv_activate}'
