@@ -132,7 +132,6 @@ def copy_tree(src, dst, exclude=[]):
     don't exist, they are created. Do not copy files or directories
     in the exclude list.
     """
-    copied = []
     for fd, file_or_dir in recursive_iglob(src):
         src_path = os.path.relpath(file_or_dir, src)
         if src_path in exclude:
@@ -143,8 +142,6 @@ def copy_tree(src, dst, exclude=[]):
         else:
             os.makedirs(os.path.dirname(target), exist_ok=True)
             shutil.copy2(file_or_dir, target)
-        copied.append((fd, target))
-    return copied
 
 def ignore_missing_dir_error(_func, _path, excinfo):
     """ Used by shutil.rmtree to ignore a FileNotFoundError """
@@ -160,9 +157,8 @@ def move_tree(src, dst):
     don't exist, they are created.
     """
     os.makedirs(dst, exist_ok=True)
-    moved = copy_tree(src, dst)
+    copy_tree(src, dst)
     shutil.rmtree(src, onerror=ignore_missing_dir_error)
-    return moved
 
 def loads_partial_json(json_string, expected_type=None):
     """
@@ -363,26 +359,23 @@ def copy_test_script_files(markus_address, assignment_id, tests_path, exclude):
         with fd_lock(fd, exclusive=False):
             copy_tree(test_script_dir, tests_path, exclude=exclude)
 
-def setup_files(files_path, tests_path, hooks_script, test_specs, markus_address, assignment_id, executable_scripts):
+def setup_files(files_path, tests_path, hooks_script, test_specs, markus_address, assignment_id):
     """
     Copy test script files and student files to the working directory tests_path,
     then make it the current working directory.
     The following permissions are also set:
         - tests_path directory:     rwxrwx--T
         - subdirectories:           rwxr-xr-x
-        - files:                    rw-r--r-- OR rwxr-xr-x if executable_scripts==True and the file is a script file
+        - files:                    rw-r--r--
     """
-    make_executable = set()
     if files_path != tests_path:
-        student_files = move_tree(files_path, tests_path)
+        move_tree(files_path, tests_path)
         exclude = [e for e in (hooks_script, test_specs) if e]
-        script_files = copy_test_script_files(markus_address, assignment_id, tests_path, exclude)
-        if executable_scripts:
-            make_executable = {file_or_dir for fd, file_or_dir in script_files if fd=='f'}
+        copy_test_script_files(markus_address, assignment_id, tests_path, exclude)
         os.chmod(tests_path, 0o1770)
-    for fd, file_or_dir in student_files+script_files:
+    for fd, file_or_dir in recursive_iglob(tests_path):
         permissions = 0o755 
-        if fd == 'f' and file_or_dir not in make_executable:
+        if fd == 'f':
             permissions -= 0o111
         os.chmod(file_or_dir, permissions)
 
@@ -689,8 +682,7 @@ def run_test(markus_address, server_api_key, test_specs, test_group_ids, hooks_s
                             'group_id': group_id,
                             'group_repo_name' : group_repo_name}
             try:
-                executable_scripts = test_specs.get('executable_scripts')
-                setup_files(files_path, tests_path, hooks_script, test_specs, markus_address, assignment_id, executable_scripts)
+                setup_files(files_path, tests_path, hooks_script, test_specs, markus_address, assignment_id)
                 all_hooks_error += run_hooks(hooks_module, HOOK_NAMES['before_all'], tests_path, kwargs=hooks_kwargs)
                 cmd = test_run_command(test_username=test_username)
                 results = run_test_specs(cmd,
