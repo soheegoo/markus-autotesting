@@ -50,13 +50,11 @@ class MarkusTest(ABC):
             if not isinstance(time, int) or time < 0:
                 raise ValueError('The time must be a positive integer or None')
 
-        result_json = json.dumps({'name': test_name, 
-                                  'input': '', 
-                                  'expected': '', 
-                                  'actual': output, 
-                                  'marks_earned': points_earned, 
-                                  'marks_total': points_total, 
-                                  'status': status.value, 
+        result_json = json.dumps({'name': test_name,
+                                  'output': output,
+                                  'marks_earned': points_earned,
+                                  'marks_total': points_total,
+                                  'status': status.value,
                                   'time': time})
         return result_json
 
