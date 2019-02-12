@@ -1,3 +1,0 @@
-pytest
-python-ta
-psycopg2-binary
