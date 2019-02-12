@@ -1,1 +1,0 @@
-from .markus_racket_tester import MarkusRacketTester as RacketTester

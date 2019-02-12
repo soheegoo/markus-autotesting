@@ -5,5 +5,7 @@
 			"dataset_file_path" : null
 		}
 	],
-	"schema_file_path": null
+	"schema_file_path": null,
+	"python_version": "3.7",
+	"pip_requirements": "psycopg2-binary"
 }

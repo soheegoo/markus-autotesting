@@ -13,31 +13,27 @@ class MarkusJDBCTest(MarkusSQLTest):
         'bad_java': "Java runtime error: '{}'"
     }
     ERROR_MSGS.update(MarkusSQLTest.ERROR_MSGS)
-    JAVA_POINTS_KEY = 'JAVA'
 
-    def __init__(self, tester, test_file, data_files, points, test_extra, feedback_open=None):
-        super().__init__(tester, test_file, data_files, points, test_extra, feedback_open)
+    def __init__(self, tester, runnable_group, feedback_open=None):
+        self.tables = runnable_group.get('tables')
+        super().__init__(tester, runnable_group, feedback_open)
+        self.java_points = runnable_group.get('points', 1)
+        self.points_total += sum(table.get('points', 1) for table in self.tables)
 
-    @property
-    def test_name(self):
-        return self.test_file
-
-    def check_java(self, order_on=False):
+    def check_java(self):
         java_command = ['java', '-cp', self.tester.java_classpath, self.__class__.__name__, self.tester.oracle_database,
                         self.tester.user_name, self.tester.user_password, self.tester.schema_name, self.test_name,
-                        self.data_name, str(order_on), self.tester.test_database]
+                        self.data_name, str(self.order_on or False), self.tester.test_database]
         java = subprocess.run(java_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True,
                               check=True)
 
         return java
 
     def run(self):
-
         # drop and recreate test schema + dataset, then fetch and compare java results
         try:
             self.set_test_schema(self.data_file)
-            order_on = self.test_extra.get('order_on', False)
-            java = self.check_java(order_on)
+            java = self.check_java()
             if java.stdout == MarkusTest.Status.FAIL.value:
                 return self.failed(message=java.stderr)
             if java.stdout == MarkusTest.Status.ERROR.value:
@@ -50,21 +46,18 @@ class MarkusJDBCTest(MarkusSQLTest):
             else:
                 msg = str(e)
             return self.error(message=msg)
-        if isinstance(self.points, collections.abc.Mapping):
-            points_earned = self.points[self.JAVA_POINTS_KEY]
-        else:
-            return self.passed()
+        points_earned = self.java_points
         # fetch and compare sql table results
         messages = []
         oracle_solutions = []
         test_solutions = []
-        for table_name, table_points in sorted(self.points.items()):
-            if table_name == self.JAVA_POINTS_KEY:
-                continue
+        for table in self.tables:
+            table_name = table.get('table_name')
+            table_points = table.get('points', 1)
             try:
                 test_results = self.get_test_results(table_name)
                 oracle_results = self.get_oracle_results(table_name)
-                status, message = self.check_results(oracle_results, test_results, order_on=False)
+                status, message = self.check_results(oracle_results, test_results)
                 if status is MarkusTest.Status.PASS:
                     points_earned += table_points
                 else:
@@ -90,10 +83,10 @@ class MarkusJDBCTester(MarkusSQLTester):
 
     def __init__(self, specs, test_class=MarkusJDBCTest):
         super().__init__(specs, test_class)
-        self.java_files = ['{}.java'.format(class_name) for class_name in set(
-                              [test_name.partition('.')[0] for test_name in self.specs.tests])]
-        self.java_classpath = '.:{}:{}'.format(os.path.join(specs['path_to_solution'], self.CLASS_DIR),
-                                               specs['path_to_jdbc_jar'])
+        class_names = {group['java_method_name'].partition('.')[0] for group in self.specs['runnable_group']}
+        self.java_files = [f'{class_name}.java' for class_name in class_names]
+        solution_path = os.path.join(self.specs['path_to_solution'], self.CLASS_DIR)
+        self.java_classpath = '.:{}:{}'.format(solution_path, self.specs['path_to_jdbc_jar'])
 
     def init_java(self):
         javac_command = ['javac', '-cp', self.java_classpath] + self.java_files

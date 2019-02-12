@@ -22,7 +22,9 @@ METADATA:
                 TEXT_MATCHER: \d+
                 DEFAULT: '1'
           order_on:
-            TEXT_MATCHER: .*
+            OPTIONS:
+              - true
+              - false
           points:
             TEXT_MATCHER: \d+
             DEFAULT: '1'

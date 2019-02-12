@@ -39,6 +39,7 @@ BINDIR=$(dirname ${THISSCRIPT})
 SPECSDIR=$(dirname ${BINDIR})/specs
 DEFAULTSETTINGS=${SPECSDIR}/default_environment_settings.json
 
+TESTERDIR=$(dirname $(dirname ${THISSCRIPT}))
 VENVDIR=${WORKINGSPECSDIR}/${TESTERNAME}/venv
 PYVERSION=$(get_setting python_version)
 PIPREQUIREMENTS="$(get_default_setting pip_requirements) $(get_setting pip_requirements)"

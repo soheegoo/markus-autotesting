@@ -10,7 +10,7 @@ METADATA:
     REPEAT+:
       runnable_group:
         REPEAT+:
-          solution_file_path: 
+          script_file_path: 
             TEXT_MATCHER: .+
           dataset_file_path:
             TEXT_MATCHER: .*
@@ -29,5 +29,7 @@ METADATA:
         TEXT_MATCHER: \d+
         DEFAULT: "30"
       hooks_file_path:
+        TEXT_MATCHER: .*
+      schema_name:
         TEXT_MATCHER: .*
         

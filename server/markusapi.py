@@ -174,13 +174,13 @@ class Markus:
             content_type = 'multipart/form-data'
         return self.submit_request(params, path, request_type, content_type)
 
-    def upload_test_script_results(self, assignment_id, group_id, test_run_id, test_output):
+    def upload_test_group_results(self, assignment_id, group_id, test_run_id, test_output):
         """ (Markus, int, int, str) -> list of str"""
         params = {
             'test_run_id': test_run_id,
             'test_output': test_output
         }
-        path = Markus.get_path(assignment_id, group_id) + '/test_script_results'
+        path = Markus.get_path(assignment_id, group_id) + '/test_group_results'
         return self.submit_request(params, path, 'POST')
 
     def upload_annotations(self, assignment_id, group_id, annotations, force_complete=False):

@@ -32,14 +32,23 @@ def check_args(func, *args, **kwargs):
     except TypeError as e:
         raise type(e)('{}\nWith args: {}\nWith kwargs:{}'.format(e, args, tuple(kwargs))).with_traceback(sys.exc_info()[2])
 
-def check_for_environment_errors(markus_address, tester_type, tester_name, **kw):
-    env_dir = ats.get_unique_env_name(markus_address, tester_type, tester_name)
-    error_file = os.path.join(env_dir, 'env_creation_errors.txt')
-    if os.path.isfile(error_file):
-        with open(error_file) as f:
-            msg = 'Test environment was not successfully created.\nFailed with the following error:\n'
-            msg = f'{msg}{f.read()}'
-        raise RuntimeError(msg)
+def check_for_environment_errors(markus_address, test_specs):
+    """
+    For each of the environments used in this test, check to see if there
+    were any errors that occured when creating/updating this environment
+    """
+    msg = []
+    for specs in test_specs:
+        tester_type = specs['tester_type']
+        tester_name = specs['tester_name']
+        env_dir = ats.get_unique_env_name(markus_address, tester_type, tester_name)
+        error_file = os.path.join(env_dir, 'env_creation_errors.txt')
+        if os.path.isfile(error_file):
+            with open(error_file) as f:
+                msg.append('\n'.join([f'Test environment {tester_name} was not successfully created.',
+                                      f'Failed with the following error:{f.read()}']))
+    if msg:
+        raise RuntimeError('\n\n'.join(msg))
 
 def queue_name(queue, i):
     """
@@ -91,12 +100,19 @@ def clean_on_error(func):
 
     return wrapper
 
-def get_job_timeout(test_script_dict, multiplier=1.5):
+def get_job_timeout(test_specs, test_group_ids, multiplier=1.5):
     """
     Return multiplier times the sum of all timeouts in the
-    test_script_dict dictionary
+    test_specs dictionary
     """
-    return int(sum(test_script_dict.values()) * multiplier)
+    total_timeout = 0
+    for specs in test_specs:
+        for test_data in specs['test_data']:
+            test_id = test_data.get('id')
+            if test_id in test_group_ids:
+                total_timeout += test_data.get('timeout', 30) #TODO: don't hardcode default timeout
+
+    return int(total_timeout * multiplier)
 
 ### COMMAND FUNCTIONS ###
 
@@ -109,19 +125,22 @@ def run_test(user_type, batch_id, **kw):
     queue = get_queue(user_type=user_type, batch_id=batch_id, **kw)
     check_args(ats.run_test, **kw)
     check_test_script_files_exist(**kw)
-    check_for_environment_errors(**kw)
+    test_files_dir = ats.test_script_directory(kw['markus_address'], kw['assignment_id'])
+    with open(os.path.join(test_files_dir, kw['test_specs'])) as f:
+        test_specs = json.load(f)
+    check_for_environment_errors(kw['markus_address'], test_specs)
     print_queue_info(queue)
-    timeout = get_job_timeout(kw.get('test_scripts', {}))
+    timeout = get_job_timeout(test_specs, kw['test_group_ids'])
     queue.enqueue_call(ats.run_test, kwargs=kw, job_id=format_job_id(**kw), timeout=timeout)
 
 @clean_on_error
-def update_scripts(**kw):
+def update_specs(**kw):
     """
-    Enqueue a test script update job with keyword arguments specified in **kw
+    Enqueue a test specs update job with keyword arguments specified in **kw
     """
     queue = rq.Queue(config.SERVICE_QUEUE, connection=ats.redis_connection())
-    check_args(ats.update_test_scripts, **kw)
-    queue.enqueue_call(ats.update_test_scripts, kwargs=kw)
+    check_args(ats.update_test_specs, **kw)
+    queue.enqueue_call(ats.update_test_specs, kwargs=kw)
  
 def cancel_test(markus_address, run_ids, **kw):
     """
@@ -177,7 +196,7 @@ def parse_arg_file(arg_file):
     return kwargs
 
 COMMANDS = {'run'       : run_test,
-            'scripts'   : update_scripts,
+            'specs'     : update_specs,
             'cancel'    : cancel_test,
             'testers'   : get_available_testers,
             'env'       : manage_test_env}
