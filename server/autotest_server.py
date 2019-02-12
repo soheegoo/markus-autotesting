@@ -560,7 +560,7 @@ def run_test_specs(cmd, markus_address, test_specs, test_group_ids, tests_path, 
         tester_type = specs['tester_type']
         tester_name = specs['tester_name']
         if specs.get('executable_scripts'):
-            update_script_permissions(script_files)
+            make_scripts_executable(script_files)
 
         env_name = get_unique_env_name(markus_address, tester_type, tester_name)
         env_dir = os.path.join(config.WORKSPACE_DIR, config.SPECS_DIR_NAME, env_name)
