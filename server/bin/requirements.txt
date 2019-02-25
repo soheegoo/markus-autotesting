@@ -3,3 +3,4 @@ requests
 rq
 git+https://github.com/Supervisor/supervisor@master
 pyyaml
+git+https://github.com/MarkusProject/markus-api.git@master

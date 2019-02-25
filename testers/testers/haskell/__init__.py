@@ -1,1 +1,0 @@
-from .markus_haskell_tester import MarkusHaskellTester as HaskellTester

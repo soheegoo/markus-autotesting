@@ -4,7 +4,7 @@ import subprocess
 
 import psycopg2
 
-from testers.markus_tester import MarkusTester, MarkusTest, MarkusTestSpecs
+from testers.markus_tester import MarkusTester, MarkusTest
 
 
 class MarkusSQLTest(MarkusTest):
@@ -25,22 +25,29 @@ class MarkusSQLTest(MarkusTest):
     SCHEMA_FILE = 'schema.ddl'
     DATASET_DIR = 'datasets'
 
-    def __init__(self, tester, test_file, data_files, points, test_extra, feedback_open=None):
-        super().__init__(tester, test_file, data_files, points, test_extra, feedback_open)
-        self.data_file = data_files[0]
+    def __init__(self, tester, runnable_group, feedback_open=None):
+        self.test_file = runnable_group.get('script_file_path')
+        self.data_file = runnable_group.get('dataset_file_path')
+        self.order_on = runnable_group.get('order_on')
+        super().__init__(tester, feedback_open)
+        self.points_total = runnable_group.get('points', 1)
 
-    def select_query(self, schema_name, table_name, order_by=None):
+    @property
+    def test_name(self):
+        return f'{self.test_file}.{self.data_file}.{self.order_on or ""}'
+
+    def select_query(self, schema_name, table_name):
         query = 'SELECT * FROM %(schema)s.%(table)s'
         query_vars = {'schema': psycopg2.extensions.AsIs(schema_name),
                       'table': psycopg2.extensions.AsIs(table_name)}
-        if order_by:
+        if self.order_on is not None:
             query += ' ORDER BY %(order)s'
-            query_vars['order'] = psycopg2.extensions.AsIs(order_by)
+            query_vars['order'] = psycopg2.extensions.AsIs(self.order_on)
 
         return query, query_vars
 
-    def get_oracle_results(self, table_name, order_by=None):
-        query, query_vars = self.select_query(schema_name=self.data_name, table_name=table_name, order_by=order_by)
+    def get_oracle_results(self, table_name):
+        query, query_vars = self.select_query(schema_name=self.data_name, table_name=table_name)
         self.tester.oracle_cursor.execute(query, query_vars)
         self.tester.oracle_connection.commit()
         oracle_results = self.tester.oracle_cursor.fetchall()
@@ -57,7 +64,7 @@ class MarkusSQLTest(MarkusTest):
         with open(os.path.join(self.tester.path_to_solution, self.SCHEMA_FILE)) as schema_open:
             schema = schema_open.read()
             self.tester.test_cursor.execute(schema)
-        if data_file != MarkusTestSpecs.MATRIX_NODATA_KEY:
+        if data_file is not None:
             with open(os.path.join(self.tester.path_to_solution, self.DATASET_DIR, data_file)) as data_open:
                 data = data_open.read()
                 self.tester.test_cursor.execute(data)
@@ -80,7 +87,7 @@ class MarkusSQLTest(MarkusTest):
 
         return test_results
 
-    def check_results(self, oracle_results, test_results, order_on=True):
+    def check_results(self, oracle_results, test_results):
 
         oracle_columns = self.tester.oracle_cursor.description
         test_columns = self.tester.test_cursor.description
@@ -117,7 +124,7 @@ class MarkusSQLTest(MarkusTest):
                     self.ERROR_MSGS['bad_row_count'].format(oracle_num_results, test_num_results))
 
         for i, oracle_row in enumerate(oracle_results):
-            if order_on:
+            if self.order_on is not None:
                 test_row = test_results[i]
             else:
                 # check 5, unordered variant: row contents
@@ -143,7 +150,7 @@ class MarkusSQLTest(MarkusTest):
                 checked_column_types.append(j)
             check_column_types = [j for j in check_column_types if j not in checked_column_types]
             # check 5, ordered variant: row contents + order
-            if order_on and oracle_row != test_row:
+            if self.order_on is not None and oracle_row != test_row:
                 return (MarkusTest.Status.FAIL,
                         self.ERROR_MSGS['bad_row_content_order'].format(i, oracle_row, test_results[i]))
         # check 3: column types compatibility deferred trigger
@@ -154,9 +161,8 @@ class MarkusSQLTest(MarkusTest):
         # all good
         return MarkusTest.Status.PASS, ''
 
-    def get_psql_dump(self, table_name, oracle_order_by=None, test_order_file=None):
-        oracle_query, oracle_vars = self.select_query(schema_name=self.data_name, table_name=table_name,
-                                                      order_by=oracle_order_by)
+    def get_psql_dump(self, table_name, test_order_file=None):
+        oracle_query, oracle_vars = self.select_query(self.data_name, table_name)
         oracle_command = ['psql', '-U', self.tester.user_name, '-d', self.tester.oracle_database, '-h', 'localhost',
                           '-c', self.tester.oracle_cursor.mogrify(oracle_query, oracle_vars)]
         test_command = ['psql', '-U', self.tester.user_name, '-d', self.tester.test_database, '-h', 'localhost', '-c']
@@ -166,7 +172,7 @@ class MarkusSQLTest(MarkusTest):
             with open(test_order_file) as test_order_open:
                 test_query += test_order_open.read()
         else:
-            test_query, test_vars = self.select_query(schema_name=self.tester.schema_name, table_name=table_name)
+            test_query, test_vars = self.select_query(self.tester.schema_name, table_name)
         test_command.extend([self.tester.test_cursor.mogrify(test_query, test_vars)])
         env = os.environ.copy()
         env['PGPASSWORD'] = self.tester.user_password
@@ -185,8 +191,7 @@ class MarkusSQLTest(MarkusTest):
             return self.error(message)
         # check if ordering is required
         test_order_file = None
-        oracle_order_by = self.test_extra.get('order_by')
-        if oracle_order_by is not None:
+        if self.order_on is not None:
             test_order_file = '{}_order{}'.format(self.test_name, os.path.splitext(self.test_file)[1])
             if not os.path.isfile(test_order_file):
                 message = self.ERROR_MSGS['no_submission_order'].format(test_order_file)
@@ -194,16 +199,13 @@ class MarkusSQLTest(MarkusTest):
         try:
             # drop and recreate test schema + dataset, then fetch and compare results
             self.set_test_schema(self.data_file)
-            test_results = self.get_test_results(table_name=self.test_name, sql_file=self.test_file,
-                                                 sql_order_file=test_order_file)
-            oracle_results = self.get_oracle_results(table_name=self.test_name, order_by=oracle_order_by)
-            status, message = self.check_results(oracle_results, test_results, order_on=(oracle_order_by is not None))
+            test_results = self.get_test_results(self.test_name, self.test_file, test_order_file)
+            oracle_results = self.get_oracle_results(self.test_name)
+            status, message = self.check_results(oracle_results, test_results)
             if status is MarkusTest.Status.PASS:
                 return self.passed()
             else:
-                oracle_solution, test_solution = self.get_psql_dump(table_name=self.test_name,
-                                                                    oracle_order_by=oracle_order_by,
-                                                                    test_order_file=test_order_file)
+                oracle_solution, test_solution = self.get_psql_dump(self.test_name, test_order_file)
                 return self.failed(message, oracle_solution, test_solution)
         except Exception as e:
             self.tester.oracle_connection.commit()

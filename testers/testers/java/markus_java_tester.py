@@ -3,8 +3,7 @@ import enum
 import json
 import subprocess
 
-from testers.markus_tester import MarkusTester, MarkusTest, MarkusTestSpecs
-
+from testers.markus_tester import MarkusTester, MarkusTest
 
 class MarkusJavaTest(MarkusTest):
 
@@ -18,22 +17,18 @@ class MarkusJavaTest(MarkusTest):
         'bad_java': 'Java runtime error: "{}"'
     }
 
-    def __init__(self, tester, feedback_open, result):
+    def __init__(self, tester, result, feedback_open=None):
         self.class_name, _sep, self.method_name = result['name'].partition('.')
-        test_file = f'{self.class_name}.java'
-        all_points = tester.specs.matrix[test_file][MarkusTestSpecs.MATRIX_NODATA_KEY]
-        points = all_points.get(self.method_name, all_points.get(self.class_name, 1))
         self.description = result.get('description')
         self.status = MarkusJavaTest.JUnitStatus[result['status']]
         self.message = result.get('message', None)
-        super().__init__(tester, test_file, [MarkusTestSpecs.MATRIX_NODATA_KEY], points, {}, feedback_open)
+        super().__init__(tester, feedback_open)
 
     @property
     def test_name(self):
         name = f'{self.class_name}.{self.method_name}'
         if self.description:
             name += f' ({self.description})'
-
         return name
 
     def run(self):
@@ -54,14 +49,15 @@ class MarkusJavaTester(MarkusTester):
         self.java_classpath = f'.:{specs["path_to_tester_jars"]}/*'
 
     def compile(self):
-        javac_command = ['javac', '-cp', self.java_classpath] + [test_file for test_file in self.specs.tests]
+        javac_command = ['javac', '-cp', self.java_classpath]
+        javac_command.extend([group.get('script_file_path', '') for group in self.specs['runnable_group']])
         # student files imported by tests will be compiled on cascade
         subprocess.run(javac_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True,
                        check=True)
 
     def run_junit(self):
-        java_command = ['java', '-cp', self.java_classpath, MarkusJavaTester.JAVA_TESTER_CLASS] + \
-                       [test_file for test_file in self.specs.tests]
+        java_command = ['java', '-cp', self.java_classpath, MarkusJavaTester.JAVA_TESTER_CLASS]
+        javac_command.extend([group.get('script_file_path', '') for group in self.specs['runnable_group']])
         java = subprocess.run(java_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True,
                               check=True)
         return java
@@ -87,13 +83,12 @@ class MarkusJavaTester(MarkusTester):
                 print(MarkusTester.error_all(message=msg), flush=True)
                 return
             with contextlib.ExitStack() as stack:
-                feedback_open = (stack.enter_context(open(self.specs.feedback_file, 'w'))
-                                 if self.specs.feedback_file is not None
+                feedback_open = (stack.enter_context(open(self.specs['feedback_file'], 'w'))
+                                 if self.specs.get('feedback_file') is not None
                                  else None)
                 for result in json.loads(results.stdout):
-                    test = self.test_class(self, feedback_open, result)
-                    xml = test.run()
-                    print(xml, flush=True)
+                    test = self.test_class(self, result, feedback_open)
+                    result_json = test.run()
+                    print(result_json, flush=True)
         except Exception as e:
             print(MarkusTester.error_all(message=str(e)), flush=True)
-            return

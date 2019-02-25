@@ -29,13 +29,15 @@ class MarkusPyTATest(MarkusTest):
         'reported': "{} error(s)"
     }
 
-    def __init__(self, tester, test_file, data_files, points, test_extra, feedback_open=None):
-        super().__init__(tester, test_file, data_files, points, test_extra, feedback_open)
+    def __init__(self, tester, runnable_group, feedback_open=None):
+        super().__init__(tester, feedback_open)
+        self.student_file = runnable_group.get('student_file_path')
+        self.points_total = runnable_group.get('max_points', 10)
         self.annotations = []
 
     @property
     def test_name(self):
-        return f'PyTA {self.test_file}'
+        return f'PyTA {self.student_file}'
 
     def add_annotations(self, reporter):
         for result in reporter._output['results']:
@@ -58,7 +60,7 @@ class MarkusPyTATest(MarkusTest):
             # run PyTA and collect annotations
             sys.stdout = self.feedback_open if self.feedback_open is not None else self.tester.devnull
             sys.stderr = self.tester.devnull
-            reporter = python_ta.check_all(self.test_file, config=self.tester.pyta_config)
+            reporter = python_ta.check_all(self.student_file, config=self.tester.pyta_config)
             if reporter.current_file_linted is None:
                 # No files were checked. The mark is set to 0.
                 num_messages = 0
@@ -82,10 +84,10 @@ class MarkusPyTATester(MarkusTester):
 
     def __init__(self, specs, test_class=MarkusPyTATest):
         super().__init__(specs, test_class)
-        self.pyta_config = specs.get('pyta_config', {})
+        self.pyta_config = self.specs.get('config', {})
         self.pyta_config['pyta-reporter'] = 'MarkusPyTAReporter'
-        if self.specs.feedback_file is not None:
-            self.pyta_config['pyta-output-file'] = self.specs.feedback_file
+        if self.specs.get('feedback_file') is not None:
+            self.pyta_config['pyta-output-file'] = self.specs['feedback_file']
         self.annotations = []
         self.devnull = open(os.devnull, 'w')
         VALIDATORS[MarkusPyTAReporter.__name__] = MarkusPyTAReporter
@@ -94,8 +96,8 @@ class MarkusPyTATester(MarkusTester):
         self.annotations.extend(test.annotations)
 
     def after_tester_run(self):
-        if self.specs.feedback_file is not None and self.annotations:
-            annotations_file = f'{os.path.splitext(self.specs.feedback_file)[0]}.json'
+        if self.specs.get('feedback_file') is not None and self.annotations:
+            annotations_file = f'{os.path.splitext(self.specs["feedback_file"])[0]}.json'
             with open(annotations_file, 'w') as annotations_open:
                 json.dump(self.annotations, annotations_open)
         if self.devnull:

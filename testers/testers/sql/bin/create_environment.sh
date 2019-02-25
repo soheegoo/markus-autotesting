@@ -2,6 +2,19 @@
 
 set -e 
 
+create_venv() {
+    rm -rf ${VENVDIR} # clean up existing venv if any
+    python${PYVERSION} -m venv ${VENVDIR}
+    source ${VENVDIR}/bin/activate
+    pip install wheel
+    for req in ${PIPREQUIREMENTS}
+    do
+        pip install ${req}
+    done
+    local pth_file=${VENVDIR}/lib/python${PYVERSION}/site-packages/lib.pth
+    echo "${TESTERDIR}/lib" >> ${pth_file}
+}
+
 move_files() {
 	rm -rf ${SOLUTIONDIR}
 	mv ${FILESDIR} ${SOLUTIONDIR}
@@ -102,6 +115,10 @@ get_install_setting() {
 	cat ${INSTALLSETTINGS} | python3 -c "import sys, json; print(json.load(sys.stdin)['$1'])"
 }
 
+get_default_setting() {
+	cat ${DEFAULTSETTINGS} | python3 -c "import sys, json; print(json.load(sys.stdin)['$1'])"
+}
+
 # script starts here
 if [[ $# -lt 4 ]]; then
     echo "Usage: $0 working_specs_dir tester_name settings_json files_dir"
@@ -113,14 +130,20 @@ WORKINGSPECSDIR=$(readlink -f $1)
 TESTERNAME=$2
 JSONSETTINGS=$3
 FILESDIR=$(readlink -f $4)
+TESTERDIR=$(dirname $(dirname ${THISSCRIPT}))
 
 THISSCRIPT=$(readlink -f ${BASH_SOURCE})
 BINDIR=$(dirname ${THISSCRIPT})
 SPECSDIR=$(dirname ${BINDIR})/specs
 INSTALLSETTINGS=${SPECSDIR}/install_settings.json
+DEFAULTSETTINGS=${SPECSDIR}/default_environment_settings.json
+PIPREQUIREMENTS="$(get_default_setting pip_requirements)"
+PYVERSION=$(get_default_setting python_version)
 
 SOLUTIONDIR=${WORKINGSPECSDIR}/${TESTERNAME}/solutions
+VENVDIR=${WORKINGSPECSDIR}/${TESTERNAME}/venv
 
+create_venv
 move_files
 load_solutions_to_db
 clean_solutions_dir

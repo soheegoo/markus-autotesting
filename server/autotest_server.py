@@ -25,9 +25,11 @@ import config
 CURRENT_TEST_SCRIPT_FORMAT = '{}_{}'
 TEST_SCRIPT_DIR = os.path.join(config.WORKSPACE_DIR, config.SCRIPTS_DIR_NAME)
 TEST_RESULT_DIR = os.path.join(config.WORKSPACE_DIR, config.RESULTS_DIR_NAME)
+TEST_SPECS_DIR = os.path.join(config.WORKSPACE_DIR, config.SPECS_DIR_NAME)
 REDIS_CURRENT_TEST_SCRIPT_HASH = '{}:{}'.format(config.REDIS_PREFIX, config.REDIS_CURRENT_TEST_SCRIPT_HASH)
 REDIS_WORKERS_LIST = '{}:{}'.format(config.REDIS_PREFIX, config.REDIS_WORKERS_LIST)
 REDIS_POP_HASH = '{}:{}'.format(config.REDIS_PREFIX, config.REDIS_POP_HASH)
+DEFAULT_ENV_DIR = os.path.join(TEST_SPECS_DIR, '.', '.', config.DEFAULT_ENV_NAME)
 
 # For each rlimit limit (key), make sure that cleanup processes
 # have at least n=(value) resources more than tester processes 
@@ -37,6 +39,15 @@ HOOK_NAMES = {'before_all' : 'before_all',
               'after_all'  : 'after_all',
               'before_each': 'before_each',
               'after_each' : 'after_each'}
+
+TESTER_IMPORT_LINE = {'custom' : 'from testers.custom.markus_custom_tester import MarkusCustomTester as Tester',
+                      'haskell' : 'from testers.haskell.markus_haskell_tester import MarkusHaskellTester as Tester',
+                      'java' : 'from testers.java.markus_java_tester import MarkusJavaTester as Tester',
+                      'jdbc' : 'from testers.jdbc.markus_jdbc_tester import MarkusJDBCTester as Tester',
+                      'py' : 'from testers.py.markus_python_tester import MarkusPythonTester as Tester',
+                      'pyta' : 'from testers.pyta.markus_pyta_tester import MarkusPyTATester as Tester',
+                      'racket' : 'from testers.racket.markus_racket_tester import MarkusRacketTester as Tester',
+                      'sql' : 'from testers.sql.markus_sql_tester import MarkusSQLTester as Tester'}
 
 ### CUSTOM EXCEPTION CLASSES ###
 
@@ -123,6 +134,7 @@ def copy_tree(src, dst, exclude=[]):
     don't exist, they are created. Do not copy files or directories
     in the exclude list.
     """
+    copied = []
     for fd, file_or_dir in recursive_iglob(src):
         src_path = os.path.relpath(file_or_dir, src)
         if src_path in exclude:
@@ -133,6 +145,8 @@ def copy_tree(src, dst, exclude=[]):
         else:
             os.makedirs(os.path.dirname(target), exist_ok=True)
             shutil.copy2(file_or_dir, target)
+        copied.append((fd, target))
+    return copied
 
 def ignore_missing_dir_error(_func, _path, excinfo):
     """ Used by shutil.rmtree to ignore a FileNotFoundError """
@@ -148,8 +162,9 @@ def move_tree(src, dst):
     don't exist, they are created.
     """
     os.makedirs(dst, exist_ok=True)
-    copy_tree(src, dst)
+    moved = copy_tree(src, dst)
     shutil.rmtree(src, onerror=ignore_missing_dir_error)
+    return moved
 
 def loads_partial_json(json_string, expected_type=None):
     """
@@ -348,29 +363,27 @@ def copy_test_script_files(markus_address, assignment_id, tests_path, exclude):
     test_script_dir = test_script_directory(markus_address, assignment_id)
     with fd_open(test_script_dir) as fd:
         with fd_lock(fd, exclusive=False):
-            copy_tree(test_script_dir, tests_path, exclude=exclude)
+            return copy_tree(test_script_dir, tests_path, exclude=exclude)
 
-def setup_files(files_path, tests_path, test_scripts, hooks_script,
-                markus_address, assignment_id):
+def setup_files(files_path, tests_path, hooks_script, test_specs, markus_address, assignment_id):
     """
     Copy test script files and student files to the working directory tests_path,
     then make it the current working directory.
     The following permissions are also set:
         - tests_path directory:     rwxrwx--T
         - subdirectories:           rwxr-xr-x
-        - test script files:        rwxr-xr-x
-        - other files:              rw-r--r--
+        - files:                    rw-r--r--
     """
-    if files_path != tests_path:
-        move_tree(files_path, tests_path)
-        exclude = [hooks_script] if hooks_script else []
-        copy_test_script_files(markus_address, assignment_id, tests_path, exclude)
-        os.chmod(tests_path, 0o1770)
+    student_files = move_tree(files_path, tests_path)
+    exclude = [e for e in (hooks_script, test_specs) if e]
+    script_files = copy_test_script_files(markus_address, assignment_id, tests_path, exclude)
+    os.chmod(tests_path, 0o1770)
     for fd, file_or_dir in recursive_iglob(tests_path):
         permissions = 0o755 
-        if fd == 'f' and os.path.relpath(file_or_dir, tests_path) not in test_scripts:
+        if fd == 'f':
             permissions -= 0o111
         os.chmod(file_or_dir, permissions)
+    return student_files, script_files
 
 def test_run_command(test_username=None):
     """
@@ -385,20 +398,20 @@ def test_run_command(test_username=None):
     >>> test_run_command().format(test_script)
     './myscript.py'
     """
-    cmd = './{}'
+    cmd = '{}'
     if test_username is not None:
         cmd = ' '.join(('sudo', '-u', test_username, '--', 'bash', '-c', 
-                        '"{}"'.format(cmd)))
+                        "'{}'".format(cmd)))
 
     return cmd
 
-def create_test_script_result(file_name, stdout, stderr, run_time, hooks_stderr, timeout=None):
+def create_test_script_result(test_group_id, stdout, stderr, run_time, hooks_stderr, timeout=None):
     """
     Return the arguments passed to this function in a dictionary. If stderr is 
     falsy, change it to None. Load the json string in stdout as a dictionary.
     """
     test_results, malformed = loads_partial_json(stdout, dict)
-    return {'file_name' : file_name,
+    return {'test_group_id' : test_group_id,
             'time' : run_time,
             'timeout' : timeout,
             'tests' : test_results, 
@@ -500,6 +513,7 @@ def load_hooks(hooks_script_path):
         try:
             with add_path(dirpath):
                 hooks_module = __import__(module_name)
+            return hooks_module, ''
         except Exception as e:
             return None, f'import error: {str(e)}\n'
     return hooks_module, ''
@@ -522,7 +536,28 @@ def run_hooks(hooks_module, function_name, tests_path, kwargs={}):
             return f'{function_name} hook: {str(e)}\n'
     return ''
 
-def run_test_scripts(cmd, markus_address, test_scripts, tests_path, test_username, hooks_module, hook_kwargs={}):
+def create_test_script_command(env_dir, tester_type):
+    """
+    Return string representing a command line command to 
+    run tests.
+    """
+    import_line = TESTER_IMPORT_LINE[tester_type]
+    python_lines = [ 'import sys, json',
+                      import_line,
+                     'from testers.markus_test_specs import MarkusTestSpecs',
+                    f'Tester(specs=MarkusTestSpecs.from_json(sys.stdin.read())).run()']
+    venv_activate = os.path.join(os.path.abspath(env_dir), 'venv', 'bin', 'activate')
+    python_str = '; '.join(python_lines)
+    venv_str = f'source {venv_activate}'
+    return ' && '.join([venv_str, f'python -c "{python_str}"'])
+
+def make_scripts_executable(script_files):
+    """ Make script files executable """
+    for fd, file_or_dir in script_files:
+        if fd=='f':
+            os.chmod(file_or_dir, 0o755)
+
+def run_test_specs(cmd, markus_address, test_specs, test_group_ids, tests_path, test_username, hooks_module, script_files, hook_kwargs={}):
     """
     Run each test script in test_scripts in the tests_path directory using the 
     command cmd. Return the results. 
@@ -530,37 +565,59 @@ def run_test_scripts(cmd, markus_address, test_scripts, tests_path, test_usernam
     results = []
     preexec_fn = get_test_preexec_fn()
 
-    for file_name, settings in test_scripts.items():
-        env_dir = get_unique_env_name(markus_address, tester_type, tester_name)
-        out, err = '', '' 
-        start = time.time()
-        timeout_expired = None
-        hooks_stderr = ''
+    for specs in test_specs:
+        # get environment settings
+        tester_type = specs['tester_type']
+        tester_name = specs['tester_name']
 
-        hooks_stderr += run_hooks(hooks_module, HOOK_NAMES['before_each'], tests_path, kwargs=hook_kwargs)
-        try:
-            args = cmd.format(file_name)
-            proc = subprocess.Popen(args, start_new_session=True, cwd=tests_path, shell=True, 
-                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=preexec_fn)
-            try:
-                out, err = proc.communicate(timeout=timeout)
-            except subprocess.TimeoutExpired:
-                if test_username == current_user():
-                    pgrp = os.getpgid(proc.pid)
-                    os.killpg(pgrp, signal.SIGKILL)
-                else:
-                    if not kill_with_reaper(test_username):
-                        kill_without_reaper(test_username)
-                out, err = proc.communicate()
-                timeout_expired = timeout
-        except Exception as e:
-            err += '\n\n{}'.format(e)
-        finally:
-            hooks_stderr += run_hooks(hooks_module, HOOK_NAMES['after_each'], tests_path, kwargs=hook_kwargs)
-            out = decode_if_bytes(out)
-            err = decode_if_bytes(err)
-            duration = int(round(time.time()-start, 3) * 1000)
-            results.append(create_test_script_result(file_name, out, err, duration, hooks_stderr, timeout_expired))
+        env_dir = get_env_dir(markus_address, tester_type, tester_name)
+        env_settings_file = os.path.join(env_dir, 'environment_settings.json')
+        env_settings = {}
+
+        cmd_str = create_test_script_command(env_dir, tester_type)
+        args = cmd.format(cmd_str)
+
+        if os.path.isfile(env_settings_file):
+            with open(env_settings_file) as f:
+                env_settings = json.load(f)
+
+        if specs.get('executable_scripts'):
+            make_scripts_executable(script_files)
+
+        for test_data in specs['test_data']:
+            test_group_id = test_data.get('id')
+            if test_group_id in test_group_ids:
+                out, err = '', ''
+                start = time.time()
+                timeout_expired = None
+                hooks_stderr = ''
+                timeout = test_data.get('timeout', 30) #TODO: don't hardcode default timeout
+
+                hooks_stderr += run_hooks(hooks_module, HOOK_NAMES['before_each'], tests_path, kwargs=hook_kwargs)
+                try:
+                    proc = subprocess.Popen(args, start_new_session=True, cwd=tests_path, shell=True, 
+                                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE,
+                                            preexec_fn=preexec_fn)
+                    try:
+                        settings_json = json.dumps({**env_settings, **test_data}).encode('utf-8')
+                        out, err = proc.communicate(input=settings_json, timeout=timeout)
+                    except subprocess.TimeoutExpired:
+                        if test_username == current_user():
+                            pgrp = os.getpgid(proc.pid)
+                            os.killpg(pgrp, signal.SIGKILL)
+                        else:
+                            if not kill_with_reaper(test_username):
+                                kill_without_reaper(test_username)
+                        out, err = proc.communicate()
+                        timeout_expired = timeout
+                except Exception as e:
+                    err += '\n\n{}'.format(e)
+                finally:
+                    hooks_stderr += run_hooks(hooks_module, HOOK_NAMES['after_each'], tests_path, kwargs=hook_kwargs)
+                    out = decode_if_bytes(out)
+                    err = decode_if_bytes(err)
+                    duration = int(round(time.time()-start, 3) * 1000)
+                    results.append(create_test_script_result(test_group_id, out, err, duration, hooks_stderr, timeout_expired))
     return results
 
 def store_results(results_data, markus_address, assignment_id, group_id, submission_id):
@@ -604,20 +661,20 @@ def stop_tester_processes(test_username):
 
 def finalize_results_data(results, error, all_hooks_error, time_to_service):
     """ Return a dictionary of test script results combined with test run info """
-    return  {'test_scripts'       : results,
+    return  {'test_groups'        : results,
              'error'              : error,
              'hooks_error'        : all_hooks_error,
              'time_to_service'    : time_to_service}
 
 def report(results_data, api, assignment_id, group_id, run_id):
     """ Post the results of running test scripts to the markus api """
-    api.upload_test_script_results(assignment_id, group_id, run_id, json.dumps(results_data))
+    api.upload_test_group_results(assignment_id, group_id, run_id, json.dumps(results_data))
 
 @clean_after
-def run_test(markus_address, server_api_key, test_scripts, hooks_script, files_path, 
+def run_test(markus_address, server_api_key, test_specs, test_group_ids, hooks_script, files_path,
              assignment_id, group_id, group_repo_name, submission_id, run_id, enqueue_time):
     """
-    Run autotesting tests using the tests in test_scripts on the files in files_path. 
+    Run autotesting tests using the tests in the test_specs json file on the files in files_path.
 
     This function should be used by an rq worker.
     """
@@ -629,6 +686,10 @@ def run_test(markus_address, server_api_key, test_scripts, hooks_script, files_p
     hooks_script_path = os.path.join(test_script_path, hooks_script) if hooks_script else None
     hooks_module, all_hooks_error = load_hooks(hooks_script_path) if hooks_script_path else (None, '')
     api = Markus(server_api_key, markus_address)
+
+    with open(os.path.join(test_script_path, test_specs)) as f:
+        test_specs = json.load(f)
+
     try:
         job = rq.get_current_job()
         update_pop_interval_stat(job.origin)
@@ -640,17 +701,18 @@ def run_test(markus_address, server_api_key, test_scripts, hooks_script, files_p
                             'group_id': group_id,
                             'group_repo_name' : group_repo_name}
             try:
-                setup_files(files_path, tests_path, test_scripts, hooks_script,
-                            markus_address, assignment_id)
+                _, script_files = setup_files(files_path, tests_path, hooks_script, test_specs, markus_address, assignment_id)
                 all_hooks_error += run_hooks(hooks_module, HOOK_NAMES['before_all'], tests_path, kwargs=hooks_kwargs)
                 cmd = test_run_command(test_username=test_username)
-                results = run_test_scripts(cmd,
-                                           markus_address,
-                                           test_scripts,
-                                           tests_path,
-                                           test_username,
-                                           hooks_module,
-                                           hook_kwargs=hooks_kwargs)
+                results = run_test_specs(cmd,
+                                         markus_address,
+                                         test_specs,
+                                         test_group_ids,
+                                         tests_path,
+                                         test_username,
+                                         hooks_module,
+                                         script_files,
+                                         hook_kwargs=hooks_kwargs)
             finally:
                 stop_tester_processes(test_username)
                 all_hooks_error += run_hooks(hooks_module, HOOK_NAMES['after_all'], tests_path, kwargs=hooks_kwargs)
@@ -665,7 +727,7 @@ def run_test(markus_address, server_api_key, test_scripts, hooks_script, files_p
 ### UPDATE TEST SCRIPTS ### 
 
 @clean_after
-def update_test_scripts(files_path, assignment_id, markus_address):
+def update_test_specs(files_path, assignment_id, markus_address):
     """
     Copy new test scripts for a given assignment to from the files_path
     to a new location. Indicate that these new test scripts should be used instead of 
@@ -688,13 +750,20 @@ def update_test_scripts(files_path, assignment_id, markus_address):
 
 ### MANAGE TESTER ENVIRONMENTS ###
 
-def get_unique_env_name(markus_address, tester_type, tester_name, sha_length=10):
+def get_env_dir_path(markus_address, tester_type, tester_name):
     """
-    Return a unique hash based on the markus_address, tester_type and tester_name. 
-    The hash length is set by sha_length and is 10 bytes by default. 
+    Return a unique path based on the markus_address, tester_type and tester_name. 
     """
-    return clean_dir_name(hashlib.sha256(f'{markus_address}{tester_type}{tester_name}'.encode()).hexdigest()[:sha_length])
- 
+    clean_markus_address = clean_dir_name(markus_address)
+    clean_tester_name = clean_dir_name(tester_name)
+    return os.path.join(config.WORKSPACE_DIR, config.SPECS_DIR_NAME, clean_markus_address, tester_type, clean_tester_name)
+
+def get_env_dir(markus_address, tester_type, tester_name):
+    path = get_env_dir_path(markus_address, tester_type, tester_name)
+    if os.path.isdir(path):
+        return path
+    return DEFAULT_ENV_DIR    
+
 def get_tester_root_dir(tester_type):
     """
     Return the root directory of the tester named tester_type
@@ -761,6 +830,23 @@ def settings_changed(env_dir, env_settings, checksum, specs_dir):
         return deep_dict_equal(env_settings, current_settings, ignore=ignore_keys) 
     return False
 
+def update_env_settings(env_settings, specs_dir, tester_name):
+    """
+    Return a dictionary containing all the default settings and the installation settings
+    contained in the tester's specs directory as well as the env_settings. The env_settings
+    will overwrite any duplicate keys in the default settings files.
+    """
+    full_env_settings = {}
+    specs_settings_files = [os.path.join(specs_dir, 'default_install_settings.json'),
+                            os.path.join(specs_dir, 'install_settings.json')]
+    for settings_file in specs_settings_files:
+        if os.path.isfile(settings_file):
+            with open(settings_file) as f:
+                full_env_settings.update(json.load(f))
+    full_env_settings.update(env_settings)
+    return full_env_settings
+
+
 @clean_after
 def manage_tester_environment(markus_address, tester_type, tester_name, env_settings, files_path):
     """
@@ -769,14 +855,15 @@ def manage_tester_environment(markus_address, tester_type, tester_name, env_sett
 
     This function should be used by an rq worker.
     """
-    env_name = get_unique_env_name(markus_address, tester_type, tester_name)
-    env_dir = os.path.join(config.WORKSPACE_DIR, config.SPECS_DIR_NAME, env_name)
+    env_dir = get_env_dir_path(markus_address, tester_type, tester_name)
     error_file = os.path.join(env_dir, 'env_creation_errors.txt')
     try:
         # get the specs and bin directories for the given tester_type
         tester_dir = get_tester_root_dir(tester_type)
         specs_dir = os.path.join(tester_dir, 'specs')
         bin_dir = os.path.join(tester_dir, 'bin')
+        # update the env_settings to include installation settings and defaults
+        env_settings = update_env_settings(env_settings, specs_dir, tester_name)
         # calculate a checksum for the uploaded files
         if files_path is not None:
             files = (fname for fd, fname in recursive_iglob(files_path) if fd == 'f')
@@ -808,14 +895,14 @@ def manage_tester_environment(markus_address, tester_type, tester_name, env_sett
         create_file  = os.path.join(bin_dir, 'create_environment.sh')
         # run additional environment creation file if they exist
         if os.path.isfile(create_file):
-            cmd = [f'{create_file}', os.path.dirname(env_dir), env_name, json.dumps(env_settings), files_path or '']
+            cmd = [f'{create_file}', env_dir, json.dumps(env_settings), files_path or '']
             proc = subprocess.run(cmd, stderr=subprocess.PIPE)
             if proc.returncode != 0:
                 raise AutotestError(f'create tester environment failed with:\n{proc.stderr}')
         # set python virtual environment directory if necessary
         venv_dir = os.path.join(env_dir, 'venv')
         if not os.path.isdir(venv_dir):
-            default_venv_dir = os.path.join(config.WORKSPACE_DIR, config.SPECS_DIR_NAME, config.DEFAULT_VENV_NAME, 'venv')
+            default_venv_dir = os.path.join(DEFAULT_ENV_DIR, 'venv')
             os.symlink(default_venv_dir, venv_dir)
         # if successful up to this point, remove any existing error files
         if os.path.isfile(error_file):
