@@ -25,7 +25,7 @@ stop_workers() {
 }
 
 remove_default_tester_venv() {
-    local defaultvenv=${SPECSDIR}/$(get_config_param DEFAULT_VENV_NAME)/venv
+    local defaultvenv=${SPECSDIR}/$(get_config_param DEFAULT_ENV_NAME)/venv
 
     echo "[AUTOTEST-UNINSTALL] Removing default tester virtual environment at '${defaultvenv}'"
     rm -rf ${defaultvenv}
