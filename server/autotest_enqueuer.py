@@ -139,7 +139,7 @@ def update_specs(**kw):
     Enqueue a test specs update job with keyword arguments specified in **kw
     """
     queue = rq.Queue(config.SERVICE_QUEUE, connection=ats.redis_connection())
-    check_args(ats.update_test_specs, **kw)
+    check_args(ats.update_test_specs, kwargs=kw)
     queue.enqueue_call(ats.update_test_specs, kwargs=kw)
  
 def cancel_test(markus_address, run_ids, **kw):
