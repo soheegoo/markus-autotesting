@@ -41,7 +41,7 @@ def check_for_environment_errors(markus_address, test_specs):
     for specs in test_specs:
         tester_type = specs['tester_type']
         tester_name = specs['tester_name']
-        env_dir = ats.get_unique_env_name(markus_address, tester_type, tester_name)
+        env_dir = ats.get_env_dir(markus_address, tester_type, tester_name)
         error_file = os.path.join(env_dir, 'env_creation_errors.txt')
         if os.path.isfile(error_file):
             with open(error_file) as f:

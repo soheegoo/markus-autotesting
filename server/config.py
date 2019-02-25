@@ -37,8 +37,8 @@ WORKER_USERS = ''
 # prefix used to name reaper users 
 # (reapers not used to kill worker processes if set to the empty string)
 REAPER_USER_PREFIX = ''
-# default tester venv name
-DEFAULT_VENV_NAME = 'defaultvenv'
+# default tester environment name
+DEFAULT_ENV_NAME = 'defaultenv'
 
 ## RLIMIT SETTINGS FOR TESTER PROCESSES ##
 

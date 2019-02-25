@@ -92,7 +92,7 @@ install_venv() {
 }
 
 install_default_tester_venv() {
-    local defaultvenv=${SPECSDIR}/$(get_config_param DEFAULT_VENV_NAME)/venv
+    local defaultvenv=${SPECSDIR}/$(get_config_param DEFAULT_ENV_NAME)/venv
     local pth_file=${defaultvenv}/lib/python${PYTHONVERSION}/site-packages/testers.pth
 
     echo "[AUTOTEST-INSTALL] Installing default tester virtual environment at '${defaultvenv}'"

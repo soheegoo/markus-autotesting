@@ -25,9 +25,11 @@ import config
 CURRENT_TEST_SCRIPT_FORMAT = '{}_{}'
 TEST_SCRIPT_DIR = os.path.join(config.WORKSPACE_DIR, config.SCRIPTS_DIR_NAME)
 TEST_RESULT_DIR = os.path.join(config.WORKSPACE_DIR, config.RESULTS_DIR_NAME)
+TEST_SPECS_DIR = os.path.join(config.WORKSPACE_DIR, config.SPECS_DIR_NAME)
 REDIS_CURRENT_TEST_SCRIPT_HASH = '{}:{}'.format(config.REDIS_PREFIX, config.REDIS_CURRENT_TEST_SCRIPT_HASH)
 REDIS_WORKERS_LIST = '{}:{}'.format(config.REDIS_PREFIX, config.REDIS_WORKERS_LIST)
 REDIS_POP_HASH = '{}:{}'.format(config.REDIS_PREFIX, config.REDIS_POP_HASH)
+DEFAULT_ENV_DIR = os.path.join(TEST_SPECS_DIR, '.', '.', config.DEFAULT_ENV_NAME)
 
 # For each rlimit limit (key), make sure that cleanup processes
 # have at least n=(value) resources more than tester processes 
@@ -535,6 +537,10 @@ def run_hooks(hooks_module, function_name, tests_path, kwargs={}):
     return ''
 
 def create_test_script_command(env_dir, tester_type):
+    """
+    Return string representing a command line command to 
+    run tests.
+    """
     import_line = TESTER_IMPORT_LINE[tester_type]
     python_lines = [ 'import sys, json',
                       import_line,
@@ -564,11 +570,7 @@ def run_test_specs(cmd, markus_address, test_specs, test_group_ids, tests_path, 
         tester_type = specs['tester_type']
         tester_name = specs['tester_name']
 
-        if specs.get('executable_scripts'):
-            make_scripts_executable(script_files)
-
-        env_name = get_unique_env_name(markus_address, tester_type, tester_name)
-        env_dir = os.path.join(config.WORKSPACE_DIR, config.SPECS_DIR_NAME, env_name)
+        env_dir = get_env_dir(markus_address, tester_type, tester_name)
         env_settings_file = os.path.join(env_dir, 'environment_settings.json')
         env_settings = {}
 
@@ -578,6 +580,9 @@ def run_test_specs(cmd, markus_address, test_specs, test_group_ids, tests_path, 
         if os.path.isfile(env_settings_file):
             with open(env_settings_file) as f:
                 env_settings = json.load(f)
+
+        if specs.get('executable_scripts'):
+            make_scripts_executable(script_files)
 
         for test_data in specs['test_data']:
             test_group_id = test_data.get('id')
@@ -745,13 +750,20 @@ def update_test_specs(files_path, assignment_id, markus_address):
 
 ### MANAGE TESTER ENVIRONMENTS ###
 
-def get_unique_env_name(markus_address, tester_type, tester_name, sha_length=10):
+def get_env_dir_path(markus_address, tester_type, tester_name):
     """
-    Return a unique hash based on the markus_address, tester_type and tester_name. 
-    The hash length is set by sha_length and is 10 bytes by default. 
+    Return a unique path based on the markus_address, tester_type and tester_name. 
     """
-    return clean_dir_name(hashlib.sha256(f'{markus_address}{tester_type}{tester_name}'.encode('utf-8')).hexdigest()[:sha_length])
- 
+    clean_markus_address = clean_dir_name(markus_address)
+    clean_tester_name = clean_dir_name(tester_name)
+    return os.path.join(config.WORKSPACE_DIR, config.SPECS_DIR_NAME, clean_markus_address, tester_type, clean_tester_name)
+
+def get_env_dir(markus_address, tester_type, tester_name):
+    path = get_env_dir_path(markus_address, tester_type, tester_name)
+    if os.path.isdir(path):
+        return path
+    return DEFAULT_ENV_DIR    
+
 def get_tester_root_dir(tester_type):
     """
     Return the root directory of the tester named tester_type
@@ -818,15 +830,14 @@ def settings_changed(env_dir, env_settings, checksum, specs_dir):
         return deep_dict_equal(env_settings, current_settings, ignore=ignore_keys) 
     return False
 
-def update_env_settings(env_settings, specs_dir):
+def update_env_settings(env_settings, specs_dir, tester_name):
     """
     Return a dictionary containing all the default settings and the installation settings
     contained in the tester's specs directory as well as the env_settings. The env_settings
     will overwrite any duplicate keys in the default settings files.
     """
     full_env_settings = {}
-    specs_settings_files = [os.path.join(specs_dir, 'default_environment_settings.json'),
-                            os.path.join(specs_dir, 'default_install_settings.json'),
+    specs_settings_files = [os.path.join(specs_dir, 'default_install_settings.json'),
                             os.path.join(specs_dir, 'install_settings.json')]
     for settings_file in specs_settings_files:
         if os.path.isfile(settings_file):
@@ -844,8 +855,7 @@ def manage_tester_environment(markus_address, tester_type, tester_name, env_sett
 
     This function should be used by an rq worker.
     """
-    env_name = get_unique_env_name(markus_address, tester_type, tester_name)
-    env_dir = os.path.join(config.WORKSPACE_DIR, config.SPECS_DIR_NAME, env_name)
+    env_dir = get_env_dir_path(markus_address, tester_type, tester_name)
     error_file = os.path.join(env_dir, 'env_creation_errors.txt')
     try:
         # get the specs and bin directories for the given tester_type
@@ -853,7 +863,7 @@ def manage_tester_environment(markus_address, tester_type, tester_name, env_sett
         specs_dir = os.path.join(tester_dir, 'specs')
         bin_dir = os.path.join(tester_dir, 'bin')
         # update the env_settings to include installation settings and defaults
-        env_settings = update_env_settings(env_settings, specs_dir)
+        env_settings = update_env_settings(env_settings, specs_dir, tester_name)
         # calculate a checksum for the uploaded files
         if files_path is not None:
             files = (fname for fd, fname in recursive_iglob(files_path) if fd == 'f')
@@ -885,14 +895,14 @@ def manage_tester_environment(markus_address, tester_type, tester_name, env_sett
         create_file  = os.path.join(bin_dir, 'create_environment.sh')
         # run additional environment creation file if they exist
         if os.path.isfile(create_file):
-            cmd = [f'{create_file}', os.path.dirname(env_dir), env_name, json.dumps(env_settings), files_path or '']
+            cmd = [f'{create_file}', env_dir, json.dumps(env_settings), files_path or '']
             proc = subprocess.run(cmd, stderr=subprocess.PIPE)
             if proc.returncode != 0:
                 raise AutotestError(f'create tester environment failed with:\n{proc.stderr}')
         # set python virtual environment directory if necessary
         venv_dir = os.path.join(env_dir, 'venv')
         if not os.path.isdir(venv_dir):
-            default_venv_dir = os.path.join(config.WORKSPACE_DIR, config.SPECS_DIR_NAME, config.DEFAULT_VENV_NAME, 'venv')
+            default_venv_dir = os.path.join(DEFAULT_ENV_DIR, 'venv')
             os.symlink(default_venv_dir, venv_dir)
         # if successful up to this point, remove any existing error files
         if os.path.isfile(error_file):
