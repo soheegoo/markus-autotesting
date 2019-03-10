@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 import json
 from collections import defaultdict
 
@@ -29,10 +30,10 @@ class MarkusPyTATest(MarkusTest):
         'reported': "{} error(s)"
     }
 
-    def __init__(self, tester, runnable_group, feedback_open=None):
+    def __init__(self, tester, student_file_path, max_points, feedback_open=None):
+        self.student_file = student_file_path
         super().__init__(tester, feedback_open)
-        self.student_file = runnable_group.get('student_file_path')
-        self.points_total = runnable_group.get('max_points', 10)
+        self.points_total = max_points
         self.annotations = []
 
     @property
@@ -55,6 +56,10 @@ class MarkusPyTATest(MarkusTest):
                         'column_end': msg['end_col_offset']
                     })
 
+    def after_successful_test_run(self):
+        self.tester.annotations.extend(self.annotations)
+
+    @MarkusTest.run_decorator
     def run(self):
         try:
             # run PyTA and collect annotations
@@ -84,21 +89,42 @@ class MarkusPyTATester(MarkusTester):
 
     def __init__(self, specs, test_class=MarkusPyTATest):
         super().__init__(specs, test_class)
-        self.pyta_config = self.specs.get('config', {})
-        self.pyta_config['pyta-reporter'] = 'MarkusPyTAReporter'
-        if self.specs.get('feedback_file') is not None:
-            self.pyta_config['pyta-output-file'] = self.specs['feedback_file']
+        self.feedback_file = self.specs.get('test_data', 'feedback_file_name')
+        self.pyta_config = self.update_pyta_config()
         self.annotations = []
         self.devnull = open(os.devnull, 'w')
         VALIDATORS[MarkusPyTAReporter.__name__] = MarkusPyTAReporter
 
-    def after_successful_test_run(self, test):
-        self.annotations.extend(test.annotations)
+    def update_pyta_config(self):
+        config_file = self.specs.get('test_data', 'config_file_name')
+        if config_file:
+            with open(config_file) as f:
+                config_dict = json.load(f)
+        else: 
+            config_dict = {}
+
+        config_dict['pyta-reporter'] = 'MarkusPyTAReporter'
+        if self.feedback_file:
+            config_dict['pyta-output-file'] = self.feedback_file
+
+        return config_dict
 
     def after_tester_run(self):
-        if self.specs.get('feedback_file') is not None and self.annotations:
-            annotations_file = f'{os.path.splitext(self.specs["feedback_file"])[0]}.json'
+        if self.feedback_file and self.annotations:
+            annotations_file = f'{os.path.splitext(self.feedback_file)[0]}.json'
             with open(annotations_file, 'w') as annotations_open:
                 json.dump(self.annotations, annotations_open)
         if self.devnull:
             self.devnull.close()
+
+    @MarkusTester.run_decorator
+    def run(self):
+        feedback_file = self.specs.get('test_data', 'feedback_file_name')
+        with MarkusTester.open_feedback(feedback_file) as feedback_open:
+            for test_data in self.specs.get('test_data', 'student_files', default=[]):
+                student_file_path = test_data['file_path']
+                max_points = test_data.get('max_points', 10)
+                test = self.test_class(self, student_file_path, max_points, feedback_open)
+                print(test.run())
+
+
