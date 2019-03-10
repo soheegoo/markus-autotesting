@@ -1,8 +1,9 @@
-import contextlib
+from contextlib import contextmanager
 import enum
 import json
 import os
 from abc import ABC, abstractmethod
+from functools import wraps
 
 class MarkusTest(ABC):
 
@@ -16,7 +17,7 @@ class MarkusTest(ABC):
     @abstractmethod
     def __init__(self, tester, feedback_open=None):
         self.tester = tester
-        self.points_total = self.tester.specs.get('points', {}).get(self.test_name, 1)
+        self.points_total = self.get_total_points()
         if self.points_total <= 0:
             raise ValueError('The test total points must be > 0')
         self.feedback_open = feedback_open
@@ -28,6 +29,9 @@ class MarkusTest(ABC):
         Returns a unique name for the test.
         """
         pass
+
+    def get_total_points(self):
+        return self.tester.specs.get('points', default={}).get(self.test_name, 1)
 
     @staticmethod
     def format_result(test_name, status, output, points_earned, points_total, time=None):
@@ -184,6 +188,38 @@ class MarkusTest(ABC):
             self.add_feedback(status=self.Status.ERROR, feedback=message)
         return result
 
+    def before_test_run(self):
+        """
+        Callback invoked before running a test.
+        Use this for test initialization steps that can fail, rather than using test_class.__init__().
+        :param test: The test after initialization.
+        """
+        pass
+
+    def after_successful_test_run(self):
+        """
+        Callback invoked after successfully running a test.
+        Use this to access test data in the tester. Don't use this for test cleanup steps, use test_class.run() instead.
+        :param test: The test after execution.
+        """
+        pass
+
+    @staticmethod
+    def run_decorator(run_func):
+        @wraps(run_func)
+        def run_func_wrapper(self, *args, **kwargs):
+            try:
+                # if a test __init__ fails it should really stop the whole tester, we don't have enough
+                # info to continue safely, e.g. the total points (which skews the student mark)
+                self.before_test_run()
+                result_json = run_func(self, *args, **kwargs)
+                self.after_successful_test_run()
+            except Exception as e:
+                import traceback
+                result_json = self.error(message=str(traceback.format_tb(e.__traceback__)+[str(e)]))
+            return result_json
+        return run_func_wrapper
+
     @abstractmethod
     def run(self):
         """
@@ -218,22 +254,6 @@ class MarkusTester(ABC):
         """
         pass
 
-    def before_test_run(self, test):
-        """
-        Callback invoked before running a test.
-        Use this for test initialization steps that can fail, rather than using test_class.__init__().
-        :param test: The test after initialization.
-        """
-        pass
-
-    def after_successful_test_run(self, test):
-        """
-        Callback invoked after successfully running a test.
-        Use this to access test data in the tester. Don't use this for test cleanup steps, use test_class.run() instead.
-        :param test: The test after execution.
-        """
-        pass
-
     def after_tester_run(self):
         """
         Callback invoked after running this tester, including in case of exceptions.
@@ -241,26 +261,31 @@ class MarkusTester(ABC):
         """
         pass
 
+    @staticmethod
+    def run_decorator(run_func):
+        @wraps(run_func)
+        def run_func_wrapper(self, *args, **kwargs):
+            try:
+                self.before_tester_run()
+                return run_func(self, *args, **kwargs)
+            except Exception as e:
+                print(MarkusTester.error_all(message=str(e)), flush=True)
+            finally:
+                self.after_tester_run()
+        return run_func_wrapper
+
+    @staticmethod
+    @contextmanager
+    def open_feedback(filename, mode='w'):
+        if filename:
+            try:
+                feedback_open = open(filename, mode)
+                yield feedback_open
+            finally:
+                feedback_open.close()
+        else:
+            yield None
+
+    @abstractmethod
     def run(self):
-        try:
-            self.before_tester_run()
-            with contextlib.ExitStack() as stack:
-                feedback_open = (stack.enter_context(open(self.specs['feedback_file'], 'w'))
-                                 if self.specs.get('feedback_file') is not None
-                                 else None)
-                for group in self.specs['runnable_group']:
-                    test = self.test_class(self, group, feedback_open=feedback_open)
-                    try:
-                        # if a test __init__ fails it should really stop the whole tester, we don't have enough
-                        # info to continue safely, e.g. the total points (which skews the student mark)
-                        self.before_test_run(test)
-                        result_json = test.run()
-                        self.after_successful_test_run(test)
-                    except Exception as e:
-                        result_json = test.error(message=str(e))
-                    finally:
-                        print(result_json, flush=True)
-        except Exception as e:
-            print(MarkusTester.error_all(message=str(e)), flush=True)
-        finally:
-            self.after_tester_run()
+        pass

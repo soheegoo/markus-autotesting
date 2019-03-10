@@ -10,10 +10,24 @@ class MarkusTestSpecs(Mapping):
         return cls(json.loads(json_str))
 
     def __getitem__(self, key):
-        return self._specs[key]
+        try:
+            return self._specs[key]
+        except KeyError:
+            if isinstance(key, tuple):
+                d = self
+                for k in key:
+                    d = d[k]
+                return d
+            raise
 
     def __iter__(self):
         return iter(self._specs)
 
     def __len__(self):
         return len(self._specs)
+
+    def get(self, *keys, default=None):
+        try:
+            return super().get(keys, default=default)
+        except TypeError:
+            return default
