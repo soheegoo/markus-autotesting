@@ -3,45 +3,31 @@
 set -e
 
 create_venv() {
-    rm -rf ${VENVDIR} # clean up existing venv if any
-    python${PYVERSION} -m venv ${VENVDIR}
-    source ${VENVDIR}/bin/activate
+    rm -rf ${VENV_DIR} # clean up existing venv if any
+    python${PY_VERSION} -m venv ${VENV_DIR}
+    source ${VENV_DIR}/bin/activate
     pip install wheel
-    for req in ${PIPREQUIREMENTS}
-    do
-        pip install ${req}
-    done
-    local pth_file=${VENVDIR}/lib/python${PYVERSION}/site-packages/lib.pth
-    echo "${TESTERDIR}/lib" >> ${pth_file}
-}
-
-get_setting() {
-    echo ${JSONSETTINGS} | python3 -c "import sys, json; print(json.load(sys.stdin)['$1'])"
-}
-
-get_default_setting() {
-	cat ${DEFAULTSETTINGS} | python3 -c "import sys, json; print(json.load(sys.stdin)['$1'])"
+    pip install -r <(echo ${PIP_REQUIREMENTS} | sed 's/\s\+/\n/g')
+    local pth_file=${VENV_DIR}/lib/python${PY_VERSION}/site-packages/lib.pth
+    echo ${LIB_DIR} >> ${pth_file}
+    echo ${TESTERS_DIR} >> ${pth_file}
 }
 
 # script starts here
-if [[ $# -lt 3 ]]; then
-    echo "Usage: $0 working_specs_dir tester_name settings_json"
-    exit 1
+if [[ $# -lt 1 ]]; then
+    echo "Usage: $0 settings_json"
 fi
-
+   
 # vars
-WORKINGSPECSDIR=$(readlink -f $1)
-TESTERNAME=$2
-JSONSETTINGS=$3
+SETTINGS_JSON=$1
 
-THISSCRIPT=$(readlink -f ${BASH_SOURCE})
-BINDIR=$(dirname ${THISSCRIPT})
-SPECSDIR=$(dirname ${BINDIR})/specs
-DEFAULTSETTINGS=${SPECSDIR}/default_environment_settings.json
+ENV_DIR=$(echo ${SETTINGS_JSON} | jq --raw-output .env_loc)
+PY_VERSION=$(echo ${SETTINGS_JSON} | jq --raw-output .env_data.python_version)
+PIP_REQUIREMENTS="pytest $(echo ${SETTINGS_JSON} | jq --raw-output .env_data.pip_requirements)"
 
-TESTERDIR=$(dirname $(dirname ${THISSCRIPT}))
-VENVDIR=${WORKINGSPECSDIR}/${TESTERNAME}/venv
-PYVERSION=$(get_setting python_version)
-PIPREQUIREMENTS="$(get_default_setting pip_requirements) $(get_setting pip_requirements)"
+VENV_DIR=${ENV_DIR}/venv
+THIS_SCRIPT=$(readlink -f ${BASH_SOURCE})
+LIB_DIR=${THIS_SCRIPT%/*/*}/lib
+TESTERS_DIR=${THIS_SCRIPT%/*/*/*/*}
 
 create_venv

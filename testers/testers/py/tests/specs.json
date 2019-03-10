@@ -1,6 +1,25 @@
 {
-  "feedback_file": null,
-  "pytest_tb_format": "short",
-  "unittest_verbosity": 2,
-  "tester": "pytest"
+  "testers": [
+    {
+      "tester_type": "py",
+      "env_data": {
+        "python_version": "3.7",
+        "pip_requirements": "hypothesis pytest-timeout"
+      },
+      "test_data": [
+        {
+          "script_files": [
+            "test.py",
+            "test2.py"
+          ],
+          "category": [
+            "admin"
+          ],
+          "timeout": 30,
+          "tester": "pytest",
+          "output_verbosity": "short"
+        }
+      ]
+    }
+  ]
 }
