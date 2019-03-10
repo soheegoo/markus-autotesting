@@ -1,4 +1,3 @@
-import contextlib
 import subprocess
 import os
 import tempfile
@@ -19,6 +18,7 @@ class MarkusHaskellTest(MarkusTest):
     def test_name(self):
         return '.'.join([self._file_name, self._test_name])
 
+    @MarkusTest.run_decorator
     def run(self):
         if self.status == "OK":
             return self.passed(message=self.message)
@@ -46,8 +46,8 @@ class MarkusHaskellTester(MarkusTester):
         module_flag = f"--modules={os.path.basename(test_file)}"
         stats_flag = "--ingredient=Test.Tasty.Stats.consoleStatsReporter"
         flags = [module_flag, stats_flag]
-        flags.append(f"--timeout={self.specs['test_timeout']}s")
-        flags.append(f"--quickcheck-tests={self.specs['test_cases']}")
+        flags.append(f"--timeout={self.specs.get('test_data', 'test_timeout', default=10)}s")
+        flags.append(f"--quickcheck-tests={self.specs.get('test_data', 'test_cases', default=100)}")
         return flags
 
     def _parse_test_results(self, reader):
@@ -75,8 +75,7 @@ class MarkusHaskellTester(MarkusTester):
         """
         results = {}
         this_dir = os.getcwd()
-        for group in self.specs['runnable_group']:
-            test_file = group.get('script_file_path')
+        for test_file in self.specs.get('test_data', 'script_files', default=[]):
             with tempfile.NamedTemporaryFile(dir=this_dir) as f:
                 cmd = ['tasty-discover', '.', '_', f.name] + self._test_run_flags(test_file)
                 discover_proc = subprocess.run(cmd, stdout=subprocess.DEVNULL, universal_newlines=True)
@@ -86,23 +85,18 @@ class MarkusHaskellTester(MarkusTester):
                     results[test_file] = {'stderr':test_proc.stderr, 'results':self._parse_test_results(csv.reader(sf))}
         return results
 
+    @MarkusTester.run_decorator
     def run(self):
         try:
-            try:
-                results = self.run_haskell_tests()
-            except subprocess.CalledProcessError as e:
-                msg = (e.stdout or '' + e.stderr or '') or str(e)
-                print(MarkusTester.error_all(message=msg), flush=True)
-                return
-            with contextlib.ExitStack() as stack:
-                feedback_open = (stack.enter_context(open(self.specs['feedback_file'], 'w'))
-                                 if self.specs.get('feedback_file') is not None
-                                 else None)
-                for test_file, result in results.items():
-                    if result['stderr']:
-                        print(MarkusTester.error_all(message=result['stderr']), flush=True)
-                    for res in result['results']:
-                        test = self.test_class(self, test_file, res, feedback_open)
-                        print(test.run(), flush=True)
-        except Exception as e:
-            print(MarkusTester.error_all(message=str(e)), flush=True)
+            results = self.run_haskell_tests()
+        except subprocess.CalledProcessError as e:
+            msg = (e.stdout or '' + e.stderr or '') or str(e)
+            raise type(e)(msg) from e
+        feedback_file = self.specs.get('test_data', 'feedback_file_name')
+        with MarkusTester.open_feedback(feedback_file) as feedback_open:
+            for test_file, result in results.items():
+                if result['stderr']:
+                    raise Exception(result['stderr'])
+                for res in result['results']:
+                    test = self.test_class(self, test_file, res, feedback_open)
+                    print(test.run(), flush=True)
