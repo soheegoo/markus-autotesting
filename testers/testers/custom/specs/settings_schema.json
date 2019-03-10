@@ -1,0 +1,48 @@
+{
+  "properties": {
+    "tester_type": {
+      "enum": [
+        "custom"
+      ]
+    },
+    "test_data": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "script_file",
+          "name",
+          "timeout"
+        ],
+        "properties": {
+          "script_files": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/definitions/files_list"
+            },
+            "uniqueItems": true
+          },
+          "category": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/definitions/test_data_categories"
+            },
+            "uniqueItems": true
+          },
+          "timeout": {
+            "type": "integer",
+            "default": 30
+          }
+        }
+      }
+    }
+  },
+  "required": [
+    "test_data",
+    "tester_type",
+    "tester_name"
+  ]
+}

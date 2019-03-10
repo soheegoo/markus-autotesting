@@ -6,6 +6,6 @@ class MarkusCustomTester:
         self.specs = specs
 
     def run(self):
-        file_path = self.specs.get('script_file_path')
-        if file_path:
+        file_paths = self.specs.get('test_data', 'script_files', default=[])
+        for file_path in file_paths:
             subprocess.run(f'./{file_path}')
