@@ -46,6 +46,9 @@
           },
           "feedback_file_name": {
             "type": "string"
+          },
+          "extra_info": {
+            "$ref": "#/definitions/extra_group_data"
           }
         },
         "dependencies": {
