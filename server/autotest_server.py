@@ -393,16 +393,16 @@ def setup_files(files_path, tests_path, markus_address, assignment_id):
 
 def test_run_command(test_username=None):
     """
-    Return a command used to run test scripts as a the test_username
+    Return a command used to run a command as a the test_username
     user, with the correct arguments. Set test_username to None to 
     run as the current user.
 
-    >>> test_script = 'mysscript.py'
-    >>> test_run_command('f').format(test_script)
-    'sudo -u f -- bash -c "./myscript.py"'
+    >>> cmd = 'python'
+    >>> test_run_command('f').format(cmd)
+    'sudo -u f -- bash -c "python"'
 
     >>> test_run_command().format(test_script)
-    './myscript.py'
+    'python'
     """
     cmd = '{}'
     if test_username is not None:
@@ -411,7 +411,7 @@ def test_run_command(test_username=None):
 
     return cmd
 
-def create_test_script_result(test_group_id, stdout, stderr, run_time, hooks_stderr, timeout=None):
+def create_test_group_result(test_group_id, stdout, stderr, run_time, hooks_stderr, extra_data, timeout=None):
     """
     Return the arguments passed to this function in a dictionary. If stderr is 
     falsy, change it to None. Load the json string in stdout as a dictionary.
@@ -423,7 +423,8 @@ def create_test_script_result(test_group_id, stdout, stderr, run_time, hooks_std
             'tests' : test_results, 
             'stderr' : stderr or None,
             'malformed' :  stdout if malformed else None,
-            'hooks_stderr': hooks_stderr or None}
+            'hooks_stderr': hooks_stderr or None,
+            'extra_data': extra_data or {}}
 
 def get_test_preexec_fn():
     """
@@ -542,7 +543,7 @@ def run_hooks(hooks_module, function_name, tests_path, kwargs={}):
             return f'{function_name} hook: {str(e)}\n'
     return ''
 
-def create_test_script_command(env_dir, tester_type):
+def create_test_group_command(env_dir, tester_type):
     """
     Return string representing a command line command to 
     run tests.
@@ -565,8 +566,7 @@ def make_scripts_executable(script_files):
 
 def run_test_specs(cmd, markus_address, test_specs, test_categories, tests_path, test_username, hooks_module, script_files, hook_kwargs={}):
     """
-    Run each test script in test_scripts in the tests_path directory using the 
-    command cmd. Return the results. 
+    Run each test group using the command cmd. Return the results. 
     """
     results = []
     preexec_fn = get_test_preexec_fn()
@@ -576,7 +576,7 @@ def run_test_specs(cmd, markus_address, test_specs, test_categories, tests_path,
 
         env_dir = settings.get('env_loc', DEFAULT_ENV_DIR)
 
-        cmd_str = create_test_script_command(env_dir, tester_type)
+        cmd_str = create_test_group_command(env_dir, tester_type)
         args = cmd.format(cmd_str)
 
         if settings.get('install_data', {}).get('executable_scripts'):
@@ -615,7 +615,8 @@ def run_test_specs(cmd, markus_address, test_specs, test_categories, tests_path,
                     out = decode_if_bytes(out)
                     err = decode_if_bytes(err)
                     duration = int(round(time.time()-start, 3) * 1000)
-                    results.append(create_test_script_result(test_group_id, out, err, duration, hooks_stderr, timeout_expired))
+                    extra_data = test_data.get('extra_data', {})
+                    results.append(create_test_group_result(test_group_id, out, err, duration, hooks_stderr, extra_data, timeout_expired))
     return results
 
 def store_results(results_data, markus_address, assignment_id, group_id, submission_id):
