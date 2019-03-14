@@ -35,6 +35,9 @@
           "timeout": {
             "type": "integer",
             "default": 30
+          },
+          "extra_info": {
+            "$ref": "#/definitions/extra_group_data"
           }
         }
       }
