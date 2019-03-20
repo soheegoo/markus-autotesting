@@ -1,0 +1,45 @@
+{
+  "definitions": {
+    "files_list": {
+      "type": "string",
+      "enum": []
+    },
+    "test_data_categories": {
+      "type": "string",
+      "enum": [],
+      "enumNames": []
+    },
+    "extra_group_data": {},
+    "installed_testers": {
+      "type": "string",
+      "enum": []
+    },
+    "tester_schemas": {
+      "oneOf": []
+    }
+  },
+  "title": "Test Data",
+  "type": "object",
+  "properties": {
+    "testers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "properties": {
+          "tester_type": {
+            "$ref": "#/definitions/installed_testers"
+          }
+        },
+        "dependencies": {
+          "tester_type": {
+            "$ref": "#/definitions/tester_schemas"
+          }
+        }
+      }
+    },
+    "hooks_file": {
+      "$ref": "#/definitions/files_list"
+    }
+  }
+}

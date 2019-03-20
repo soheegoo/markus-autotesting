@@ -29,7 +29,11 @@ TEST_SPECS_DIR = os.path.join(config.WORKSPACE_DIR, config.SPECS_DIR_NAME)
 REDIS_CURRENT_TEST_SCRIPT_HASH = '{}:{}'.format(config.REDIS_PREFIX, config.REDIS_CURRENT_TEST_SCRIPT_HASH)
 REDIS_WORKERS_LIST = '{}:{}'.format(config.REDIS_PREFIX, config.REDIS_WORKERS_LIST)
 REDIS_POP_HASH = '{}:{}'.format(config.REDIS_PREFIX, config.REDIS_POP_HASH)
-DEFAULT_ENV_DIR = os.path.join(TEST_SPECS_DIR, '.', '.', config.DEFAULT_ENV_NAME)
+DEFAULT_ENV_DIR = os.path.join(TEST_SPECS_DIR, config.DEFAULT_ENV_NAME)
+
+TEST_SCRIPTS_SETTINGS_FILENAME = 'settings.json'
+TEST_SCRIPTS_FILES_DIRNAME = 'files'
+HOOKS_FILENAME = 'hooks.py'
 
 # For each rlimit limit (key), make sure that cleanup processes
 # have at least n=(value) resources more than tester processes 
@@ -354,18 +358,21 @@ def clean_after(func):
 
 ### RUN TESTS ###
 
-def copy_test_script_files(markus_address, assignment_id, tests_path, exclude):
+def copy_test_script_files(markus_address, assignment_id, tests_path):
     """
     Copy test script files for a given assignment to the tests_path
-    directory. tests_path may already exist and contain files and 
-    subdirectories. Do not copy the files in the exclude list
+    directory if they exist. tests_path may already exist and contain 
+    files and subdirectories.
     """
-    test_script_dir = test_script_directory(markus_address, assignment_id)
-    with fd_open(test_script_dir) as fd:
-        with fd_lock(fd, exclusive=False):
-            return copy_tree(test_script_dir, tests_path, exclude=exclude)
+    test_script_outer_dir = test_script_directory(markus_address, assignment_id)
+    test_script_dir = os.path.join(test_script_outer_dir, TEST_SCRIPTS_FILES_DIRNAME)
+    if os.path.isdir(test_script_dir):
+        with fd_open(test_script_dir) as fd:
+            with fd_lock(fd, exclusive=False):
+                return copy_tree(test_script_dir, tests_path)
+    return []
 
-def setup_files(files_path, tests_path, hooks_script, test_specs, markus_address, assignment_id):
+def setup_files(files_path, tests_path, markus_address, assignment_id):
     """
     Copy test script files and student files to the working directory tests_path,
     then make it the current working directory.
@@ -375,8 +382,7 @@ def setup_files(files_path, tests_path, hooks_script, test_specs, markus_address
         - files:                    rw-r--r--
     """
     student_files = move_tree(files_path, tests_path)
-    exclude = [e for e in (hooks_script, test_specs) if e]
-    script_files = copy_test_script_files(markus_address, assignment_id, tests_path, exclude)
+    script_files = copy_test_script_files(markus_address, assignment_id, tests_path)
     os.chmod(tests_path, 0o1770)
     for fd, file_or_dir in recursive_iglob(tests_path):
         permissions = 0o755 
@@ -387,16 +393,16 @@ def setup_files(files_path, tests_path, hooks_script, test_specs, markus_address
 
 def test_run_command(test_username=None):
     """
-    Return a command used to run test scripts as a the test_username
+    Return a command used to run a command as a the test_username
     user, with the correct arguments. Set test_username to None to 
     run as the current user.
 
-    >>> test_script = 'mysscript.py'
-    >>> test_run_command('f').format(test_script)
-    'sudo -u f -- bash -c "./myscript.py"'
+    >>> cmd = 'python'
+    >>> test_run_command('f').format(cmd)
+    'sudo -u f -- bash -c "python"'
 
     >>> test_run_command().format(test_script)
-    './myscript.py'
+    'python'
     """
     cmd = '{}'
     if test_username is not None:
@@ -405,7 +411,7 @@ def test_run_command(test_username=None):
 
     return cmd
 
-def create_test_script_result(test_group_id, stdout, stderr, run_time, hooks_stderr, timeout=None):
+def create_test_group_result(test_group_id, stdout, stderr, run_time, hooks_stderr, extra_data, timeout=None):
     """
     Return the arguments passed to this function in a dictionary. If stderr is 
     falsy, change it to None. Load the json string in stdout as a dictionary.
@@ -417,7 +423,8 @@ def create_test_script_result(test_group_id, stdout, stderr, run_time, hooks_std
             'tests' : test_results, 
             'stderr' : stderr or None,
             'malformed' :  stdout if malformed else None,
-            'hooks_stderr': hooks_stderr or None}
+            'hooks_stderr': hooks_stderr or None,
+            'extra_data': extra_data or {}}
 
 def get_test_preexec_fn():
     """
@@ -516,7 +523,7 @@ def load_hooks(hooks_script_path):
             return hooks_module, ''
         except Exception as e:
             return None, f'import error: {str(e)}\n'
-    return hooks_module, ''
+    return None, ''
 
 def run_hooks(hooks_module, function_name, tests_path, kwargs={}):
     """
@@ -536,7 +543,7 @@ def run_hooks(hooks_module, function_name, tests_path, kwargs={}):
             return f'{function_name} hook: {str(e)}\n'
     return ''
 
-def create_test_script_command(env_dir, tester_type):
+def create_test_group_command(env_dir, tester_type):
     """
     Return string representing a command line command to 
     run tests.
@@ -557,36 +564,27 @@ def make_scripts_executable(script_files):
         if fd=='f':
             os.chmod(file_or_dir, 0o755)
 
-def run_test_specs(cmd, markus_address, test_specs, test_group_ids, tests_path, test_username, hooks_module, script_files, hook_kwargs={}):
+def run_test_specs(cmd, markus_address, test_specs, test_categories, tests_path, test_username, hooks_module, script_files, hook_kwargs={}):
     """
-    Run each test script in test_scripts in the tests_path directory using the 
-    command cmd. Return the results. 
+    Run each test group using the command cmd. Return the results. 
     """
     results = []
     preexec_fn = get_test_preexec_fn()
 
-    for specs in test_specs:
-        # get environment settings
-        tester_type = specs['tester_type']
-        tester_name = specs['tester_name']
+    for settings in test_specs['testers']:
+        tester_type = settings['tester_type']
 
-        env_dir = get_env_dir(markus_address, tester_type, tester_name)
-        env_settings_file = os.path.join(env_dir, 'environment_settings.json')
-        env_settings = {}
+        env_dir = settings.get('env_loc', DEFAULT_ENV_DIR)
 
-        cmd_str = create_test_script_command(env_dir, tester_type)
+        cmd_str = create_test_group_command(env_dir, tester_type)
         args = cmd.format(cmd_str)
 
-        if os.path.isfile(env_settings_file):
-            with open(env_settings_file) as f:
-                env_settings = json.load(f)
-
-        if specs.get('executable_scripts'):
+        if settings.get('install_data', {}).get('executable_scripts'):
             make_scripts_executable(script_files)
 
-        for test_data in specs['test_data']:
-            test_group_id = test_data.get('id')
-            if test_group_id in test_group_ids:
+        for test_group_id, test_data in enumerate(settings['test_data']):
+            test_category = test_data.get('category', [])  
+            if set(test_category) & set(test_categories): #TODO: make sure test_categories is non-string collection type
                 out, err = '', ''
                 start = time.time()
                 timeout_expired = None
@@ -599,7 +597,7 @@ def run_test_specs(cmd, markus_address, test_specs, test_group_ids, tests_path, 
                                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE,
                                             preexec_fn=preexec_fn)
                     try:
-                        settings_json = json.dumps({**env_settings, **test_data}).encode('utf-8')
+                        settings_json = json.dumps({**settings, 'test_data': test_data}).encode('utf-8')
                         out, err = proc.communicate(input=settings_json, timeout=timeout)
                     except subprocess.TimeoutExpired:
                         if test_username == current_user():
@@ -617,7 +615,8 @@ def run_test_specs(cmd, markus_address, test_specs, test_group_ids, tests_path, 
                     out = decode_if_bytes(out)
                     err = decode_if_bytes(err)
                     duration = int(round(time.time()-start, 3) * 1000)
-                    results.append(create_test_script_result(test_group_id, out, err, duration, hooks_stderr, timeout_expired))
+                    extra_data = test_data.get('extra_data', {})
+                    results.append(create_test_group_result(test_group_id, out, err, duration, hooks_stderr, extra_data, timeout_expired))
     return results
 
 def store_results(results_data, markus_address, assignment_id, group_id, submission_id):
@@ -671,8 +670,8 @@ def report(results_data, api, assignment_id, group_id, run_id):
     api.upload_test_group_results(assignment_id, group_id, run_id, json.dumps(results_data))
 
 @clean_after
-def run_test(markus_address, server_api_key, test_specs, test_group_ids, hooks_script, files_path,
-             assignment_id, group_id, group_repo_name, submission_id, run_id, enqueue_time):
+def run_test(markus_address, server_api_key, test_categories, files_path, assignment_id, 
+             group_id, group_repo_name, submission_id, run_id, enqueue_time):
     """
     Run autotesting tests using the tests in the test_specs json file on the files in files_path.
 
@@ -683,11 +682,12 @@ def run_test(markus_address, server_api_key, test_specs, test_group_ids, hooks_s
     time_to_service = int(round(time.time() - enqueue_time, 3) * 1000)
 
     test_script_path = test_script_directory(markus_address, assignment_id)
-    hooks_script_path = os.path.join(test_script_path, hooks_script) if hooks_script else None
-    hooks_module, all_hooks_error = load_hooks(hooks_script_path) if hooks_script_path else (None, '')
+    hooks_script_path = os.path.join(test_script_path, HOOKS_FILENAME)
+    test_specs_path = os.path.join(test_script_path, TEST_SCRIPTS_SETTINGS_FILENAME)
+    hooks_module, all_hooks_error = load_hooks(hooks_script_path)
     api = Markus(server_api_key, markus_address)
 
-    with open(os.path.join(test_script_path, test_specs)) as f:
+    with open(test_specs_path) as f:
         test_specs = json.load(f)
 
     try:
@@ -701,13 +701,13 @@ def run_test(markus_address, server_api_key, test_specs, test_group_ids, hooks_s
                             'group_id': group_id,
                             'group_repo_name' : group_repo_name}
             try:
-                _, script_files = setup_files(files_path, tests_path, hooks_script, test_specs, markus_address, assignment_id)
+                _, script_files = setup_files(files_path, tests_path, markus_address, assignment_id)
                 all_hooks_error += run_hooks(hooks_module, HOOK_NAMES['before_all'], tests_path, kwargs=hooks_kwargs)
                 cmd = test_run_command(test_username=test_username)
                 results = run_test_specs(cmd,
                                          markus_address,
                                          test_specs,
-                                         test_group_ids,
+                                         test_categories,
                                          tests_path,
                                          test_username,
                                          hooks_module,
@@ -726,44 +726,6 @@ def run_test(markus_address, server_api_key, test_specs, test_group_ids, hooks_s
 
 ### UPDATE TEST SCRIPTS ### 
 
-@clean_after
-def update_test_specs(files_path, assignment_id, markus_address):
-    """
-    Copy new test scripts for a given assignment to from the files_path
-    to a new location. Indicate that these new test scripts should be used instead of 
-    the old ones. And remove the old ones when it is safe to do so (they are not in the
-    process of being copied to a working directory).
-
-    This function should be used by an rq worker.
-    """
-    test_script_dir_name = "test_scripts_{}".format(int(time.time()))
-    clean_markus_address = clean_dir_name(markus_address)
-    new_dir = os.path.join(*stringify(TEST_SCRIPT_DIR, clean_markus_address, assignment_id, test_script_dir_name))
-    move_tree(files_path, new_dir)
-    old_test_script_dir = test_script_directory(markus_address, assignment_id)
-    test_script_directory(markus_address, assignment_id, set_to=new_dir)
-    if old_test_script_dir is not None:
-        with fd_open(old_test_script_dir) as fd:
-            with fd_lock(fd, exclusive=True):
-                shutil.rmtree(old_test_script_dir, onerror=ignore_missing_dir_error)
-
-
-### MANAGE TESTER ENVIRONMENTS ###
-
-def get_env_dir_path(markus_address, tester_type, tester_name):
-    """
-    Return a unique path based on the markus_address, tester_type and tester_name. 
-    """
-    clean_markus_address = clean_dir_name(markus_address)
-    clean_tester_name = clean_dir_name(tester_name)
-    return os.path.join(config.WORKSPACE_DIR, config.SPECS_DIR_NAME, clean_markus_address, tester_type, clean_tester_name)
-
-def get_env_dir(markus_address, tester_type, tester_name):
-    path = get_env_dir_path(markus_address, tester_type, tester_name)
-    if os.path.isdir(path):
-        return path
-    return DEFAULT_ENV_DIR    
-
 def get_tester_root_dir(tester_type):
     """
     Return the root directory of the tester named tester_type
@@ -775,143 +737,91 @@ def get_tester_root_dir(tester_type):
         raise FileNotFoundError(f'{tester_type} is not a valid tester name')
     return tester_dir
 
-def generate_checksum(files):
-    """
-    Return a checksum calculated by reading all files in the 
-    files argument.  
-    """
-    files = sorted(files)
-    h = hashlib.sha256()
-    for fname in files:
-        with open(fname, 'rb') as f:
-            h.update(f.read())
-    return h.digest()
-
-def deep_dict_equal(a, b, ignore=set()):
-    """
-    Return True iff dictionaries a and b are equal. This comparison does 
-    not take into account any keys in the ignore set or their values. Keys
-    at any nested level of dictionaries a and b will be ignored if they are
-    in the ignore set 
-    """
-    if isinstance(a, dict) and isinstance(b, dict):
-        ak = a.keys() - ignore
-        bk = b.keys() - ignore
-        if ak == bk:
-            return all(deep_dict_equal(a[k], b[k], ignore) for k in ak)
-        return False
-    try:
-        return all(deep_dict_equal(*z, ignore) for z in zip_longest(a,b) if z != (a, b))
-    except TypeError:
-        return a == b
-
-def settings_changed(env_dir, env_settings, checksum, specs_dir):
-    """
-    Return True iff the environment setting have changed or if the files
-    have been updated. This is calculated by comparing the old settings
-    found in env_dir to the new settings in env_settings and checking if the
-    checksum for the new files matches the old checksum. 
-    """
-    settings_file = os.path.join(env_dir, 'environment_settings.json')
-    checksum_file = os.path.join(env_dir, 'checksum')
-    ignore_file = os.path.join(specs_dir, 'evironment_ignore.yml')
-    if os.path.isfile(settings_file):
-        if os.path.isfile(checksum_file) and checksum is not None:
-            with open(checksum_file, 'rb') as f:
-                old_checksum = f.read()
-            return checksum == old_checksum
-        if os.path.isfile(ignore_file):
-            with open(ignore_file) as f:
-                ignore_keys = set(yaml.load(f))
-        else:
-            ignore_keys = set()
-        with open(settings_file) as f:
-            current_settings = json.load(f)
-        return deep_dict_equal(env_settings, current_settings, ignore=ignore_keys) 
-    return False
-
-def update_env_settings(env_settings, specs_dir, tester_name):
+def update_settings(settings, specs_dir):
     """
     Return a dictionary containing all the default settings and the installation settings
-    contained in the tester's specs directory as well as the env_settings. The env_settings
+    contained in the tester's specs directory as well as the settings. The settings
     will overwrite any duplicate keys in the default settings files.
     """
-    full_env_settings = {}
-    specs_settings_files = [os.path.join(specs_dir, 'default_install_settings.json'),
-                            os.path.join(specs_dir, 'install_settings.json')]
-    for settings_file in specs_settings_files:
+    full_settings = {'install_data': {}}
+    install_settings_files = [os.path.join(specs_dir, 'default_install_settings.json'),
+                              os.path.join(specs_dir, 'install_settings.json')]
+    for settings_file in install_settings_files:
         if os.path.isfile(settings_file):
             with open(settings_file) as f:
-                full_env_settings.update(json.load(f))
-    full_env_settings.update(env_settings)
-    return full_env_settings
+                full_settings['install_data'].update(json.load(f))
+    full_settings.update(settings)
+    return full_settings
 
+def create_tester_environments(files_path, test_specs):    
+    for i, settings in enumerate(test_specs['testers']):
+        tester_dir = get_tester_root_dir(settings["tester_type"])
+        specs_dir = os.path.join(tester_dir, 'specs')
+        bin_dir = os.path.join(tester_dir, 'bin')
+        settings = update_settings(settings, specs_dir)
+        if settings.get('env_data'):
+            new_env_dir = tempfile.mkdtemp(prefix='env', dir=TEST_SPECS_DIR)
+            settings['env_loc'] = new_env_dir
+
+            create_file = os.path.join(bin_dir, 'create_environment.sh')
+            if os.path.isfile(create_file):
+                cmd = [f'{create_file}', json.dumps(settings), files_path]
+                proc = subprocess.run(cmd, stderr=subprocess.PIPE)
+                if proc.returncode != 0:
+                    raise AutotestError(f'create tester environment failed with:\n{proc.stderr}')
+        else:
+            settings['env_loc'] = DEFAULT_ENV_DIR
+        test_specs['testers'][i] = settings
+
+    return test_specs
+
+def destroy_tester_environments(old_test_script_dir):
+    test_specs_file = os.path.join(old_test_script_dir, TEST_SCRIPTS_SETTINGS_FILENAME)
+    with open(test_specs_file) as f:
+        test_specs = json.load(f)
+    for settings in test_specs['testers']:
+        env_loc = settings.get('env_loc', DEFAULT_ENV_DIR)
+        if env_loc != DEFAULT_ENV_DIR:
+            tester_dir = get_tester_root_dir(settings['tester_type'])
+            bin_dir = os.path.join(tester_dir, 'bin')
+            destroy_file = os.path.join(bin_dir, 'destroy_environment.sh')
+            if os.path.isfile(destroy_file):
+                cmd = [f'{destroy_file}', json.dumps(settings)]
+                proc = subprocess.run(cmd, stderr=subprocess.PIPE)
+                if proc.returncode != 0:
+                    raise AutotestError(f'destroy tester environment failed with:\n{proc.stderr}')
+            shutil.rmtree(env_loc, onerror=ignore_missing_dir_error)
 
 @clean_after
-def manage_tester_environment(markus_address, tester_type, tester_name, env_settings, files_path):
+def update_test_specs(files_path, assignment_id, markus_address, test_specs):
     """
-    Create a new tester environment or update an old one if it exists.  Errors are written to a file
-    called env_creation_errors.txt and are checked and reported the next time a test is run.
+    Copy new test scripts for a given assignment to from the files_path
+    to a new location. Indicate that these new test scripts should be used instead of 
+    the old ones. And remove the old ones when it is safe to do so (they are not in the
+    process of being copied to a working directory).
 
     This function should be used by an rq worker.
     """
-    env_dir = get_env_dir_path(markus_address, tester_type, tester_name)
-    error_file = os.path.join(env_dir, 'env_creation_errors.txt')
-    try:
-        # get the specs and bin directories for the given tester_type
-        tester_dir = get_tester_root_dir(tester_type)
-        specs_dir = os.path.join(tester_dir, 'specs')
-        bin_dir = os.path.join(tester_dir, 'bin')
-        # update the env_settings to include installation settings and defaults
-        env_settings = update_env_settings(env_settings, specs_dir, tester_name)
-        # calculate a checksum for the uploaded files
-        if files_path is not None:
-            files = (fname for fd, fname in recursive_iglob(files_path) if fd == 'f')
-            checksum = generate_checksum(files)
-        else:
-            checksum = None
-        # check if we need to tear down an existing environment
-        if os.path.isdir(env_dir):
-            if settings_changed(env_dir, env_settings, checksum, specs_dir):
-                # run additional environment teardown script if it exists
-                destroy_file = os.path.join(bin_dir, 'destroy_environment.sh')
-                if os.path.isfile(destroy_file):
-                    proc = subprocess.run([f'{destroy_file}', env_dir], stderr=subprocess.PIPE)
-                    if proc.returncode != 0:
-                        raise AutotestError(f'destroy tester environment failed with:\n{proc.stderr}')
-            else:
-                # otherwise just update the environment settings and return
-                with open(os.path.join(env_dir, 'environment_settings.json'), 'w') as f:
-                    json.dump(env_settings, f)
-                return
-        # create a new environment directory and create the relevant files inside it
-        shutil.rmtree(env_dir, onerror=ignore_missing_dir_error)
-        os.makedirs(env_dir, exist_ok=True)
-        if checksum:
-            with open(os.path.join(env_dir, 'checksum'), 'wb') as f:
-                f.write(checksum)
-        with open(os.path.join(env_dir, 'environment_settings.json'), 'w') as f:
-            json.dump(env_settings, f)
-        create_file  = os.path.join(bin_dir, 'create_environment.sh')
-        # run additional environment creation file if they exist
-        if os.path.isfile(create_file):
-            cmd = [f'{create_file}', env_dir, json.dumps(env_settings), files_path or '']
-            proc = subprocess.run(cmd, stderr=subprocess.PIPE)
-            if proc.returncode != 0:
-                raise AutotestError(f'create tester environment failed with:\n{proc.stderr}')
-        # set python virtual environment directory if necessary
-        venv_dir = os.path.join(env_dir, 'venv')
-        if not os.path.isdir(venv_dir):
-            default_venv_dir = os.path.join(DEFAULT_ENV_DIR, 'venv')
-            os.symlink(default_venv_dir, venv_dir)
-        # if successful up to this point, remove any existing error files
-        if os.path.isfile(error_file):
-            os.remove(error_file)
-    except Exception as e:
-        os.makedirs(env_dir, exist_ok=True)
-        with open(error_file, 'a') as f:
-            f.write(f'{str(e)}\n')
-    finally:
-        if files_path is not None:
-            shutil.rmtree(files_path, onerror=ignore_missing_dir_error)
+    # TODO: catch and log errors
+    test_script_dir_name = "test_scripts_{}".format(int(time.time()))
+    clean_markus_address = clean_dir_name(markus_address)
+    new_dir = os.path.join(*stringify(TEST_SCRIPT_DIR, clean_markus_address, assignment_id, test_script_dir_name))
+    new_files_dir = os.path.join(new_dir, TEST_SCRIPTS_FILES_DIRNAME)
+    move_tree(files_path, new_files_dir)
+    if 'hooks_file' in test_specs:
+        src = os.path.isfile(os.path.join(new_files_dir, test_specs['hooks_file']))
+        if os.path.isfile(src):
+            os.rename(src, os.path.join(new_dir, HOOKS_FILENAME))
+    test_specs = create_tester_environments(new_files_dir, test_specs)
+    settings_filename = os.path.join(new_dir, TEST_SCRIPTS_SETTINGS_FILENAME)
+    with open(settings_filename, 'w') as f:
+        json.dump(test_specs, f)
+    old_test_script_dir = test_script_directory(markus_address, assignment_id)
+    test_script_directory(markus_address, assignment_id, set_to=new_dir)
+    
+    if old_test_script_dir is not None:
+        with fd_open(old_test_script_dir) as fd:
+            with fd_lock(fd, exclusive=True):
+                destroy_tester_environments(old_test_script_dir)
+                shutil.rmtree(old_test_script_dir, onerror=ignore_missing_dir_error)
 

@@ -11,6 +11,7 @@ import autotest_server as ats
 import time
 import config
 import shutil
+import copy
 from functools import wraps
 
 ### HELPER FUNCTIONS ###
@@ -31,24 +32,6 @@ def check_args(func, args=[], kwargs={}):
         inspect.signature(func).bind(*args, **kwargs)
     except TypeError as e:
         raise type(e)('{}\nWith args: {}\nWith kwargs:{}'.format(e, args, tuple(kwargs))).with_traceback(sys.exc_info()[2])
-
-def check_for_environment_errors(markus_address, test_specs):
-    """
-    For each of the environments used in this test, check to see if there
-    were any errors that occured when creating/updating this environment
-    """
-    msg = []
-    for specs in test_specs:
-        tester_type = specs['tester_type']
-        tester_name = specs['tester_name']
-        env_dir = ats.get_env_dir(markus_address, tester_type, tester_name)
-        error_file = os.path.join(env_dir, 'env_creation_errors.txt')
-        if os.path.isfile(error_file):
-            with open(error_file) as f:
-                msg.append('\n'.join([f'Test environment {tester_name} was not successfully created.',
-                                      f'Failed with the following error:{f.read()}']))
-    if msg:
-        raise RuntimeError('\n\n'.join(msg))
 
 def queue_name(queue, i):
     """
@@ -100,18 +83,17 @@ def clean_on_error(func):
 
     return wrapper
 
-def get_job_timeout(test_specs, test_group_ids, multiplier=1.5):
+def get_job_timeout(test_specs, test_categories, multiplier=1.5):
     """
     Return multiplier times the sum of all timeouts in the
     test_specs dictionary
     """
     total_timeout = 0
-    for specs in test_specs:
-        for test_data in specs['test_data']:
-            test_id = test_data.get('id')
-            if test_id in test_group_ids:
+    for settings in test_specs['testers']:
+        for test_data in settings['test_data']:
+            test_category = test_data.get('category', [])
+            if set(test_category) & set(test_categories): #TODO: make sure test_categories is non-string collection type
                 total_timeout += test_data.get('timeout', 30) #TODO: don't hardcode default timeout
-
     return int(total_timeout * multiplier)
 
 ### COMMAND FUNCTIONS ###
@@ -126,11 +108,10 @@ def run_test(user_type, batch_id, **kw):
     check_args(ats.run_test, kwargs=kw)
     check_test_script_files_exist(**kw)
     test_files_dir = ats.test_script_directory(kw['markus_address'], kw['assignment_id'])
-    with open(os.path.join(test_files_dir, kw['test_specs'])) as f:
+    with open(os.path.join(test_files_dir, ats.TEST_SCRIPTS_SETTINGS_FILENAME)) as f:
         test_specs = json.load(f)
-    check_for_environment_errors(kw['markus_address'], test_specs)
     print_queue_info(queue)
-    timeout = get_job_timeout(test_specs, kw['test_group_ids'])
+    timeout = get_job_timeout(test_specs, kw['test_categories'])
     queue.enqueue_call(ats.run_test, kwargs=kw, job_id=format_job_id(**kw), timeout=timeout)
 
 @clean_on_error
@@ -152,26 +133,31 @@ def cancel_test(markus_address, run_ids, **kw):
             job_id = format_job_id(markus_address, run_id)
             rq.cancel_job(job_id)
 
-@clean_on_error
-def manage_test_env(**kw):
+def get_schema(**kw):
     """
-    Create or update a test environment
-    """
-    queue = rq.Queue(config.SERVICE_QUEUE, connection=ats.redis_connection())
-    check_args(ats.manage_tester_environment, kwargs=kw)
-    queue.enqueue_call(ats.manage_tester_environment, kwargs=kw)
-    
+    Print a json to stdout representing a json schema that indicates
+    the required specs for each installed tester type.
 
-def get_available_testers(**kw):
+    This json schema should be used to generate a UI with react-jsonschema-form
+    (https://github.com/mozilla-services/react-jsonschema-form) or similar.
     """
-    Print a list of installed tester names as a json string
-    """
-    root_dir = os.path.dirname(os.path.dirname(__file__))
+    this_dir = os.path.dirname(__file__)
+    root_dir = os.path.dirname(this_dir)
+
+    with open(os.path.join(this_dir, 'bin', 'tester_schema_skeleton.json')) as f:
+        schema_skeleton = json.load(f)
+
     glob_pattern = os.path.join(root_dir, 'testers', 'testers', '*', 'specs', '.installed')
-    testers = []
     for path in glob.glob(glob_pattern):
-        testers.append(os.path.basename(os.path.dirname(os.path.dirname(path))))
-    print(json.dumps(testers))
+        tester_type = os.path.basename(os.path.dirname(os.path.dirname(path)))
+        specs_dir = os.path.dirname(path)
+        with open(os.path.join(specs_dir, 'settings_schema.json')) as f:
+            tester_schema = json.load(f)
+
+        schema_skeleton["definitions"]["installed_testers"]["enum"].append(tester_type)
+        schema_skeleton["definitions"]["tester_schemas"]["oneOf"].append(tester_schema)
+
+    print(json.dumps(schema_skeleton))
 
 def parse_arg_file(arg_file):
     """
@@ -198,8 +184,7 @@ def parse_arg_file(arg_file):
 COMMANDS = {'run'       : run_test,
             'specs'     : update_specs,
             'cancel'    : cancel_test,
-            'testers'   : get_available_testers,
-            'env'       : manage_test_env}
+            'schema'    : get_schema}
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

@@ -4,7 +4,7 @@ set -e
 
 install_packages() {
     echo "[AUTOTEST-INSTALL] Installing system packages"
-    sudo apt-get install "python${PYTHONVERSION}" "python${PYTHONVERSION}-venv" redis-server
+    sudo apt-get install "python${PYTHONVERSION}" "python${PYTHONVERSION}-venv" redis-server jq
 }
 
 create_server_user() {

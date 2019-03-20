@@ -85,45 +85,6 @@ for dummy_func, arg_names in dummy_functions.items():
     setattr(TestCheckArgs, f'test_{dummy_func.__name__}', func)
 
 
-class TestCheckForEnvironmentErrors:
-    """ tests ate.check_for_environment_errors """
-
-    def setup_method(self):
-        self.tmp_dir = tempfile.TemporaryDirectory()
-        file_name = 'env_creation_errors.txt'
-        self.error_file = os.path.join(self.tmp_dir.name, file_name)
-        self.specs = [{'tester_type': None, 'tester_name': None}]
-        with open(self.error_file, 'w') as f:
-            f.write('something')
-
-    def teardown_method(self):
-        self.tmp_dir.cleanup()
-
-    def test_reports_env_creation_error(self):
-        mock_func = 'autotest_server.get_env_dir'
-        with patch(mock_func, autospec=True, return_value=self.tmp_dir.name):
-            with pytest.raises(RuntimeError) as e:
-                ate.check_for_environment_errors(None, self.specs)
-
-    def test_no_report(self):
-        os.unlink(self.error_file)
-        mock_func = 'autotest_server.get_env_dir'
-        with patch(mock_func, autospec=True, return_value=self.tmp_dir.name):
-            try:
-                ate.check_for_environment_errors(None, self.specs)
-            except RuntimeError as e:
-                pytest.fail()
-
-    @given(st.from_regex(r'[a-zA-Z]+', fullmatch=True))
-    def test_report_contains_message(self, message):
-        with open(self.error_file, 'w') as f:
-            f.write(message)
-        mock_func = 'autotest_server.get_env_dir'
-        with patch(mock_func, autospec=True, return_value=self.tmp_dir.name):
-            with pytest.raises(RuntimeError) as e:
-                ate.check_for_environment_errors(None, self.specs)
-                assert message in str(e)
-
 class TestQueueName:
     """ tests ate.queue_name """
 
