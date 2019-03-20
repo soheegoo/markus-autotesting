@@ -411,7 +411,7 @@ def test_run_command(test_username=None):
 
     return cmd
 
-def create_test_group_result(test_group_id, stdout, stderr, run_time, hooks_stderr, extra_info, timeout=None):
+def create_test_group_result(test_group_id, stdout, stderr, run_time, hooks_stderr, extra_data, timeout=None):
     """
     Return the arguments passed to this function in a dictionary. If stderr is 
     falsy, change it to None. Load the json string in stdout as a dictionary.
@@ -424,7 +424,7 @@ def create_test_group_result(test_group_id, stdout, stderr, run_time, hooks_stde
             'stderr' : stderr or None,
             'malformed' :  stdout if malformed else None,
             'hooks_stderr': hooks_stderr or None,
-            'extra_info': extra_info or {}}
+            'extra_data': extra_data or {}}
 
 def get_test_preexec_fn():
     """
@@ -615,8 +615,8 @@ def run_test_specs(cmd, markus_address, test_specs, test_categories, tests_path,
                     out = decode_if_bytes(out)
                     err = decode_if_bytes(err)
                     duration = int(round(time.time()-start, 3) * 1000)
-                    extra_info = test_data.get('extra_info', {})
-                    results.append(create_test_group_result(test_group_id, out, err, duration, hooks_stderr, extra_info, timeout_expired))
+                    extra_data = test_data.get('extra_data', {})
+                    results.append(create_test_group_result(test_group_id, out, err, duration, hooks_stderr, extra_data, timeout_expired))
     return results
 
 def store_results(results_data, markus_address, assignment_id, group_id, submission_id):
