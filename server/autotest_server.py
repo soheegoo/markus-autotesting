@@ -14,6 +14,7 @@ import pwd
 from contextlib import contextmanager
 from functools import wraps
 from itertools import zip_longest
+from hooks_context.hooks_context import Hooks
 import resource
 import uuid
 import tempfile
@@ -21,6 +22,7 @@ import hashlib
 import yaml
 from markusapi import Markus
 import config
+
 
 CURRENT_TEST_SCRIPT_FORMAT = '{}_{}'
 TEST_SCRIPT_DIR = os.path.join(config.WORKSPACE_DIR, config.SCRIPTS_DIR_NAME)
@@ -38,11 +40,6 @@ HOOKS_FILENAME = 'hooks.py'
 # For each rlimit limit (key), make sure that cleanup processes
 # have at least n=(value) resources more than tester processes 
 RLIMIT_ADJUSTMENTS = {'RLIMIT_NPROC': 10}
-
-HOOK_NAMES = {'before_all' : 'before_all',
-              'after_all'  : 'after_all',
-              'before_each': 'before_each',
-              'after_each' : 'after_each'}
 
 TESTER_IMPORT_LINE = {'custom' : 'from testers.custom.markus_custom_tester import MarkusCustomTester as Tester',
                       'haskell' : 'from testers.haskell.markus_haskell_tester import MarkusHaskellTester as Tester',
@@ -242,39 +239,6 @@ def tester_user():
     finally:
         r.rpush(REDIS_WORKERS_LIST, user_data)
 
-@contextmanager
-def add_path(path, prepend=True):
-    """
-    Context manager that temporarily adds a path to sys.path.
-    If prepend is True, the path will be prepended otherwise
-    it will be appended.
-    """
-    if prepend:
-        sys.path.insert(0, path)
-    else:
-        sys.path.append(path)
-    try:
-        yield
-    finally:
-        try:
-            i = (sys.path if prepend else sys.path[::-1]).index(path)
-            sys.path.pop(i)
-        except ValueError:
-            pass
-
-@contextmanager
-def current_directory(path):
-    """
-    Context manager that temporarily changes the working directory
-    to the path argument.
-    """
-    current_dir = os.getcwd()
-    os.chdir(path)
-    try:
-        yield
-    finally:
-        os.chdir(current_dir)
-
 ### MAINTENANCE FUNCTIONS ###
 
 def update_pop_interval_stat(queue_name):
@@ -393,16 +357,16 @@ def setup_files(files_path, tests_path, markus_address, assignment_id):
 
 def test_run_command(test_username=None):
     """
-    Return a command used to run a command as a the test_username
+    Return a command used to run test scripts as a the test_username
     user, with the correct arguments. Set test_username to None to 
     run as the current user.
 
-    >>> cmd = 'python'
-    >>> test_run_command('f').format(cmd)
-    'sudo -u f -- bash -c "python"'
+    >>> test_script = 'mysscript.py'
+    >>> test_run_command('f').format(test_script)
+    'sudo -u f -- bash -c "./myscript.py"'
 
     >>> test_run_command().format(test_script)
-    'python'
+    './myscript.py'
     """
     cmd = '{}'
     if test_username is not None:
@@ -411,7 +375,7 @@ def test_run_command(test_username=None):
 
     return cmd
 
-def create_test_group_result(stdout, stderr, run_time, hooks_stderr, extra_data, timeout=None):
+def create_test_group_result(stdout, stderr, run_time, extra_data, timeout=None):
     """
     Return the arguments passed to this function in a dictionary. If stderr is 
     falsy, change it to None. Load the json string in stdout as a dictionary.
@@ -422,7 +386,6 @@ def create_test_group_result(stdout, stderr, run_time, hooks_stderr, extra_data,
             'tests' : test_results, 
             'stderr' : stderr or None,
             'malformed' :  stdout if malformed else None,
-            'hooks_stderr': hooks_stderr or None,
             'extra_data': extra_data or {}}
 
 def get_test_preexec_fn():
@@ -506,43 +469,7 @@ def kill_without_reaper(test_username):
     kill_cmd = f"sudo -u {test_username} -- bash -c 'kill -KILL -1'"
     subprocess.run(kill_cmd, shell=True)
 
-def load_hooks(hooks_script_path):
-    """
-    Return module loaded from hook_script_path. Also return any error
-    messages that were raised when trying to import the module
-    """
-    hooks_script_path = os.path.realpath(hooks_script_path)
-    if os.path.isfile(hooks_script_path):
-        dirpath = os.path.dirname(hooks_script_path)
-        basename = os.path.basename(hooks_script_path)
-        module_name, _ = os.path.splitext(basename)
-        try:
-            with add_path(dirpath):
-                hooks_module = __import__(module_name)
-            return hooks_module, ''
-        except Exception as e:
-            return None, f'import error: {str(e)}\n'
-    return None, ''
-
-def run_hooks(hooks_module, function_name, tests_path, kwargs={}):
-    """
-    Run the function named function_name in the module
-    hooks_module with the arguments in kwargs.  If an 
-    error occurs, return the error message. 
-    The function is run with the current working directory
-    temporarily set to tests_path.
-    """
-    if hooks_module is not None and function_name in dir(hooks_module):
-        try:
-            hook = getattr(hooks_module, function_name)
-            with current_directory(tests_path):
-                hook(**kwargs)
-        except BaseException as e:  # we want to catch ALL possible exceptions so that hook
-                                    # code will not stop the execution of further scripts
-            return f'{function_name} hook: {str(e)}\n'
-    return ''
-
-def create_test_group_command(env_dir, tester_type):
+def create_test_script_command(env_dir, tester_type):
     """
     Return string representing a command line command to 
     run tests.
@@ -557,66 +484,58 @@ def create_test_group_command(env_dir, tester_type):
     venv_str = f'source {venv_activate}'
     return ' && '.join([venv_str, f'python -c "{python_str}"'])
 
-def make_scripts_executable(script_files):
-    """ Make script files executable """
-    for fd, file_or_dir in script_files:
-        if fd=='f':
-            os.chmod(file_or_dir, 0o755)
-
-def run_test_specs(cmd, markus_address, test_specs, test_categories, tests_path, test_username, hooks_module, script_files, hook_kwargs={}):
+def run_test_specs(cmd, test_specs, test_categories, tests_path, test_username, hooks):
     """
-    Run each test group using the command cmd. Return the results. 
+    Run each test script in test_scripts in the tests_path directory using the 
+    command cmd. Return the results. 
     """
     results = []
     preexec_fn = get_test_preexec_fn()
 
-    for settings in test_specs['testers']:
-        tester_type = settings['tester_type']
+    with hooks.around('all'):
+        for settings in test_specs['testers']:
+            tester_type = settings['tester_type']
+            extra_hook_kwargs = {'settings': settings}
+            with hooks.around(tester_type, extra_kwargs=extra_hook_kwargs):
+                env_dir = settings.get('env_loc', DEFAULT_ENV_DIR)
 
-        env_dir = settings.get('env_loc', DEFAULT_ENV_DIR)
+                cmd_str = create_test_script_command(env_dir, tester_type)
+                args = cmd.format(cmd_str)
 
-        cmd_str = create_test_group_command(env_dir, tester_type)
-        args = cmd.format(cmd_str)
-
-        if settings.get('install_data', {}).get('executable_scripts'):
-            make_scripts_executable(script_files)
-
-        for test_data in settings['test_data']:
-            test_category = test_data.get('category', [])  
-            if set(test_category) & set(test_categories): #TODO: make sure test_categories is non-string collection type
-                out, err = '', ''
-                start = time.time()
-                timeout_expired = None
-                hooks_stderr = ''
-                timeout = test_data.get('timeout', 30) #TODO: don't hardcode default timeout
-
-                hooks_stderr += run_hooks(hooks_module, HOOK_NAMES['before_each'], tests_path, kwargs=hook_kwargs)
-                try:
-                    proc = subprocess.Popen(args, start_new_session=True, cwd=tests_path, shell=True, 
-                                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE,
-                                            preexec_fn=preexec_fn)
-                    try:
-                        settings_json = json.dumps({**settings, 'test_data': test_data}).encode('utf-8')
-                        out, err = proc.communicate(input=settings_json, timeout=timeout)
-                    except subprocess.TimeoutExpired:
-                        if test_username == current_user():
-                            pgrp = os.getpgid(proc.pid)
-                            os.killpg(pgrp, signal.SIGKILL)
-                        else:
-                            if not kill_with_reaper(test_username):
-                                kill_without_reaper(test_username)
-                        out, err = proc.communicate()
-                        timeout_expired = timeout
-                except Exception as e:
-                    err += '\n\n{}'.format(e)
-                finally:
-                    hooks_stderr += run_hooks(hooks_module, HOOK_NAMES['after_each'], tests_path, kwargs=hook_kwargs)
-                    out = decode_if_bytes(out)
-                    err = decode_if_bytes(err)
-                    duration = int(round(time.time()-start, 3) * 1000)
-                    extra_data = test_data.get('extra_data', {})
-                    results.append(create_test_group_result(out, err, duration, hooks_stderr, extra_data, timeout_expired))
-    return results
+                for test_data in settings['test_data']:
+                    test_category = test_data.get('category', [])  
+                    if set(test_category) & set(test_categories): #TODO: make sure test_categories is non-string collection type
+                        extra_hook_kwargs={'test_data': test_data}
+                        with hooks.around('each', builtin_selector=test_data, extra_kwargs=extra_hook_kwargs):
+                            start = time.time()
+                            out, err = '', ''
+                            timeout_expired = None
+                            timeout = test_data.get('timeout', 30) #TODO: don't hardcode default timeout
+                            try:
+                                proc = subprocess.Popen(args, start_new_session=True, cwd=tests_path, shell=True, 
+                                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE,
+                                                        preexec_fn=preexec_fn)
+                                try:
+                                    settings_json = json.dumps({**settings, 'test_data': test_data}).encode('utf-8')
+                                    out, err = proc.communicate(input=settings_json, timeout=timeout)
+                                except subprocess.TimeoutExpired:
+                                    if test_username == current_user():
+                                        pgrp = os.getpgid(proc.pid)
+                                        os.killpg(pgrp, signal.SIGKILL)
+                                    else:
+                                        if not kill_with_reaper(test_username):
+                                            kill_without_reaper(test_username)
+                                    out, err = proc.communicate()
+                                    timeout_expired = timeout
+                            except Exception as e:
+                                err += '\n\n{}'.format(e)
+                            finally:
+                                out = decode_if_bytes(out)
+                                err = decode_if_bytes(err)
+                                duration = int(round(time.time()-start, 3) * 1000)
+                                extra_data = test_data.get('extra_data', {})
+                                results.append(create_test_group_result(out, err, duration, extra_data, timeout_expired))
+    return results, hooks.format_errors()
 
 def store_results(results_data, markus_address, assignment_id, group_id, submission_id):
     """
@@ -678,12 +597,12 @@ def run_test(markus_address, server_api_key, test_categories, files_path, assign
     """
     results = []
     error = None
+    hooks_error = None
     time_to_service = int(round(time.time() - enqueue_time, 3) * 1000)
 
     test_script_path = test_script_directory(markus_address, assignment_id)
     hooks_script_path = os.path.join(test_script_path, HOOKS_FILENAME)
     test_specs_path = os.path.join(test_script_path, TEST_SCRIPTS_SETTINGS_FILENAME)
-    hooks_module, all_hooks_error = load_hooks(hooks_script_path)
     api = Markus(server_api_key, markus_address)
 
     with open(test_specs_path) as f:
@@ -699,27 +618,24 @@ def run_test(markus_address, server_api_key, test_categories, files_path, assign
                             'assignment_id': assignment_id,
                             'group_id': group_id,
                             'group_repo_name' : group_repo_name}
+            testers = {settings['tester_type'] for settings in test_specs['testers']}
+            hooks = Hooks(hooks_script_path, testers, cwd=tests_path, kwargs=hooks_kwargs)
             try:
-                _, script_files = setup_files(files_path, tests_path, markus_address, assignment_id)
-                all_hooks_error += run_hooks(hooks_module, HOOK_NAMES['before_all'], tests_path, kwargs=hooks_kwargs)
+                setup_files(files_path, tests_path, markus_address, assignment_id)
                 cmd = test_run_command(test_username=test_username)
-                results = run_test_specs(cmd,
-                                         markus_address,
-                                         test_specs,
-                                         test_categories,
-                                         tests_path,
-                                         test_username,
-                                         hooks_module,
-                                         script_files,
-                                         hook_kwargs=hooks_kwargs)
+                results, hooks_error = run_test_specs(cmd,
+                                                      test_specs,
+                                                      test_categories,
+                                                      tests_path,
+                                                      test_username,
+                                                      hooks)
             finally:
                 stop_tester_processes(test_username)
-                all_hooks_error += run_hooks(hooks_module, HOOK_NAMES['after_all'], tests_path, kwargs=hooks_kwargs)
                 clear_working_directory(tests_path, test_username)
     except Exception as e:
         error = str(e)
     finally:
-        results_data = finalize_results_data(results, error, all_hooks_error, time_to_service)
+        results_data = finalize_results_data(results, error, hooks_error, time_to_service)
         store_results(results_data, markus_address, assignment_id, group_id, submission_id)
         report(results_data, api, assignment_id, group_id, run_id)
 
@@ -743,8 +659,7 @@ def update_settings(settings, specs_dir):
     will overwrite any duplicate keys in the default settings files.
     """
     full_settings = {'install_data': {}}
-    install_settings_files = [os.path.join(specs_dir, 'default_install_settings.json'),
-                              os.path.join(specs_dir, 'install_settings.json')]
+    install_settings_files = [os.path.join(specs_dir, 'install_settings.json')]
     for settings_file in install_settings_files:
         if os.path.isfile(settings_file):
             with open(settings_file) as f:

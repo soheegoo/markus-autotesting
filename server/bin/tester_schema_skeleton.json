@@ -9,7 +9,6 @@
       "enum": [],
       "enumNames": []
     },
-    "extra_group_data": {},
     "installed_testers": {
       "type": "string",
       "enum": []
