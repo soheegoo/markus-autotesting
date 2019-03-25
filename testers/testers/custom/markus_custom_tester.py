@@ -1,8 +1,7 @@
 import subprocess
+from testers.markus_tester import MarkusTester
 
-
-class MarkusCustomTester:
-
+class MarkusCustomTester(MarkusTester):
     def __init__(self, specs):
         self.specs = specs
 
