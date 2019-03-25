@@ -1,7 +1,6 @@
 from contextlib import contextmanager
 import enum
 import json
-import os
 from abc import ABC, abstractmethod
 from functools import wraps
 
@@ -192,7 +191,6 @@ class MarkusTest(ABC):
         """
         Callback invoked before running a test.
         Use this for test initialization steps that can fail, rather than using test_class.__init__().
-        :param test: The test after initialization.
         """
         pass
 
@@ -200,7 +198,6 @@ class MarkusTest(ABC):
         """
         Callback invoked after successfully running a test.
         Use this to access test data in the tester. Don't use this for test cleanup steps, use test_class.run() instead.
-        :param test: The test after execution.
         """
         pass
 
