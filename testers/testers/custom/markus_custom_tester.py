@@ -1,7 +1,8 @@
 import subprocess
-import os
+
 
 class MarkusCustomTester:
+
     def __init__(self, specs):
         self.specs = specs
 
