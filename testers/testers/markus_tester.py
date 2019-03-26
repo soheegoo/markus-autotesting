@@ -3,6 +3,7 @@ import enum
 import json
 from abc import ABC, abstractmethod
 from functools import wraps
+import traceback
 
 
 class MarkusTest(ABC):
@@ -212,9 +213,8 @@ class MarkusTest(ABC):
                 self.before_test_run()
                 result_json = run_func(self, *args, **kwargs)
                 self.after_successful_test_run()
-            except Exception as e:
-                import traceback
-                result_json = self.error(message=str(traceback.format_tb(e.__traceback__)+[str(e)]))
+            except Exception:
+                result_json = self.error(message=traceback.format_exc())
             return result_json
         return run_func_wrapper
 
@@ -266,8 +266,8 @@ class MarkusTester(ABC):
             try:
                 self.before_tester_run()
                 return run_func(self, *args, **kwargs)
-            except Exception as e:
-                print(MarkusTester.error_all(message=str(e)), flush=True)
+            except Exception:
+                print(MarkusTester.error_all(message=traceback.format_exc()), flush=True)
             finally:
                 self.after_tester_run()
         return run_func_wrapper
