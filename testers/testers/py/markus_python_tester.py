@@ -1,13 +1,11 @@
 import os
 import tempfile
-import csv
 import unittest
 import pytest
 import sys
-import subprocess
 import xml.etree.ElementTree as eTree
-
 from testers.markus_tester import MarkusTester, MarkusTest
+
 
 class MarkusTextTestResults(unittest.TextTestResult):
     """
@@ -15,6 +13,7 @@ class MarkusTextTestResults(unittest.TextTestResult):
     a hash to self.results so they can be more easily 
     parsed by the MarkusPythonTest.run function
     """
+
     def __init__(self, stream, descriptions, verbosity):
         super().__init__(stream, descriptions, verbosity)
         self.results = []
@@ -41,10 +40,13 @@ class MarkusTextTestResults(unittest.TextTestResult):
                              'errors': self.errors[-1][-1],
                              'description': test._testMethodDoc})
 
+
 class AddDocstringToJunitXMLPlugin(object):
+
     def pytest_itemcollected(self, item):
         docstring = item.obj.__doc__ or ''
         item.user_properties.append(("description", docstring))
+
 
 class MarkusPythonTest(MarkusTest):
 
@@ -72,11 +74,11 @@ class MarkusPythonTest(MarkusTest):
         else:
             return self.error(message=self.message)
 
+
 class MarkusPythonTester(MarkusTester):
 
     def __init__(self, specs, test_class=MarkusPythonTest):
         super().__init__(specs, test_class)
-
 
     def _load_unittest_tests(self, test_file):
         """
@@ -148,7 +150,6 @@ class MarkusPythonTester(MarkusTester):
             finally:
                 sys.stdout = sys.__stdout__
         return results
-
 
     def run_python_tests(self):
         """
