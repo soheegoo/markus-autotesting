@@ -4,6 +4,7 @@ import json
 from abc import ABC, abstractmethod
 from functools import wraps
 
+
 class MarkusTest(ABC):
 
     class Status(enum.Enum):

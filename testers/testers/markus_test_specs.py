@@ -1,7 +1,9 @@
 import json
 from collections.abc import Mapping
 
+
 class MarkusTestSpecs(Mapping):
+
     def __init__(self, *args, **kwargs):
         self._specs = dict(*args, **kwargs)
 
