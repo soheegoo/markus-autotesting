@@ -18,10 +18,6 @@ class Test1(unittest.TestCase):
 
 class Test2(unittest.TestCase):
 
-    def test_loops(self):
-        """This test should timeout"""
-        submission.loop()
-
     def test_fails_and_outputs_json(self):
         """This test should fail and print json"""
         self.fail(submission.return_json())

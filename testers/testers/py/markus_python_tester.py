@@ -1,14 +1,11 @@
-import contextlib
 import os
 import tempfile
-import csv
 import unittest
 import pytest
 import sys
-import subprocess
 import xml.etree.ElementTree as eTree
-
 from testers.markus_tester import MarkusTester, MarkusTest
+
 
 class MarkusTextTestResults(unittest.TextTestResult):
     """
@@ -16,6 +13,7 @@ class MarkusTextTestResults(unittest.TextTestResult):
     a hash to self.results so they can be more easily 
     parsed by the MarkusPythonTest.run function
     """
+
     def __init__(self, stream, descriptions, verbosity):
         super().__init__(stream, descriptions, verbosity)
         self.results = []
@@ -42,10 +40,13 @@ class MarkusTextTestResults(unittest.TextTestResult):
                              'errors': self.errors[-1][-1],
                              'description': test._testMethodDoc})
 
+
 class AddDocstringToJunitXMLPlugin(object):
+
     def pytest_itemcollected(self, item):
         docstring = item.obj.__doc__ or ''
         item.user_properties.append(("description", docstring))
+
 
 class MarkusPythonTest(MarkusTest):
 
@@ -64,6 +65,7 @@ class MarkusPythonTest(MarkusTest):
             return f'{name} ({self.description})'
         return name
 
+    @MarkusTest.run_decorator
     def run(self):
         if self.status == "success":
             return self.passed(message=self.message)
@@ -72,11 +74,11 @@ class MarkusPythonTest(MarkusTest):
         else:
             return self.error(message=self.message)
 
+
 class MarkusPythonTester(MarkusTester):
 
     def __init__(self, specs, test_class=MarkusPythonTest):
         super().__init__(specs, test_class)
-
 
     def _load_unittest_tests(self, test_file):
         """
@@ -125,7 +127,7 @@ class MarkusPythonTester(MarkusTester):
         test_suite = self._load_unittest_tests(test_file)
         with open(os.devnull, 'w') as nullstream:    
             test_runner = unittest.TextTestRunner(
-                verbosity=self.specs.get('unittest_verbosity', 2),
+                verbosity=self.specs.get('test_data', 'output_verbosity', default=2),
                 stream=nullstream,
                 resultclass=MarkusTextTestResults)
             test_result = test_runner.run(test_suite)
@@ -141,39 +143,34 @@ class MarkusPythonTester(MarkusTester):
         with open(os.devnull, 'w') as null_out:
             try:
                 sys.stdout = null_out
-                verbosity=self.specs.get('pytest_tb_format', 'short')
+                verbosity = self.specs.get('test_data', 'output_verbosity', default='short')
                 with tempfile.NamedTemporaryFile(mode="w+", dir=this_dir) as sf:
-                    pytest.main([test_file, f'--junitxml={sf.name}', f'--tb={verbosity}'], plugins=[AddDocstringToJunitXMLPlugin()])
+                    pytest.main([test_file, f'--junitxml={sf.name}', f'--tb={verbosity}'],
+                                plugins=[AddDocstringToJunitXMLPlugin()])
                     results = list(self._parse_junitxml(sf))
             finally:
                 sys.stdout = sys.__stdout__
         return results
-
 
     def run_python_tests(self):
         """
         Return a dict mapping each filename to its results
         """
         results = {}
-        for group in self.specs['runnable_group']:
-            test_file = group.get('script_file_path')
-            if self.specs.get('tester', 'pytest') == 'unittest':
+        for test_file in self.specs.get('test_data', 'script_files', default=[]):
+            if self.specs.get('test_data', 'tester') == 'unittest':
                 result = self._run_unittest_tests(test_file)
             else:
                 result = self._run_pytest_tests(test_file)
             results[test_file] = result
         return results
 
+    @MarkusTester.run_decorator
     def run(self):
-        try:
-            results = self.run_python_tests()
-            with contextlib.ExitStack() as stack:
-                self.feedback_open = (stack.enter_context(open(self.specs['feedback_file'], 'w'))
-                                      if self.specs.get('feedback_file') is not None
-                                      else None)
-                for test_file, result in results.items():
-                    for res in result:
-                        test = self.test_class(self, test_file, res, self.feedback_open)
-                        print(test.run(), flush=True)
-        except Exception as e:
-            print(MarkusTester.error_all(message=str(e)), flush=True)
+        results = self.run_python_tests()
+        feedback_file = self.specs.get('test_data', 'feedback_file_name')
+        with MarkusTester.open_feedback(feedback_file) as feedback_open:
+            for test_file, result in results.items():
+                for res in result:
+                    test = self.test_class(self, test_file, res, feedback_open)
+                    print(test.run(), flush=True)
