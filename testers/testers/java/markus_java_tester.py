@@ -4,6 +4,7 @@ import subprocess
 
 from testers.markus_tester import MarkusTester, MarkusTest
 
+
 class MarkusJavaTest(MarkusTest):
 
     class JUnitStatus(enum.Enum):
@@ -20,7 +21,7 @@ class MarkusJavaTest(MarkusTest):
         self.class_name, _sep, self.method_name = result['name'].partition('.')
         self.description = result.get('description')
         self.status = MarkusJavaTest.JUnitStatus[result['status']]
-        self.message = result.get('message', None)
+        self.message = result.get('message')
         super().__init__(tester, feedback_open)
 
     @property
@@ -64,7 +65,6 @@ class MarkusJavaTester(MarkusTester):
 
     @MarkusTester.run_decorator
     def run(self):
-        # TODO Create an interface in markus_tester for running all tests at once, when using native test libraries
         # check that the submission compiles against the tests
         try:
             self.compile()
