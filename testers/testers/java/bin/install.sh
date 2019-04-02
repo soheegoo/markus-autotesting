@@ -16,8 +16,7 @@ compile_tester() {
 
 update_specs() {
     echo "[JAVA-INSTALL] Updating specs"
-    cp ${TESTERDIR}/specs/default_install_settings.json ${TESTERDIR}/specs/install_settings.json
-    sed -i -e "s#/path/to/tester/jars#${JAVADIR}/build/install/MarkusJavaTester/lib#g" ${TESTERDIR}/specs/install_settings.json
+    echo '{}' | jq ".path_to_tester_jars = \"${JAVADIR}/build/install/MarkusJavaTester/lib\"" > ${TESTERDIR}/specs/install_settings.json
 }
 
 # script starts here

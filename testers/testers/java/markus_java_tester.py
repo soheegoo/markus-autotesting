@@ -1,4 +1,3 @@
-import contextlib
 import enum
 import json
 import subprocess
@@ -31,6 +30,7 @@ class MarkusJavaTest(MarkusTest):
             name += f' ({self.description})'
         return name
 
+    @MarkusTest.run_decorator
     def run(self):
         if self.status == MarkusJavaTest.JUnitStatus.SUCCESSFUL:
             return self.passed()
@@ -46,49 +46,42 @@ class MarkusJavaTester(MarkusTester):
 
     def __init__(self, specs, test_class=MarkusJavaTest):
         super().__init__(specs, test_class)
-        self.java_classpath = f'.:{specs["path_to_tester_jars"]}/*'
+        self.java_classpath = f'.:{self.specs["install_data", "path_to_tester_jars"]}/*'
 
     def compile(self):
         javac_command = ['javac', '-cp', self.java_classpath]
-        javac_command.extend([group.get('script_file_path', '') for group in self.specs['runnable_group']])
+        javac_command.extend(self.specs.get('test_data', 'script_files', default=[]))
         # student files imported by tests will be compiled on cascade
         subprocess.run(javac_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True,
                        check=True)
 
     def run_junit(self):
         java_command = ['java', '-cp', self.java_classpath, MarkusJavaTester.JAVA_TESTER_CLASS]
-        javac_command.extend([group.get('script_file_path', '') for group in self.specs['runnable_group']])
+        java_command.extend(self.specs.get('test_data', 'script_files', default=[]))
         java = subprocess.run(java_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True,
                               check=True)
         return java
 
+    @MarkusTester.run_decorator
     def run(self):
         # TODO Create an interface in markus_tester for running all tests at once, when using native test libraries
+        # check that the submission compiles against the tests
         try:
-            # check that the submission compiles against the tests
-            try:
-                self.compile()
-            except subprocess.CalledProcessError as e:
-                msg = MarkusJavaTest.ERRORS['bad_javac'].format(e.stdout)
-                print(MarkusTester.error_all(message=msg), flush=True)
-                return
-            # run the tests with junit
-            try:
-                results = self.run_junit()
-                if results.stderr:
-                    print(MarkusTester.error_all(message=results.stderr), flush=True)
-                    return
-            except subprocess.CalledProcessError as e:
-                msg = MarkusJavaTest.ERRORS['bad_java'].format(e.stdout + e.stderr)
-                print(MarkusTester.error_all(message=msg), flush=True)
-                return
-            with contextlib.ExitStack() as stack:
-                feedback_open = (stack.enter_context(open(self.specs['feedback_file'], 'w'))
-                                 if self.specs.get('feedback_file') is not None
-                                 else None)
-                for result in json.loads(results.stdout):
-                    test = self.test_class(self, result, feedback_open)
-                    result_json = test.run()
-                    print(result_json, flush=True)
-        except Exception as e:
-            print(MarkusTester.error_all(message=str(e)), flush=True)
+            self.compile()
+        except subprocess.CalledProcessError as e:
+            msg = MarkusJavaTest.ERRORS['bad_javac'].format(e.stdout)
+            raise type(e)(msg) from e
+        # run the tests with junit
+        try:
+            results = self.run_junit()
+            if results.stderr:
+                raise Exception(results.stderr)
+        except subprocess.CalledProcessError as e:
+            msg = MarkusJavaTest.ERRORS['bad_java'].format(e.stdout + e.stderr)
+            raise type(e)(msg) from e
+        feedback_file = self.specs.get('test_data', 'feedback_file_name')
+        with MarkusTester.open_feedback(feedback_file) as feedback_open:
+            for result in json.loads(results.stdout):
+                test = self.test_class(self, result, feedback_open)
+                result_json = test.run()
+                print(result_json, flush=True)
