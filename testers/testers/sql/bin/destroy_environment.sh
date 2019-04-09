@@ -35,8 +35,9 @@ if [[ $# -lt 1 ]]; then
     exit 1
 fi
 
+# vars
 SETTINGS_JSON=$1
-
 ENV_DIR=$(echo ${SETTINGS_JSON} | jq --raw-output .env_loc)
 
+# main
 remove_schemas

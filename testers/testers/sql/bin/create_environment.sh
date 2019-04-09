@@ -107,8 +107,10 @@ PIP_REQUIREMENTS='psycopg2-binary'
 SOLUTION_DIR=${ENV_DIR}/solution
 
 THIS_SCRIPT=$(readlink -f ${BASH_SOURCE})
-TESTERS_DIR=${THIS_SCRIPT%/*/*/*/*}
+THIS_DIR=$(dirname ${THIS_SCRIPT})
+TESTERS_DIR=$(readlink -f ${THIS_DIR}/../../../)
 
+# main
 create_venv
 move_files
 load_solutions_to_db
