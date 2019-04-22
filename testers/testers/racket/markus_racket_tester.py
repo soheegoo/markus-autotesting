@@ -1,5 +1,3 @@
-import contextlib
-import enum
 import json
 import subprocess
 import os
@@ -9,19 +7,17 @@ from testers.markus_tester import MarkusTester, MarkusTest
 
 class MarkusRacketTest(MarkusTest):
 
-    def __init__(self, tester, feedback_open, test_file, result):
+    def __init__(self, tester, feedback_open, result):
         self._test_name = result['name']
         self.status = result['status']
-        self.message = self.format_message(result)
+        self.message = result['message']
         super().__init__(tester, feedback_open)
 
     @property
     def test_name(self):
         return self._test_name
 
-    def format_message(self, result):
-        return result['message']
-
+    @MarkusTest.run_decorator
     def run(self):
         if self.status == "pass":
             return self.passed()
@@ -45,37 +41,31 @@ class MarkusRacketTester(MarkusTester):
         """
         results = {}
         markus_rkt = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'lib', 'markus.rkt')
-        for group in self.specs['runnable_group']:
-            test_file = group.get('script_file_path')
-            suite_name = group['test_suite_name']
-            cmd = [markus_rkt, '--test-suite', suite_name, test_file]
-            rkt = subprocess.run(cmd, stdout=subprocess.PIPE, universal_newlines=True)
-            results[test_file] = rkt.stdout
+        for group in self.specs.get('test_data', 'script_files', default=[]):
+            test_file = group.get('script_file')
+            if test_file:
+                suite_name = group.get('test_suite_name', 'all-tests')
+                cmd = [markus_rkt, '--test-suite', suite_name, test_file]
+                rkt = subprocess.run(cmd, stdout=subprocess.PIPE, universal_newlines=True)
+                results[test_file] = rkt.stdout
         return results
         
+    @MarkusTester.run_decorator
     def run(self):
         try:
-            try:
-                results = self.run_racket_test()
-            except subprocess.CalledProcessError as e:
-                msg = e.stdout + e.stderr
-                print(MarkusTester.error_all(message=msg), flush=True)
-                return
-            with contextlib.ExitStack() as stack:
-                feedback_open = (stack.enter_context(open(self.specs['feedback_file'], 'w'))
-                                 if self.specs.get('feedback_file') is not None
-                                 else None)
-                for test_file, result in results.items():
-                    if result.strip():
-                        try:
-                            test_results = json.loads(result)
-                        except json.JSONDecodeError:
-                            msg = MarkusRacketTester.ERROR_MSGS['bad_json'].format(result)
-                            print(MarkusTester.error_all(message=msg), flush=True)
-                            continue
-                        for t_result in test_results:
-                            test = self.test_class(self, feedback_open, test_file, t_result)
-                            print(test.run(), flush=True)
-        except Exception as e:
-            print(MarkusTester.error_all(message=str(e)), flush=True)
-            raise e
+            results = self.run_racket_test()
+        except subprocess.CalledProcessError as e:
+            msg = e.stdout + e.stderr
+            raise type(e)(msg) from e
+        feedback_file = self.specs.get('test_data', 'feedback_file_name')
+        with MarkusTester.open_feedback(feedback_file) as feedback_open:
+            for test_file, result in results.items():
+                if result.strip():
+                    try:
+                        test_results = json.loads(result)
+                    except json.JSONDecodeError as e:
+                        msg = MarkusRacketTester.ERROR_MSGS['bad_json'].format(result)
+                        raise type(e)(msg) from e
+                    for t_result in test_results:
+                        test = self.test_class(self, feedback_open, t_result)
+                        print(test.run(), flush=True)
