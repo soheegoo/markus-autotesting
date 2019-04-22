@@ -141,7 +141,7 @@ def get_schema(**kw):
     This json schema should be used to generate a UI with react-jsonschema-form
     (https://github.com/mozilla-services/react-jsonschema-form) or similar.
     """
-    this_dir = os.path.dirname(__file__)
+    this_dir = os.path.dirname(os.path.abspath(__file__))
     root_dir = os.path.dirname(this_dir)
 
     with open(os.path.join(this_dir, 'bin', 'tester_schema_skeleton.json')) as f:
