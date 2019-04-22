@@ -1,0 +1,78 @@
+{
+  "properties": {
+    "tester_type": {
+      "enum": [
+        "haskell"
+      ]
+    },
+    "test_data": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "script_file",
+          "name",
+          "timeout",
+          "test_timeout",
+          "test_cases"
+        ],
+        "properties": {
+          "script_files": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/definitions/files_list"
+            },
+            "uniqueItems": true
+          },
+          "category": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/definitions/test_data_categories"
+            },
+            "uniqueItems": true
+          },
+          "timeout": {
+            "type": "integer",
+            "default": 30
+          },
+          "test_timeout": {
+            "type": "integer",
+            "default": 10
+          },
+          "test_cases": {
+            "type": "integer",
+            "default": 100
+          },
+          "feedback_file_name": {
+            "type": "string"
+          },
+          "extra_info": {
+            "$ref": "#/definitions/extra_group_data"
+          }
+        },
+        "dependencies": {
+          "feedback_file_name": {
+            "properties": {
+              "upload_feedback_to_repo": {
+                "type": "boolean",
+                "default": false
+              },
+              "upload_feedback_file": {
+                "type": "boolean",
+                "default": false
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "required": [
+    "test_data",
+    "tester_type",
+    "tester_name"
+  ]
+}
