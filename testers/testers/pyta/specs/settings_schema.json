@@ -1,0 +1,99 @@
+{
+  "properties": {
+    "tester_type": {
+      "enum": [
+        "pyta"
+      ]
+    },
+    "env_data": {
+      "type": "object",
+      "properties": {
+        "python_version": {
+          "type": "string",
+          "enum": [
+            "3.7",
+            "3.6"
+          ],
+          "default": "3.7"
+        },
+        "pip_requirements": {
+          "type": "string"
+        }
+      }
+    },
+    "test_data": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "student_file",
+          "name",
+          "timeout"
+        ],
+        "properties": {
+          "student_files": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "properties": {
+                "file_path": {
+                  "type": "string"
+                },
+                "max_points": {
+                  "type": "integer",
+                  "default": 10
+                }
+              }
+            }
+          },
+          "config_file_name": {
+            "$ref": "#/definitions/files_list"
+          },
+          "category": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/definitions/test_data_categories"
+            },
+            "uniqueItems": true
+          },
+          "timeout": {
+            "type": "integer",
+            "default": 30
+          },
+          "feedback_file_name": {
+            "type": "string"
+          },
+          "extra_info": {
+            "$ref": "#/definitions/extra_group_data"
+          }
+        },
+        "dependencies": {
+          "feedback_file_name": {
+            "properties": {
+              "upload_feedback_to_repo": {
+                "type": "boolean",
+                "default": false
+              },
+              "upload_feedback_file": {
+                "type": "boolean",
+                "default": false
+              },
+              "upload_annotations": {
+                "type": "boolean",
+                "default": false
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "required": [
+    "test_data",
+    "tester_type",
+    "tester_name"
+  ]
+}
