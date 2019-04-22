@@ -1,5 +1,3 @@
-import contextlib
-import enum
 import json
 import subprocess
 import os
@@ -9,18 +7,15 @@ from testers.markus_tester import MarkusTester, MarkusTest
 
 class MarkusRacketTest(MarkusTest):
 
-    def __init__(self, tester, feedback_open, test_file, result):
+    def __init__(self, tester, feedback_open, result):
         self._test_name = result['name']
         self.status = result['status']
-        self.message = self.format_message(result)
+        self.message = result['message']
         super().__init__(tester, feedback_open)
 
     @property
     def test_name(self):
         return self._test_name
-
-    def format_message(self, result):
-        return result['message']
 
     @MarkusTest.run_decorator
     def run(self):
@@ -72,5 +67,5 @@ class MarkusRacketTester(MarkusTester):
                         msg = MarkusRacketTester.ERROR_MSGS['bad_json'].format(result)
                         raise type(e)(msg) from e
                     for t_result in test_results:
-                        test = self.test_class(self, feedback_open, test_file, t_result)
+                        test = self.test_class(self, feedback_open, t_result)
                         print(test.run(), flush=True)
