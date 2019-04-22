@@ -7,7 +7,7 @@ create_venv() {
     python${PY_VERSION} -m venv ${VENV_DIR}
     source ${VENV_DIR}/bin/activate
     pip install wheel
-    pip install -r <(echo ${PIP_REQUIREMENTS} | sed 's/\s\+/\n/g')
+    pip install -r <(echo ${PIP_REQUIREMENTS} | sed 's/\s\+/\n/g') # sub spaces for newlines
     local pth_file=${VENV_DIR}/lib/python${PY_VERSION}/site-packages/lib.pth
     echo ${LIB_DIR} >> ${pth_file}
     echo ${TESTERS_DIR} >> ${pth_file}
@@ -27,7 +27,8 @@ PIP_REQUIREMENTS="python-ta $(echo ${SETTINGS_JSON} | jq --raw-output .env_data.
 
 VENV_DIR=${ENV_DIR}/venv
 THIS_SCRIPT=$(readlink -f ${BASH_SOURCE})
-LIB_DIR=${THIS_SCRIPT%/*/*}/lib
-TESTERS_DIR=${THIS_SCRIPT%/*/*/*/*}
+THIS_DIR=$(dirname ${THIS_SCRIPT})
+LIB_DIR=$(readlink -f ${THIS_DIR}/../lib)
+TESTERS_DIR=$(readlink -f ${THIS_DIR}/../../../)
 
 create_venv
