@@ -70,17 +70,6 @@ class Hooks:
         self._context = deque()
 
     @staticmethod
-    def _load(module, function_name):
-        """ 
-        Return function named function_name from module or None if the function
-        doesn't exist in that module's namespace. 
-        """
-        try:
-            return getattr(module, function_name)
-        except AttributeError:
-            return
-
-    @staticmethod
     def _select_builtins(tester_info, _info=None):
         """
         Return a nested dictionary containing the hooks to apply based
@@ -156,12 +145,12 @@ class Hooks:
         
         for hook_name in Hooks.HOOK_BASENAMES:
             hook_type, hook_context = hook_name.split('_') # eg. "before_all" -> ("before", "all")
-            custom_hook = Hooks._load(custom_hooks_module, hook_name)
+            custom_hook = self._load_hook(custom_hooks_module, hook_name)
             builtin_hook = builtin_hooks.DEFAULT_HOOKS.get(hook_name)
             hooks[None][hook_context][hook_type].extend([custom_hook, builtin_hook])
             for tester_type in self.testers:
                 tester_hook_name = f'{hook_name}_{tester_type}'
-                custom_hook = Hooks._load(custom_hooks_module, tester_hook_name)
+                custom_hook = self._load_hook(custom_hooks_module, tester_hook_name)
                 builtin_hook = builtin_hooks.DEFAULT_HOOKS.get(tester_hook_name)
                 hooks[tester_type][hook_context][hook_type].extend([custom_hook, builtin_hook])
         return hooks
@@ -184,6 +173,21 @@ class Hooks:
             except Exception:
                 self.load_errors.append((module_name, traceback.format_exc()))
         return None
+
+    def _load_hook(self, module, function_name):
+        """
+        Return function named function_name from module or None if the function
+        doesn't exist in that module's namespace or if the function is not a
+        Callable object.
+        """
+        try:
+            func = getattr(module, function_name)
+            if isinstance(func, Callable):
+                return func
+            else:
+                self.load_errors.append((module.__name__, f'hook function {function_name} is not callable'))
+        except AttributeError:
+            return
 
     def _run(self, func, extra_args=None, extra_kwargs=None):
         """
@@ -238,14 +242,12 @@ class Hooks:
                 try:
                     with current_directory(cwd or self.cwd):
                         for hook in before:
-                            if isinstance(hook, Callable):
-                                self._run(hook, extra_args, extra_kwargs)
+                            self._run(hook, extra_args, extra_kwargs)
                     yield
                 finally:
                     with current_directory(cwd or self.cwd):
                         for hook in after:
-                            if isinstance(hook, Callable):
-                                self._run(hook, extra_args, extra_kwargs)
+                            self._run(hook, extra_args, extra_kwargs)
             else:
                 yield
         finally:
