@@ -48,7 +48,7 @@ class Hooks:
     """
     HOOK_BASENAMES = ['before_all', 'before_each', 'after_all', 'after_each']
 
-    def __init__(self, custom_hooks_path=None, testers=[], cwd=None, args=[], kwargs={}):
+    def __init__(self, custom_hooks_path=None, testers=None, cwd=None, args=None, kwargs=None):
         """
         Create a new Hooks object instance with args:
 
@@ -60,10 +60,10 @@ class Hooks:
         kwargs: kwargs to pass to each hook
         """
         self.custom_hooks_path = custom_hooks_path
-        self.testers = testers
+        self.testers = [] if testers is None else testers
         self.cwd = cwd
-        self.args = args
-        self.kwargs = kwargs
+        self.args = [] if args is None else []
+        self.kwargs = {} if kwargs is None else {}
         self.load_errors = []
         self.run_errors = []
         self.hooks = self._load_all()
@@ -185,13 +185,13 @@ class Hooks:
                 self.load_errors.append((module_name, traceback.format_exc()))
         return None
 
-    def _run(self, func, extra_args=[], extra_kwargs={}):
+    def _run(self, func, extra_args=None, extra_kwargs=None):
         """
         Run the function func with positional and keyword arguments obtained by 
         merging self.args with extra_args and self.kwargs with extra_kwargs.
         """
-        args = self.args+extra_args
-        kwargs = {**self.kwargs, **extra_kwargs}
+        args = self.args+(extra_args or [])
+        kwargs = {**self.kwargs, **(extra_kwargs or {})}
         try:
             func(*args, **kwargs)
         except BaseException as e:
@@ -223,7 +223,7 @@ class Hooks:
 
 
     @contextmanager
-    def around(self, tester_type, builtin_selector=None, extra_args=[], extra_kwargs={}, cwd=None, dry_run=False):
+    def around(self, tester_type, builtin_selector=None, extra_args=None, extra_kwargs=None, cwd=None, dry_run=False):
         """
         Context manager used to run hooks around any block of code. Hooks are selected based on the tester type (one
         of 'all', 'each', or the name of a tester), a builtin_selector (usually the test settings for a given test
