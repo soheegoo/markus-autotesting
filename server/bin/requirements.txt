@@ -1,6 +1,6 @@
 redis
 requests
 rq
-git+https://github.com/Supervisor/supervisor@master
+supervisor
 pyyaml
 git+https://github.com/MarkusProject/markus-api.git@master
