@@ -223,33 +223,12 @@ class Hooks:
 
 
     @contextmanager
-    def around(self, tester_type, builtin_selector=None, extra_args=None, extra_kwargs=None, cwd=None, dry_run=False):
+    def around(self, tester_type, builtin_selector=None, extra_args=None, extra_kwargs=None, cwd=None):
         """
         Context manager used to run hooks around any block of code. Hooks are selected based on the tester type (one
         of 'all', 'each', or the name of a tester), a builtin_selector (usually the test settings for a given test
         group). If extra_args or extra_kwargs are specified, these will be passed to each hook in addition to self.args
-        and self.kwargs. If cwd is specified, each hook will be run as if the current working directory were cwd. If
-        dry_run is True, then print the name of each hook function instead of running the function itself. 
-
-        >>> h = hooks_context.Hooks('../../doc/hooks.py', testers=['custom'], kwargs={})
-        >>> with h.around('all', dry_run=True):
-                with h.around('custom', dry_run=True):
-                    for _ in range(2):
-                        with h.around('each', builtin_selector={'upload_feedback_to_repo': True}, dry_run=True):
-                            print('TEST')
-        before_all
-        before_all_custom
-        clear_feedback_file
-        before_each
-        TEST
-        after_each
-        upload_feedback_to_repo
-        clear_feedback_file
-        before_each
-        TEST
-        after_each
-        upload_feedback_to_repo
-        after_all
+        and self.kwargs. If cwd is specified, each hook will be run as if the current working directory were cwd.
         """
         before, after = self._get_hooks(tester_type, builtin_selector)
         if tester_type not in {'all', 'each'}:
@@ -260,19 +239,13 @@ class Hooks:
                     with current_directory(cwd or self.cwd):
                         for hook in before:
                             if isinstance(hook, Callable):
-                                if dry_run:
-                                    print(hook.__name__)
-                                else:
-                                    self._run(hook, extra_args, extra_kwargs)
+                                self._run(hook, extra_args, extra_kwargs)
                     yield
                 finally:
                     with current_directory(cwd or self.cwd):
                         for hook in after:
                             if isinstance(hook, Callable):
-                                if dry_run:
-                                    print(hook.__name__)
-                                else:
-                                    self._run(hook, extra_args, extra_kwargs)
+                                self._run(hook, extra_args, extra_kwargs)
             else:
                 yield
         finally:
