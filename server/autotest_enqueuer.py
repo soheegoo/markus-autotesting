@@ -131,7 +131,15 @@ def cancel_test(markus_address, run_ids, **kw):
     with rq.Connection(ats.redis_connection()):
         for run_id in run_ids:
             job_id = format_job_id(markus_address, run_id)
-            rq.cancel_job(job_id)
+            try:
+                job = rq.job.Job.fetch(job_id)
+            except rq.exceptions.NoSuchJobError:
+                return
+            if job.is_queued():
+                files_path = job.kwargs['files_path']
+                if files_path:
+                    shutil.rmtree(files_path, onerror=ats.ignore_missing_dir_error)
+                job.cancel()
 
 def get_schema(**kw):
     """
