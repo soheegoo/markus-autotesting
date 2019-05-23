@@ -31,4 +31,5 @@ THIS_DIR=$(dirname ${THIS_SCRIPT})
 LIB_DIR=$(readlink -f ${THIS_DIR}/../lib)
 TESTERS_DIR=$(readlink -f ${THIS_DIR}/../../../)
 
+# main
 create_venv
