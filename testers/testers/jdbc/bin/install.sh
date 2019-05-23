@@ -4,7 +4,7 @@ set -e
 
 install_packages() {
     echo "[JDBC-INSTALL] Installing system packages"
-    sudo apt-get install openjdk-8-jdk python3
+    sudo apt-get install python3 openjdk-12-jdk jq
 }
 
 install_sql_tester() {
@@ -18,10 +18,10 @@ install_sql_tester() {
 
 update_specs() {
     echo "[JDBC-INSTALL] Updating settings file"
+    local sql_install_settings_file=${SQLDIR}/specs/install_settings.json
     local install_settings_file=${SPECSDIR}/install_settings.json
-    cp "${SQLDIR}/specs/install_settings.json" ${install_settings_file}
-    local settings=$(cat ${install_settings_file} | jq ".path_to_jdbc_jar = \"${JARPATH}\"") 
-    echo ${settings} > ${install_settings_file}
+    local settings=$(cat ${sql_install_settings_file} | jq ".path_to_jdbc_jar = \"${JARPATH}\"")
+    echo ${settings} >| ${install_settings_file}
 }
 
 # script starts here
