@@ -67,10 +67,8 @@ create_sql() {
 
 load_solution() {
     local oracle_db=$(echo ${SETTINGS_JSON} | jq --raw-output .install_data.oracle_database)
-    local oracle_user=$(whoami)
-    local temp_log=/tmp/tmp.sql
-    echo $(create_sql) >| ${temp_log}
-    psql -U ${oracle_user} -d ${oracle_db} -h localhost -f ${temp_log}
+    local oracle_user=${oracle_db}
+    psql -U ${oracle_user} -d ${oracle_db} -h localhost -f <(create_sql)
 }
 
 clean_files() {

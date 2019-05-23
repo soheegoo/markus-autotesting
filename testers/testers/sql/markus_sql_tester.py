@@ -41,7 +41,7 @@ class MarkusSQLTest(MarkusTest):
 
     @property
     def test_name(self):
-        return f'{self.query_name}.{self.data_name}.{self.order_by or ""}'
+        return f'{self.query_name}.{self.data_name}'
 
     def select_query(self, schema_name, table_name):
         query = 'SELECT * FROM %(schema)s.%(table)s'
