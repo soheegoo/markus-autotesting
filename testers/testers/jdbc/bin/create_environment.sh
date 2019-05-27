@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 set -e
+shopt -s extglob
 
 create_venv() {
     rm -rf ${VENV_DIR} # clean up existing venv if any
@@ -77,8 +78,8 @@ create_sql() {
                     schemas="${schemas} ${schema_name} "
                 fi
                 local solution_sql=$(create_solution_sql ${schema_name} ${test_name_db})
+                local java_out=$(java -cp ${SOLUTION_DIR}:${JAR_PATH} MarkusJDBCTest ${oracle_db} ${oracle_user} ${oracle_pwd} placeholder ${test_name} ${schema_name} false 2>&1)
                 echo "${schema_sql} ${solution_sql}"
-                local java_out=$(PGPASSWORD=${oracle_pwd} java -cp ${SOLUTION_DIR}:${JAR_PATH} MarkusJDBCTest ${oracle_db} ${oracle_user} placeholder ${schema_name} ${test_name} ${data_name} false)
             done
         done
     done
@@ -91,7 +92,6 @@ load_solution() {
 }
 
 clean_files() {
-    shopt -s extglob
     rm -f ${SOLUTION_DIR}/!(@(MarkusJDBCTest*.class|JDBCSubmission*.class)) # deletes all but those files
 }
 
