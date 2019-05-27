@@ -38,7 +38,7 @@ public class MarkusJDBCTest {
     private String userName;
     private String userPassword;
     private String schemaName;
-    private String dataName;
+    private String oracleSchemaName;
     private String className;
     private String methodName;
     private boolean orderOn;
@@ -46,22 +46,25 @@ public class MarkusJDBCTest {
     private JDBCSubmission testSubmission;
 
     public MarkusJDBCTest(String oracleDatabase, String testDatabase, String userName, String userPassword,
-                          String schemaName, String dataName, String className, String methodName, boolean orderOn) {
+                          String schemaName, String oracleSchemaName, String className, String methodName,
+                          boolean orderOn) {
 
         this.oracleDatabase = oracleDatabase;
         this.testDatabase = testDatabase;
         this.userName = userName;
         this.userPassword = userPassword;
         this.schemaName = schemaName;
-        this.dataName = dataName;
+        this.oracleSchemaName = oracleSchemaName;
         this.className = className;
         this.methodName = methodName;
         this.orderOn = orderOn;
     }
 
-    private static Object[] getInputs(String className, String methodName, String dataName) {
-
+    private static Object[] getInputs(String className, String methodName, String oracleSchemaName) {
         //TODO getInputs should be part of the specs
+        int split = oracleSchemaName.lastIndexOf("_");
+        String dataName = oracleSchemaName.substring(split+1);
+
         switch (className) {
         case "CorrectNoOrder":
         case "CorrectWithOrder":
@@ -101,10 +104,10 @@ public class MarkusJDBCTest {
         }
     }
 
-    private static Object runMethod(Class<?> methodClass, Object methodObject, String methodName, String dataName)
-                          throws Exception {
+    private static Object runMethod(Class<?> methodClass, Object methodObject, String methodName,
+                                    String oracleSchemaName) throws Exception {
 
-        Object[] inputs = MarkusJDBCTest.getInputs(methodClass.getSimpleName(), methodName, dataName);
+        Object[] inputs = MarkusJDBCTest.getInputs(methodClass.getSimpleName(), methodName, oracleSchemaName);
         if (inputs == null) {
             throw new Exception("Inputs not found");
         }
@@ -175,7 +178,7 @@ public class MarkusJDBCTest {
 
     private Object getOracleResults() throws Exception {
 
-        String sql = MessageFormat.format("SELECT java_output FROM {0}.{1}_{2}", this.dataName,
+        String sql = MessageFormat.format("SELECT java_output FROM {0}.{1}_{2}", this.oracleSchemaName,
                                           this.className.toLowerCase(), this.methodName.toLowerCase());
         PreparedStatement statement = this.oracleConnection.prepareStatement(sql);
         ResultSet resultSet = statement.executeQuery();
@@ -193,7 +196,7 @@ public class MarkusJDBCTest {
 
         MarkusJDBCTest.setSchema(this.testSubmission.connection, this.schemaName);
         return MarkusJDBCTest.runMethod(this.testSubmission.getClass(), this.testSubmission, this.methodName,
-                                        this.dataName);
+                                        this.oracleSchemaName);
     }
 
     private TestStatus checkResults(Object oracleResults, Object testResults) {
@@ -272,18 +275,16 @@ public class MarkusJDBCTest {
         }
     }
 
-    private static void initTestEnv(String oracleDatabase, String userName, String dataName, String className,
-                                    String methodName) {
+    private static void createSolution(String oracleDatabase, String oracleUserName, String oraclePassword,
+                                       String oracleSchemaName, String className, String methodName) {
 
         JDBCSubmission solution = null;
         try {
-            String userPassword = new String(System.console().readPassword(
-                MessageFormat.format("Password for user {0}: ", userName))); // avoids logging it
             System.out.println(MessageFormat.format("[JDBC-Java] Running method ''{0}.{1}()''", className, methodName));
-            solution = (JDBCSubmission) Class.forName(className).newInstance();
-            solution.connectDB(JDBC_PREAMBLE + oracleDatabase, userName, userPassword);
-            MarkusJDBCTest.setSchema(solution.connection, dataName);
-            Object javaOutput = MarkusJDBCTest.runMethod(solution.getClass(), solution, methodName, dataName);
+            solution = (JDBCSubmission) Class.forName(className).getDeclaredConstructor().newInstance();
+            solution.connectDB(JDBC_PREAMBLE + oracleDatabase, oracleUserName, oraclePassword);
+            MarkusJDBCTest.setSchema(solution.connection, oracleSchemaName);
+            Object javaOutput = MarkusJDBCTest.runMethod(solution.getClass(), solution, methodName, oracleSchemaName);
             System.out.println("[JDBC-Java] Storing output into solution table");
             byte[] byteOutput;
             try (ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
@@ -311,13 +312,12 @@ public class MarkusJDBCTest {
     }
 
     public static void main(String args[]) {
-
         String oracleDatabase = args[0];
         String userName = args[1];
         String userPassword = args[2];
         String schemaName = args[3];
         String testName = args[4];
-        String dataName = args[5];
+        String oracleSchemaName = args[5];
         boolean orderOn = Boolean.valueOf(args[6]);
         String testDatabase = (args.length > 7) ? args[7] : null;
         String[] testNames = testName.split("\\.");
@@ -325,12 +325,14 @@ public class MarkusJDBCTest {
         String methodName = testNames[1];
 
         if (testDatabase == null) { // installation
-            //TODO userPassword, schemaName and orderOn are useless here
-            MarkusJDBCTest.initTestEnv(oracleDatabase, userName, dataName, className, methodName);
+            //TODO schemaName and orderOn are useless here
+            //TODO userPassword is logged in the shell, should not be passed for the oracle
+            MarkusJDBCTest.createSolution(oracleDatabase, userName, userPassword, oracleSchemaName, className,
+                                          methodName);
         }
         else { // run test
             MarkusJDBCTest test = new MarkusJDBCTest(oracleDatabase, testDatabase, userName, userPassword, schemaName,
-                                                     dataName, className, methodName, orderOn);
+                                                     oracleSchemaName, className, methodName, orderOn);
             test.run();
         }
     }
