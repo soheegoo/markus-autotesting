@@ -1,4 +1,3 @@
-import collections
 import os
 import subprocess
 
@@ -32,7 +31,10 @@ class MarkusJDBCTest(MarkusSQLTest):
 
     @property
     def test_name(self):
-        return f'{self.class_name}.{self.method}'
+        if self.data_file:
+            return f'{self.class_name}.{self.method}.{self.data_name}'
+        else:
+            return f'{self.class_name}.{self.method}'
 
     def check_java(self):
         java_command = ['java', '-cp', self.tester.java_classpath, self.__class__.__name__, self.tester.oracle_database,
