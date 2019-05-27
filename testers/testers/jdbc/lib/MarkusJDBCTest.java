@@ -62,8 +62,8 @@ public class MarkusJDBCTest {
 
     private static Object[] getInputs(String className, String methodName, String oracleSchemaName) {
         //TODO getInputs should be part of the specs
-        String[] schemaSplit = oracleSchemaName.split("_");
-        String dataName = schemaSplit[1];
+        int split = oracleSchemaName.lastIndexOf("_");
+        String dataName = oracleSchemaName.substring(split+1);
 
         switch (className) {
         case "CorrectNoOrder":

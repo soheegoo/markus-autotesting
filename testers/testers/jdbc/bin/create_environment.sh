@@ -54,10 +54,10 @@ create_solution_sql() {
     "
 }
 
-create_sql() {
-    local oracle_db=$1
-    local oracle_user=$2
-    local oracle_pwd=$(grep -Po "(?<=${oracle_user}:)(.*)$" ${HOME}/.pgpass)
+load_solution() {
+    local oracle_db=$(echo ${SETTINGS_JSON} | jq --raw-output .install_data.oracle_database)
+    local oracle_user=${oracle_db}
+    local oracle_pwd=$(grep -Po "(?<=${oracle_user}:)([^:]*)$" ${HOME}/.pgpass)
     local schemas=""
     local tester_name=$(basename ${ENV_DIR})
     local files_json=$(echo ${SETTINGS_JSON} | jq --compact-output '.test_data | .[] | .class_files | .[]')
@@ -78,17 +78,11 @@ create_sql() {
                     schemas="${schemas} ${schema_name} "
                 fi
                 local solution_sql=$(create_solution_sql ${schema_name} ${test_name_db})
+                psql -U ${oracle_user} -d ${oracle_db} -h localhost -f <(echo "${schema_sql} ${solution_sql}")
                 local java_out=$(java -cp ${SOLUTION_DIR}:${JAR_PATH} MarkusJDBCTest ${oracle_db} ${oracle_user} ${oracle_pwd} placeholder ${test_name} ${schema_name} false 2>&1)
-                echo "${schema_sql} ${solution_sql}"
             done
         done
     done
-}
-
-load_solution() {
-    local oracle_db=$(echo ${SETTINGS_JSON} | jq --raw-output .install_data.oracle_database)
-    local oracle_user=${oracle_db}
-    psql -U ${oracle_user} -d ${oracle_db} -h localhost -f <(create_sql ${oracle_db} ${oracle_user})
 }
 
 clean_files() {
