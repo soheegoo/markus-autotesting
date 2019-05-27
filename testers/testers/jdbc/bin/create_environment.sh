@@ -86,7 +86,7 @@ load_solution() {
 }
 
 clean_files() {
-    rm -f ${SOLUTION_DIR}/!(@(MarkusJDBCTest*.class|JDBCSubmission*.class)) # deletes all but those files
+    rm -f ${SOLUTION_DIR}/!(@(MarkusJDBCTest*.class|JDBCSubmission*.class|*.sql|*.ddl)) # deletes all but those files
 }
 
 # script starts here

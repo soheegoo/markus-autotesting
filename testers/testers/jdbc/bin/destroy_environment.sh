@@ -2,30 +2,20 @@
 
 set -e
 
-get_data_files() {
-    echo ${SETTINGS_JSON} | 
-        jq --raw-output '
-            [.test_data[] |
-             .class_files[] |
-             .class_methods[]? |
-             .data_files[]? |
-             .data_file
-            ] |
-            unique[]'
-}
-
-remove_schema_string() {
+remove_schema_sql() {
     local tester_name=$(basename ${ENV_DIR})
-    while read -r data_file; do
-        schema_name="${tester_name}_$(basename -s .sql ${data_file})"
+    local data_files=$(echo ${SETTINGS_JSON} | jq --raw-output '[.test_data[] | .class_files[] | .class_methods[]? |
+                                                                .data_files[]? | .data_file] | unique[]')
+    for data_file in ${data_files}; do
+        local schema_name="${tester_name}_$(basename -s .sql ${data_file})"
         echo "DROP SCHEMA IF EXISTS ${schema_name} CASCADE; "        
-    done < <(get_data_files)
+    done
 }
 
-remove_schemas() {
+remove_solution() {
     local oracle_db=$(echo ${SETTINGS_JSON} | jq --raw-output .install_data.oracle_database)
     local oracle_user=${oracle_db}
-    psql -U ${oracle_user} -d ${oracle_db} -h localhost -f <(remove_schema_string)
+    psql -U ${oracle_user} -d ${oracle_db} -h localhost -f <(remove_schema_sql)
 }
 
 # script starts here
@@ -34,8 +24,9 @@ if [[ $# -lt 1 ]]; then
     exit 1
 fi
 
+#vars
 SETTINGS_JSON=$1
-
 ENV_DIR=$(echo ${SETTINGS_JSON} | jq --raw-output .env_loc)
 
-remove_schemas
+#main
+remove_solution
