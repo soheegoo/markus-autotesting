@@ -2,6 +2,9 @@
 All notable changes to this project will be documented here.
 
 ## [unreleased]
+- Updated development docker image to connect to the development MarkUs docker image (#238)
+
+## [1.9.0]
 - allow tests to write to existing subdirectories but not overwrite existing test script files (#237).
 - add ability to create a docker container for the autotester in development mode (#236).
 - major reorganization of the structure of this package (#236).
@@ -11,7 +14,6 @@ All notable changes to this project will be documented here.
     - configuration file defaults are now included in the source code so the autotester can be run with or without a
       user specific configuration file.
     - changed the default location for the workspace directory.
-- Updated development docker image to connect to the development MarkUs docker image (#238)
 
 ## [1.8.1]
 _NOTE: This changelog starts from version 1.8.1 (changes prior to this version are not documented)_
