@@ -1,7 +1,6 @@
 import os
 import sys
 import json
-from collections import defaultdict
 from typing import Any, Optional, IO, Type, Dict
 
 import python_ta
@@ -13,19 +12,13 @@ from testers.markus_tester import MarkusTester, MarkusTest
 
 
 class MarkusPyTAReporter(PositionReporter):
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        """
-        Initialize a new reporter for python_ta that allows error
-        messages to be stored in a separate attribute.
-        """
-        super().__init__(self, *args, **kwargs)
-        self._sorted_error_messages = defaultdict(list)
-
     def print_messages(self, level="all"):
         """
         Print error and warning messages to a feedback file
         """
         PlainReporter.print_messages(self, level)
+        self._sorted_error_messages.clear()
+        self._sorted_style_messages.clear()
         super().print_messages(level)
 
     def output_blob(self) -> None:
