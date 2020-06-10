@@ -9,6 +9,7 @@ import subprocess
 import signal
 import rq
 import tempfile
+import getpass
 from typing import Optional, Dict, Union, List, Tuple
 
 from autotester.exceptions import TesterCreationError
@@ -16,22 +17,15 @@ from autotester.config import config
 from autotester.server.utils.string_management import loads_partial_json, decode_if_bytes
 from autotester.server.utils.user_management import (
     get_reaper_username,
-    current_user,
     tester_user,
 )
 from autotester.server.utils.file_management import (
-    random_tmpfile_name,
     copy_tree,
     ignore_missing_dir_error,
-    fd_open,
-    fd_lock,
     recursive_iglob,
     clean_dir_name,
 )
-from autotester.server.utils.resource_management import (
-    set_rlimits_before_cleanup,
-    set_rlimits_before_test,
-)
+from autotester.server.utils.resource_management import set_rlimits_before_test
 from autotester.server.utils.redis_management import (
     clean_after,
     test_script_directory,
@@ -117,17 +111,17 @@ def _kill_with_reaper(test_username: str) -> bool:
     reaper_username = get_reaper_username(test_username)
     if reaper_username is not None:
         cwd = os.path.dirname(os.path.abspath(__file__))
-        kill_file_dst = random_tmpfile_name()
 
-        copy_cmd = "sudo -u {0} -- bash -c 'cp kill_worker_procs {1} && chmod 4550 {1}'".format(
-            test_username, kill_file_dst
-        )
-        copy_proc = subprocess.Popen(copy_cmd, shell=True, preexec_fn=set_rlimits_before_cleanup, cwd=cwd)
-        if copy_proc.wait() < 0:  # wait returns the return code of the proc
-            return False
+        with tempfile.NamedTemporaryFile() as f:
+            copy_cmd = "sudo -u {0} -- bash -c 'cp kill_worker_procs {1} && chmod 4550 {1}'".format(
+                test_username, f.name
+            )
+            copy_proc = subprocess.Popen(copy_cmd, shell=True, cwd=cwd)
+            if copy_proc.wait() < 0:  # wait returns the return code of the proc
+                return False
 
-        kill_cmd = "sudo -u {} -- bash -c {}".format(reaper_username, kill_file_dst)
-        kill_proc = subprocess.Popen(kill_cmd, shell=True, preexec_fn=set_rlimits_before_cleanup)
+            kill_cmd = "sudo -u {} -- bash -c {}".format(reaper_username, f.name)
+            kill_proc = subprocess.Popen(kill_cmd, shell=True)
         return kill_proc.wait() == 0
     return False
 
@@ -207,7 +201,7 @@ def _run_test_specs(
                         settings_json = json.dumps({**settings, "test_data": test_data}).encode("utf-8")
                         out, err = proc.communicate(input=settings_json, timeout=timeout)
                     except subprocess.TimeoutExpired:
-                        if test_username == current_user():
+                        if test_username == getpass.getuser():
                             pgrp = os.getpgid(proc.pid)
                             os.killpg(pgrp, signal.SIGKILL)
                         else:
@@ -240,7 +234,7 @@ def _clear_working_directory(tests_path: str, test_username: str) -> None:
     """
     Run commands that clear the tests_path working directory
     """
-    if test_username != current_user():
+    if test_username != getpass.getuser():
         chmod_cmd = f"sudo -u {test_username} -- bash -c 'chmod -Rf ugo+rwX {tests_path}'"
     else:
         chmod_cmd = f"chmod -Rf ugo+rwX {tests_path}"
@@ -259,7 +253,7 @@ def _stop_tester_processes(test_username: str) -> None:
     user processes or killing with a reaper user (see https://lwn.net/Articles/754980/
     for reference).
     """
-    if test_username != current_user():
+    if test_username != getpass.getuser():
         if not _kill_with_reaper(test_username):
             _kill_without_reaper(test_username)
 
@@ -289,13 +283,21 @@ def _copy_test_script_files(client: ClientType, tests_path: str) -> List[Tuple[s
     Copy test script files for a given assignment to the tests_path
     directory if they exist. tests_path may already exist and contain
     files and subdirectories.
+
+    If the call to copy_tree raises a FileNotFoundError because the test
+    script directory has changed, retry the call to this function.
     """
     test_script_outer_dir = test_script_directory(client.unique_script_str())
     test_script_dir = os.path.join(test_script_outer_dir, FILES_DIRNAME)
     if os.path.isdir(test_script_dir):
-        with fd_open(test_script_dir) as fd:
-            with fd_lock(fd, exclusive=False):
-                return copy_tree(test_script_dir, tests_path)
+        try:
+            return copy_tree(test_script_dir, tests_path)
+        except FileNotFoundError:
+            if test_script_directory(client.unique_script_str()) != test_script_outer_dir:
+                _clear_working_directory(tests_path, getpass.getuser())
+                return _copy_test_script_files(client, tests_path)
+            else:
+                raise
     return []
 
 
@@ -476,7 +478,5 @@ def update_test_specs(client_type: str, client_data: Dict) -> None:
     test_script_directory(unique_script_str, set_to=new_dir)
 
     if old_test_script_dir is not None and os.path.isdir(old_test_script_dir):
-        with fd_open(old_test_script_dir) as fd:
-            with fd_lock(fd, exclusive=True):
-                _destroy_tester_environments(old_test_script_dir)
-                shutil.rmtree(old_test_script_dir, onerror=ignore_missing_dir_error)
+        _destroy_tester_environments(old_test_script_dir)
+        shutil.rmtree(old_test_script_dir, onerror=ignore_missing_dir_error)
