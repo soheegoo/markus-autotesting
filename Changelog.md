@@ -2,6 +2,11 @@
 All notable changes to this project will be documented here.
 
 ## [unreleased]
+- Fix bug where zip archive was unpacked two levels deep instead of just one (#271) 
+- Pass PGHOST and PGINFO environment variables to tests (#272)
+- Update to new version of markus-api that supports uploading binary files (#273)
+- Fix bug where environment variables were not string types (#274)
+- Add python3.9 as a tester option for the py and pyta testers, as well as the installer (#275)
 
 ## [v1.10.2]
 - Updated java tester to support configurable classpaths and source files (#268)
