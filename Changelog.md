@@ -2,6 +2,8 @@
 All notable changes to this project will be documented here.
 
 ## [unreleased]
+
+## [v1.10.3]
 - Fix bug where zip archive was unpacked two levels deep instead of just one (#271) 
 - Pass PGHOST and PGINFO environment variables to tests (#272)
 - Update to new version of markus-api that supports uploading binary files (#273)
