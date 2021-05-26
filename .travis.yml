@@ -5,6 +5,11 @@ python:
   - "3.7"
   - "3.8"
   - "3.9"
-# command to run tests
+env:
+  - TESTDIR=client
+  - TESTDIR=server AUTOTESTER_CONFIG=$TRAVIS_BUILD_DIR/server/autotest_server/tests/fixtures/test_config.yml
+install:
+  - pip install -r $TESTDIR/requirements.txt
+  - pip install pytest fakeredis
 script:
-  - python setup.py test
+  - pytest $TESTDIR
