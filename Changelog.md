@@ -2,6 +2,7 @@
 All notable changes to this project will be documented here.
 
 ## [unreleased]
+- Full rewrite of autotester with a server/client architecture (#283)
 - Add Jupyter tester (#284)
 
 ## [v1.10.3]
