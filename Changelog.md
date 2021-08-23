@@ -1,7 +1,7 @@
 # CHANGELOG
 All notable changes to this project will be documented here.
 
-## [unreleased]
+## [v2.0.0]
 - Full rewrite of autotester with a server/client architecture (#283)
 - Add Jupyter tester (#284)
 
