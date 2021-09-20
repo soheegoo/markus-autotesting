@@ -2,6 +2,8 @@
 All notable changes to this project will be documented here.
 
 ## [unreleased]
+
+## [v2.0.1]
 - Update python-ta tester to be compatible with python-ta version 2 (#296)
 - Improve error message when tester virtual environment fails (#297)
 - Fix bug when reporting a schema that doesn't exist (#298)
