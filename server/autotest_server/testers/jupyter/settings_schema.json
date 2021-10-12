@@ -55,7 +55,7 @@
                 "test_merge": {
                   "title": "Test that files can be merged",
                   "type": "boolean",
-                  "default": "false"
+                  "default": false
                 }
               }
             },
