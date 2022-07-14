@@ -286,7 +286,7 @@ def get_feedback_file(settings_id, tests_id, feedback_id, **_kw):
         abort(make_response(jsonify(message="File doesn't exist"), 404))
     _redis_connection().delete(key)
     return send_file(
-        io.BytesIO(data), mimetype="application/gzip", as_attachment=True, attachment_filename=str(feedback_id)
+        io.BytesIO(data), mimetype="application/gzip", as_attachment=True, download_name=str(feedback_id)
     )
 
 
