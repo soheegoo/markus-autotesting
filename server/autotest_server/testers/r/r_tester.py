@@ -21,7 +21,7 @@ class RTest(Test):
         The result was created after running the tests in test_file and test feedback
         will be written to feedback_open.
         """
-        self._test_name = ':'.join(info for info in [test_file, result.get('context'), result['test']] if info)
+        self._test_name = ":".join(info for info in [test_file, result.get("context"), result["test"]] if info)
         self.result = result["results"]
         super().__init__(tester, feedback_open)
         self.points_total = 0
@@ -45,7 +45,7 @@ class RTest(Test):
             elif result["type"] == "expectation_error":
                 error = True
                 self.points_total += 1
-                messages.append('\n'.join(result["trace"]))
+                messages.append("\n".join(result["trace"]))
 
         message = "\n\n".join(messages)
         if error:
@@ -76,14 +76,16 @@ class RTester(Tester):
         Return test results for each test file. Results contain a list of parsed test results.
         """
         results = {}
-        r_tester = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'lib', 'r_tester.R')
+        r_tester = os.path.join(os.path.dirname(os.path.realpath(__file__)), "lib", "r_tester.R")
         for test_file in self.specs["test_data", "script_files"]:
-            proc = subprocess.run(['Rscript', r_tester, test_file],
-                                  stdout=subprocess.PIPE,
-                                  stderr=subprocess.PIPE,
-                                  universal_newlines=True,
-                                  # NO_COLOR is used to ensure R tracebacks are printed without ANSI color codes
-                                  env={**os.environ, 'NO_COLOR': '1'})
+            proc = subprocess.run(
+                ["Rscript", r_tester, test_file],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True,
+                # NO_COLOR is used to ensure R tracebacks are printed without ANSI color codes
+                env={**os.environ, "NO_COLOR": "1"},
+            )
             if not results.get(test_file):
                 results[test_file] = []
             if proc.returncode == 0:
