@@ -294,9 +294,7 @@ def get_feedback_file(settings_id, tests_id, feedback_id, **_kw):
     if data is None:
         abort(make_response(jsonify(message="File doesn't exist"), 404))
     _redis_connection().delete(key)
-    return send_file(
-        io.BytesIO(data), mimetype="application/gzip", as_attachment=True, download_name=str(feedback_id)
-    )
+    return send_file(io.BytesIO(data), mimetype="application/gzip", as_attachment=True, download_name=str(feedback_id))
 
 
 @app.route("/settings/<settings_id>/tests/status", methods=["GET"])

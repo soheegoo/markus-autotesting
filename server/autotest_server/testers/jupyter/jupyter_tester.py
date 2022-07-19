@@ -75,7 +75,7 @@ class JupyterTester(Tester):
             try:
                 sys.stdout = null_out
                 plugin = JupyterPlugin()
-                pytest.main([test_file], plugins=['notebook_helper.pytest.notebook_collector_plugin', plugin])
+                pytest.main([test_file], plugins=["notebook_helper.pytest.notebook_collector_plugin", plugin])
                 results.extend(plugin.results.values())
             finally:
                 sys.stdout = sys.__stdout__
@@ -92,11 +92,9 @@ class JupyterTester(Tester):
         finally:
             os.unlink(tempf.name)
 
-    def test_merge(self,
-                   test_file: str,
-                   submission_file: str,
-                   feedback_open: Optional[IO],
-                   make_test: bool = False) -> None:
+    def test_merge(
+        self, test_file: str, submission_file: str, feedback_open: Optional[IO], make_test: bool = False
+    ) -> None:
         error = None
         try:
             merger.check(test_file, submission_file)

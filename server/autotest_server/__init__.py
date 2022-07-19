@@ -93,7 +93,7 @@ def _create_test_script_command(tester_type: str) -> str:
         f'sys.path.append("{os.path.dirname(os.path.abspath(__file__))}")',
         import_line,
         "from testers.specs import TestSpecs",
-        f"Tester(specs=TestSpecs.from_json(sys.stdin.read())).run()",
+        "Tester(specs=TestSpecs.from_json(sys.stdin.read())).run()",
     ]
     python_str = "; ".join(python_lines)
     return f"\"${{PYTHON}}\" -c '{python_str}'"
