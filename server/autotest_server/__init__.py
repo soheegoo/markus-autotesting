@@ -327,6 +327,8 @@ def run_test(settings_id, test_id, files_url, categories, user, test_env_vars):
     error = None
     try:
         settings = json.loads(redis_connection().hget("autotest:settings", key=settings_id))
+        settings["_last_access"] = int(time.time())
+        redis_connection().hset("autotest:settings", key=settings_id, value=json.dumps(settings))
         test_username, tests_path = tester_user()
         try:
             _setup_files(settings_id, user, files_url, tests_path, test_username)
@@ -393,4 +395,5 @@ def update_test_settings(user, settings_id, test_settings, file_url):
         raise
     finally:
         test_settings["_user"] = user
+        test_settings["_last_access"] = int(time.time())
         redis_connection().hset("autotest:settings", key=settings_id, value=json.dumps(test_settings))
