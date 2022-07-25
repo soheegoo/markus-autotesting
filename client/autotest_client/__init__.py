@@ -66,7 +66,7 @@ def _handle_error(e):
         f.write(f"{datetime.now()}\n\tuser: {api_key}\n\t{traceback.format_exc()}\n")
         f.flush()
     if not app.debug:
-        error = str(e).replace(api_key, '[client-api-key]')
+        error = str(e).replace(api_key, "[client-api-key]")
     return jsonify(message=error), code
 
 
