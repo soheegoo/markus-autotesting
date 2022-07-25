@@ -4,6 +4,7 @@ All notable changes to this project will be documented here.
 ## [unreleased]
 - Support dependencies on specific package versions and non-CRAN sources for R tester (#323) 
 - Allow client to define environment variables to pass to individual test runs (#370)
+- Add ability to clean up test scripts that haven't been used for X days (#379)
 
 ## [v2.1.0]
 - Add R tester (#310)
