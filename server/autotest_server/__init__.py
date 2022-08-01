@@ -51,27 +51,30 @@ def run_test_command(test_username: Optional[str] = None) -> str:
 
 
 def _create_test_group_result(
-    stdout: str,
-    stderr: str,
-    run_time: int,
-    extra_info: Dict,
-    feedback: Dict,
-    timeout: Optional[int] = None,
+    stdout: str, stderr: str, run_time: int, extra_info: Dict, feedback: List, timeout: Optional[int] = None
 ) -> ResultData:
     """
     Return the arguments passed to this function in a dictionary. If stderr is
     falsy, change it to None. Load the json string in stdout as a dictionary.
     """
-    test_results, malformed = loads_partial_json(stdout, dict)
-    return {
+    all_results, malformed = loads_partial_json(stdout, dict)
+    result = {
         "time": run_time,
         "timeout": timeout,
-        "tests": test_results,
+        "tests": [],
         "stderr": stderr or None,
         "malformed": stdout if malformed else None,
         "extra_info": extra_info or {},
-        **feedback,
+        "annotations": None,
+        "feedback": feedback,
     }
+    for res in all_results:
+        if "annotations" in res:
+            result["annotations"] = res["annotations"]
+        else:
+            result["tests"].append(res)
+
+    return result
 
 
 def _kill_user_processes(test_username: str) -> None:
@@ -132,10 +135,9 @@ def _get_env_vars(test_username: str) -> Dict[str, str]:
 
 
 def _get_feedback(test_data, tests_path, test_id):
-    feedback_file = test_data.get("feedback_file_name")
-    annotation_file = test_data.get("annotation_file")
-    result = {"feedback": None, "annotations": None}
-    if feedback_file:
+    feedback_files = test_data.get("feedback_file_names", [])
+    feedback = []
+    for feedback_file in feedback_files:
         feedback_path = os.path.join(tests_path, feedback_file)
         if os.path.isfile(feedback_path):
             with open(feedback_path, "rb") as f:
@@ -144,22 +146,17 @@ def _get_feedback(test_data, tests_path, test_id):
                 key = f"autotest:feedback_file:{test_id}:{id_}"
                 conn.set(key, gzip.compress(f.read()))
                 conn.expire(key, 3600)  # TODO: make this configurable
-                result["feedback"] = {
-                    "filename": feedback_file,
-                    "mime_type": mimetypes.guess_type(feedback_path)[0],
-                    "compression": "gzip",
-                    "id": id_,
-                }
-    if annotation_file and test_data.get("upload_annotations"):
-        annotation_path = os.path.join(tests_path, annotation_file)
-        if os.path.isfile(annotation_path):
-            with open(annotation_path, "rb") as f:
-                try:
-                    result["annotations"] = json.load(f)
-                except json.JSONDecodeError as e:
-                    f.seek(0)
-                    raise Exception(f"Invalid annotation json: {f.read()}") from e
-    return result
+                feedback.append(
+                    {
+                        "filename": feedback_file,
+                        "mime_type": mimetypes.guess_type(feedback_path)[0] or "text/plain",
+                        "compression": "gzip",
+                        "id": id_,
+                    }
+                )
+        else:
+            raise Exception(f"Cannot find feedback file at '{feedback_path}'.")
+    return feedback
 
 
 def _update_env_vars(base_env: Dict, test_env: Dict) -> Dict:
