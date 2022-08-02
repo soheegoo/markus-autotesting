@@ -60,19 +60,21 @@ def _handle_error(e):
         code = e.code
     with _open_log(ERROR_LOG, fallback=sys.stderr) as f:
         try:
-            user = _authorize_user()
+            api_key = request.headers.get("Api-Key")
         except Exception:
-            user = "ERROR: user not found"
-        f.write(f"{datetime.now()}\n\tuser: {user}\n\t{traceback.format_exc()}\n")
+            api_key = "ERROR: user not found"
+        f.write(f"{datetime.now()}\n\tuser: {api_key}\n\t{traceback.format_exc()}\n")
         f.flush()
+    if not app.debug:
+        error = str(e).replace(api_key, "[client-api-key]")
     return jsonify(message=error), code
 
 
-def _check_rate_limit(user_name):
+def _check_rate_limit(api_key):
     conn = _redis_connection()
-    key = f"autotest:ratelimit:{user_name}:{datetime.now().minute}"
+    key = f"autotest:ratelimit:{api_key}:{datetime.now().minute}"
     n_requests = conn.get(key) or 0
-    user_limit = conn.get(f"autotest:ratelimit:{user_name}:limit") or 20  # TODO: make default limit configurable
+    user_limit = conn.get(f"autotest:ratelimit:{api_key}:limit") or 20  # TODO: make default limit configurable
     if int(n_requests) > int(user_limit):
         abort(make_response(jsonify(message="Too many requests"), 429))
     else:
@@ -87,7 +89,7 @@ def _authorize_user():
     user_name = (_redis_connection().hgetall("autotest:user_credentials") or {}).get(api_key)
     if user_name is None:
         abort(make_response(jsonify(message="Unauthorized"), 401))
-    _check_rate_limit(user_name)
+    _check_rate_limit(api_key)
     return api_key
 
 
