@@ -7,6 +7,7 @@ All notable changes to this project will be documented here.
 - Multiple feedback files can now be created per test run (#375)
 - PyTA plaintext reports are sent as part of the test result, not as a feedback file (#375)
 - Allow client to define environment variables to pass to individual test runs (#370)
+- Add ability to clean up test scripts that haven't been used for X days (#379)
 
 ## [v2.1.0]
 - Add R tester (#310)
