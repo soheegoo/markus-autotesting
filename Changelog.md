@@ -2,6 +2,8 @@
 All notable changes to this project will be documented here.
 
 ## [unreleased]
+
+## [v2.2.0]
 - Support dependencies on specific package versions and non-CRAN sources for R tester (#323)
 - Testers no longer generate automated content for feedback files (#375)
 - Multiple feedback files can now be created per test run (#375)
