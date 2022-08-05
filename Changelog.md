@@ -9,6 +9,12 @@ All notable changes to this project will be documented here.
 - Allow client to define environment variables to pass to individual test runs (#370)
 - Add ability to clean up test scripts that haven't been used for X days (#379)
 
+## [v2.1.2]
+- Support dependencies on specific package versions and non-CRAN sources for R tester (#323) 
+
+## [v2.1.1]
+- Remove the requirement for clients to send unique user name (#318)
+
 ## [v2.1.0]
 - Add R tester (#310)
 
