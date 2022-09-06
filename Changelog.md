@@ -2,6 +2,8 @@
 All notable changes to this project will be documented here.
 
 ## [unreleased]
+
+## [v2.2.1]
 - Raise error if rq or supervisord executables can't be found when running start_stop.py (#390)
 - Bump python-ta version to 2.3.2 (#391)
 
