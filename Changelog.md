@@ -2,6 +2,8 @@
 All notable changes to this project will be documented here.
 
 ## [unreleased]
+
+## [v2.3.0]
 - Remove support for python3.6 and add support for python3.10 (#399)
 - Remove requirement to skip top level directory in zip archive when downloading test files (#412)
 
