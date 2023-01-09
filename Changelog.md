@@ -2,6 +2,7 @@
 All notable changes to this project will be documented here.
 
 ## [unreleased]
+- Fix a bug that prevented test file from being copied from a zip file to another location on disk (#426)
 
 ## [v2.3.0]
 - Remove support for python3.6 and add support for python3.10 (#399)
