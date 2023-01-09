@@ -2,6 +2,8 @@
 All notable changes to this project will be documented here.
 
 ## [unreleased]
+
+## [v2.3.1]
 - Fix a bug that prevented test file from being copied from a zip file to another location on disk (#426)
 
 ## [v2.3.0]
