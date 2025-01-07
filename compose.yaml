@@ -35,7 +35,7 @@ services:
       - REDIS_URL=redis://redis:6379/
       - FLASK_HOST=0.0.0.0
     ports:
-      - '5000:5000'
+      - '5000:5001'
     depends_on:
       - redis
       - server
