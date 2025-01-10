@@ -15,8 +15,9 @@
       "type": "object",
       "properties": {
         "requirements": {
-          "title": "Package requirements",
-          "type": "string"
+          "title": "renv lockfile submitted",
+          "type": "boolean", 
+          "default": false
         }
       }
     },
