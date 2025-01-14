@@ -2,6 +2,7 @@
 All notable changes to this project will be documented here.
 
 ## [unreleased]
+- Update R tester to allow a renv.lock file (#581)
 
 ## [v2.6.0]
 - Update python versions in docker file (#568)
