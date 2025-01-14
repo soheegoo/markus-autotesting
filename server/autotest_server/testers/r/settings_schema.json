@@ -13,11 +13,16 @@
     "env_data": {
       "title": "R environment",
       "type": "object",
+      "required": ["renv.lock"],
       "properties": {
-        "requirements": {
-          "title": "renv lockfile submitted",
-          "type": "boolean", 
+        "renv.lock": {
+          "title": "renv.lock submitted with test files",
+          "type": "boolean",
           "default": false
+        },
+        "requirements": {
+          "title": "Package requirements",
+          "type": "string"
         }
       }
     },
