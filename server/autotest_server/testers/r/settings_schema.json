@@ -13,10 +13,9 @@
     "env_data": {
       "title": "R environment",
       "type": "object",
-      "required": ["renv.lock"],
       "properties": {
         "renv.lock": {
-          "title": "renv.lock submitted with test files",
+          "title": "Use renv to set up environment",
           "type": "boolean",
           "default": false
         },
