@@ -2,6 +2,7 @@
 All notable changes to this project will be documented here.
 
 ## [unreleased]
+- Update python, pyta and jupyter testers to allow a requirements file (#580)
 
 ## [v2.6.0]
 - Update python versions in docker file (#568)
