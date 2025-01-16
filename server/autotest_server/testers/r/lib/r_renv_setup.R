@@ -1,7 +1,7 @@
 # Script to install dependencies for R tester environment using a renv.lock file. 
 
 # Install renv if not already installed
-if (!("renv" %in% installed.packages())) {
+if (!("renv" %in% rownames(installed.packages()))) {
   install.packages("renv")
 }
 library(renv)
